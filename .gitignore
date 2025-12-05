@@ -8,6 +8,7 @@ __pycache__/
 
 Output/
 data/
+old_reports/
 
 # Distribution / packaging
 .Python
