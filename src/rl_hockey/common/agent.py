@@ -1,18 +1,18 @@
 from abc import ABC, abstractmethod
 
-from rl_hockey.common.buffer import Buffer
+from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
     def __init__(self):
-        self.buffer = Buffer()
+        self.buffer = ReplayBuffer()
 
-    def store_transaction(self, transaction):
-        """Stores a transaction in the replay buffer."""
-        self.buffer.store(transaction)
+    def store_transition(self, transition):
+        """Stores a transition in the replay buffer."""
+        self.buffer.store(transition)
 
     @abstractmethod
-    def act(self, state):
+    def act(self, state, deterministic=False):
         """Returns the action for a given state according to the current policy."""
         pass
 

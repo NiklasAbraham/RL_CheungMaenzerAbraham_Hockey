@@ -2,6 +2,9 @@
 
 This repository contains the reinforcement learning implementation for the Hockey environment.
 
+1. [Conda Environment Setup](#conda-environment-setup)
+2. [Developing](#developing)
+
 ## Conda Environment Setup
 
 ### Create and Activate Conda Environment
@@ -49,3 +52,12 @@ conda env export > environment.yml
 pip freeze > requirements.txt
 ```
 
+## Developing
+
+To set up the development environment, install the package in editable mode:
+
+```bash
+pip install -e .
+```
+
+Use absolute imports everywhere in the codebase to avoid import issues, e.g., `from rl_hockey.sac import SAC`.
