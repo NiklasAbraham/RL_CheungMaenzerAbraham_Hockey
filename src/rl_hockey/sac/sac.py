@@ -1,23 +1,40 @@
+import os
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.distributions import Normal
 
 from rl_hockey.common import Agent
+from rl_hockey.common.noise import NormalNoise, PinkNoise
 from rl_hockey.sac.models import Actor, Critic
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# https://arxiv.org/pdf/1812.05905
 class SAC(Agent):
-    def __init__(self, state_dim, action_dim, batch_size=256, learning_rate=3e-4, discount=0.99, tau=0.005, alpha=0.2, learn_alpha=True):
+    def __init__(self, state_dim, action_dim, **user_config):
         super().__init__()
 
-        self.batch_size = batch_size
-        self.discount = discount
-        self.tau = tau
-        self.learn_alpha = learn_alpha
+        self.state_dim = state_dim
+        self.action_dim = action_dim
+
+        self.config = {
+            'batch_size': 256,
+            'learning_rate': 3e-4,
+            'discount': 0.99,
+            'tau': 0.005,
+            'alpha': 0.2,
+            'learn_alpha': True,
+            'noise': 'normal',
+            'max_episode_steps': 1000,
+        }
+        self.config.update(user_config)
+
+        self.batch_size = self.config['batch_size']
+        self.learning_rate = self.config['learning_rate']
+        self.discount = self.config['discount']
+        self.tau = self.config['tau']
 
         self.actor = Actor(state_dim, action_dim).to(DEVICE)
 
@@ -29,24 +46,37 @@ class SAC(Agent):
         self.critic2_target = Critic(state_dim, action_dim).to(DEVICE)
         self.critic2_target.load_state_dict(self.critic2.state_dict())
 
-        self.critic_optimizer = optim.Adam(list(self.critic1.parameters()) + list(self.critic2.parameters()), lr=learning_rate)
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=learning_rate)
+        self.critic_optimizer = optim.Adam(list(self.critic1.parameters()) + list(self.critic2.parameters()), lr=self.learning_rate)
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.learning_rate)
 
-        if self.learn_alpha:
+        if self.config['learn_alpha']:
             self.target_entropy = -action_dim
 
             self.log_alpha = torch.zeros(1, requires_grad=True, device=DEVICE)
-            self.alpha_optimizer = optim.Adam([self.log_alpha], lr=learning_rate)
+            self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
 
             self.alpha = self.log_alpha.exp()
         else:
-            self.alpha = alpha
+            self.alpha = self.config['alpha']
+
+        match self.config['noise']:
+            case 'normal':
+                self.noise_dist = NormalNoise(self.action_dim)
+            case 'pink':
+                self.noise_dist = PinkNoise(self.action_dim, self.config['max_episode_steps'])
+            case _:
+                raise ValueError(f"Unknown noise type: {self.config['noise']}") 
 
     def act(self, state, deterministic=False):
         with torch.no_grad():
             state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
 
-            action, _ = self.actor.sample(state, deterministic=deterministic, calc_log_prob=False)
+            if deterministic:
+                noise = torch.zeros((1, self.action_dim), device=DEVICE)
+            else:
+                noise = self.noise_dist.sample().unsqueeze(0).to(DEVICE)
+
+            action, _ = self.actor.sample(state, noise=noise, calc_log_prob=False)
 
             return action.squeeze(0).cpu().numpy()
 
@@ -111,7 +141,7 @@ class SAC(Agent):
             actor_losses.append(actor_loss.item())
 
             # update temperature
-            if self.learn_alpha:
+            if self.config['learn_alpha']:
                 alpha_loss = -self.log_alpha * (log_prob.detach() + self.target_entropy)
                 alpha_loss = alpha_loss.mean()
 
@@ -129,3 +159,44 @@ class SAC(Agent):
                 pt.data.copy_(self.tau*p.data + (1 - self.tau)*pt.data)
 
         return {'critic_loss': critic_losses, 'actor_loss': actor_losses}
+
+    def save(self, filepath):
+        if not os.path.exists(os.path.dirname(filepath)):
+            os.makedirs(os.path.dirname(filepath))
+
+        if not filepath.endswith('.pt'):
+            filepath += '.pt'
+
+        checkpoint = {
+            'actor': self.actor.state_dict(),
+            'critic1': self.critic1.state_dict(),
+            'critic1_target': self.critic1_target.state_dict(),
+            'critic2': self.critic2.state_dict(),
+            'critic2_target': self.critic2_target.state_dict(),
+            'critic_optimizer': self.critic_optimizer.state_dict(),
+            'actor_optimizer': self.actor_optimizer.state_dict(),
+            'log_alpha': self.log_alpha if self.config['learn_alpha'] else None,
+            'alpha_optimizer': self.alpha_optimizer.state_dict() if self.config['learn_alpha'] else None,
+        }
+
+        torch.save(checkpoint, filepath)
+
+    def load(self, filepath):
+        checkpoint = torch.load(filepath)
+
+        self.actor.load_state_dict(checkpoint['actor'])
+        self.critic1.load_state_dict(checkpoint['critic1'])
+        self.critic1_target.load_state_dict(checkpoint['critic1_target'])
+        self.critic2.load_state_dict(checkpoint['critic2'])
+        self.critic2_target.load_state_dict(checkpoint['critic2_target'])
+        self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer'])
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer'])
+
+        if self.config['learn_alpha']:
+            self.log_alpha = checkpoint['log_alpha']
+            self.alpha_optimizer.load_state_dict(checkpoint['alpha_optimizer'])
+            self.alpha = self.log_alpha.exp()
+
+    def on_episode_start(self, episode):
+        if self.config['noise'] == 'pink':
+            self.noise_dist.reset()
