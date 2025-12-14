@@ -42,23 +42,21 @@ class Actor(nn.Module):
         log_std = torch.clamp(log_std, -20, 2)
         return mean, log_std
     
-    def sample(self, state, deterministic=False, calc_log_prob=True):
+    def sample(self, state, noise=None, calc_log_prob=True):
         mean, log_std = self.forward(state)
         std = log_std.exp()
-        dist = Normal(mean, std)
 
-        if deterministic:
-            action = mean
-        else:
-            action = dist.rsample()
+        if noise is None:
+            noise = torch.randn_like(mean)
+
+        action = mean + std*noise
         action_squashed = torch.tanh(action)
 
         log_prob = None
         if calc_log_prob:
+            dist = Normal(mean, std)
             log_prob = dist.log_prob(action)
-
-            # correct for tanh squashing
-            log_prob -= torch.log(1 - action_squashed.pow(2) + 1e-6)
+            log_prob -= torch.log(1 - action_squashed.pow(2) + 1e-6)    # correct for tanh squashing
             log_prob = log_prob.sum(dim=1, keepdim=True)
 
         return action_squashed, log_prob

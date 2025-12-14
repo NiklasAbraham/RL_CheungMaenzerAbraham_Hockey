@@ -22,6 +22,24 @@ class Agent(ABC):
         pass
 
     @abstractmethod
-    def train(self):
-        """Performs a single train step."""
+    def train(self, steps=1):
+        """Performs `steps` gradient steps."""
+        pass
+
+    @abstractmethod
+    def save(self, filepath):
+        """Saves the agent's model to the specified filepath."""
+        pass
+
+    @abstractmethod
+    def load(self, filepath):
+        """Loads the agent's model from the specified filepath."""
+        pass
+
+    def on_episode_start(self, episode):
+        """Hook that is called at the start of each episode."""
+        pass
+
+    def on_episode_end(self, episode):
+        """Hook that is called at the end of each episode."""
         pass
