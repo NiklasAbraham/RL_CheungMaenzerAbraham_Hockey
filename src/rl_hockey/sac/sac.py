@@ -3,8 +3,7 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from rl_hockey.common import Agent
-from rl_hockey.common.noise import NormalNoise, PinkNoise
+from rl_hockey.common import *
 from rl_hockey.sac.models import Actor, Critic
 
 
@@ -61,9 +60,9 @@ class SAC(Agent):
 
         match self.config['noise']:
             case 'normal':
-                self.noise_dist = NormalNoise(self.action_dim)
+                self.noise_dist = noise.NormalNoise(self.action_dim)
             case 'pink':
-                self.noise_dist = PinkNoise(self.action_dim, self.config['max_episode_steps'])
+                self.noise_dist = noise.PinkNoise(self.action_dim, self.config['max_episode_steps'])
             case _:
                 raise ValueError(f"Unknown noise type: {self.config['noise']}") 
 
