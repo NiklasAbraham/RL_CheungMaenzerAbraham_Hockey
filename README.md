@@ -50,6 +50,9 @@ conda env export > environment.yml
 
 # Export pip packages to requirements.txt
 pip freeze > requirements.txt
+
+# Update the current conda env
+conda env update -f environment.yml
 ```
 
 ## Developing
