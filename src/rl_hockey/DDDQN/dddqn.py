@@ -21,9 +21,12 @@ class DDDQN(Agent):
 
         self.config = {
             "batch_size": 256,
-            "learning_rate": 3e-4,
+            "learning_rate": 1e-4,
             "discount": 0.99,
             "target_update_freq": 50,
+            "reward_clip": None,
+            "use_huber_loss": False,
+            "grad_clip": 1.0,
             "eps": 1,
             "eps_min": 0.01,
             "eps_decay": 0.9995,
@@ -83,37 +86,40 @@ class DDDQN(Agent):
             )
 
             state = torch.from_numpy(state).float().to(DEVICE)
-            action = torch.from_numpy(action).long().to(DEVICE)
-            # Squeeze action if it has an extra dimension (from buffer storing as array)
+            action = torch.from_numpy(action.astype(np.int64) if action.dtype == np.float32 else action).long().to(DEVICE)
             if action.dim() > 1:
                 action = action.squeeze(1)
-            reward = torch.from_numpy(reward).float().to(DEVICE)
+            reward = torch.from_numpy(reward).float().to(DEVICE).squeeze(-1)
+
+            reward_clip = self.config.get("reward_clip", None)
+            if reward_clip is not None:
+                reward = torch.clamp(reward, -reward_clip, reward_clip)
+            
             next_state = torch.from_numpy(next_state).float().to(DEVICE)
-            done = torch.from_numpy(done).float().to(DEVICE)
+            done = torch.from_numpy(done).float().to(DEVICE).squeeze(-1)
 
             with torch.no_grad():
                 next_q_values = self.q_network(next_state)
-                next_action = next_q_values.argmax(dim=1)
+                next_action = next_q_values.argmax(dim=1, keepdim=True)
                 next_q_values_target = self.q_network_target(next_state)
-                next_value = next_q_values_target.gather(
-                    1, next_action.unsqueeze(1)
-                ).squeeze(1)
+                next_value = next_q_values_target.gather(1, next_action).squeeze(1)
 
-            target = (
-                reward.squeeze()
-                + (1 - done.squeeze()) * self.config["discount"] * next_value
-            )
+            target = reward + (1 - done) * self.config["discount"] * next_value
 
             current_q_values = self.q_network(state)
             current_q_value = current_q_values.gather(1, action.unsqueeze(1)).squeeze(1)
 
-            loss = F.mse_loss(current_q_value, target)
+            if self.config.get("use_huber_loss", False):
+                loss = F.smooth_l1_loss(current_q_value, target)
+            else:
+                loss = F.mse_loss(current_q_value, target)
             losses.append(loss.item())
 
             self.optimizer.zero_grad()
             loss.backward()
-            # Gradient clipping to prevent exploding gradients
-            torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=10.0)
+
+            grad_clip = self.config.get("grad_clip", 10.0)
+            torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=grad_clip)
             self.optimizer.step()
 
             self.training_steps += 1
@@ -130,25 +136,43 @@ class DDDQN(Agent):
         if not filepath.endswith(".pt"):
             filepath += ".pt"
 
+        hidden_dim = []
+        for module in self.q_network.feature_network:
+            if isinstance(module, torch.nn.Linear):
+                hidden_dim.append(module.out_features)
+
         checkpoint = {
             "q_network": self.q_network.state_dict(),
             "q_network_target": self.q_network_target.state_dict(),
             "optimizer": self.optimizer.state_dict(),
             "training_steps": self.training_steps,
             "config": self.config,
+            "state_dim": self.state_dim,
+            "action_dim": self.action_dim,
+            "hidden_dim": hidden_dim,
         }
 
         torch.save(checkpoint, filepath)
 
     def load(self, filepath):
         checkpoint = torch.load(filepath, map_location=DEVICE)
+        self.state_dim = checkpoint["state_dim"]
+        self.action_dim = checkpoint["action_dim"]
+        self.config.update(checkpoint["config"])
+        hidden_dim = checkpoint.get("hidden_dim", [256, 256, 256])
+
+        self.q_network = DuelingDQN_Network(self.state_dim, self.action_dim, hidden_dim=hidden_dim).to(DEVICE)
+        self.q_network_target = DuelingDQN_Network(self.state_dim, self.action_dim, hidden_dim=hidden_dim).to(DEVICE)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.config["learning_rate"])
+
         self.q_network.load_state_dict(checkpoint["q_network"])
         self.q_network_target.load_state_dict(checkpoint["q_network_target"])
-        self.optimizer.load_state_dict(checkpoint["optimizer"])
-        if "training_steps" in checkpoint:
-            self.training_steps = checkpoint["training_steps"]
-        if "config" in checkpoint:
-            self.config.update(checkpoint["config"])
+        try:
+            self.optimizer.load_state_dict(checkpoint["optimizer"])
+        except Exception:
+            pass
+
+        self.training_steps = checkpoint.get("training_steps", 0)
 
     def on_episode_start(self, episode):
         if self.config["eps_decay"] is not None:

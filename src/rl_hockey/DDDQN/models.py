@@ -23,9 +23,19 @@ class DuelingDQN_Network(nn.Module):
         layers = []
         layers.append(nn.Linear(input_dim, action_dim))
         self.advantage_stream = nn.Sequential(*layers)
+        
+        self._initialize_weights()
 
     def forward(self, state):
         features = self.feature_network(state)
         value = self.value_stream(features)
         advantage = self.advantage_stream(features)
         return value + advantage - advantage.mean(dim=1, keepdim=True)
+    
+    def _initialize_weights(self):
+        """Initialize network weights for stable training."""
+        for module in self.modules():
+            if isinstance(module, nn.Linear):
+                nn.init.xavier_uniform_(module.weight)
+                if module.bias is not None:
+                    nn.init.constant_(module.bias, 0.0)
