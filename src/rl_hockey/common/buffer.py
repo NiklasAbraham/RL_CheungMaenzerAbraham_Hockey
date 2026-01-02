@@ -45,3 +45,9 @@ class ReplayBuffer:
             self.next_state[idx],
             self.done[idx],
         )
+    
+    def clear(self):
+        """Clear the replay buffer, resetting it to empty state."""
+        self.current_idx = 0
+        self.size = 0
+        # Keep arrays allocated but mark as empty

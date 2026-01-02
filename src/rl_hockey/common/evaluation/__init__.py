@@ -1,0 +1,1 @@
+from rl_hockey.common.evaluation.agent_evaluator import evaluate_agent

@@ -13,26 +13,26 @@
           "weight": 1.0
         },
         "reward_shaping": {
-          "N": 600,
-          "K": 400,
-          "CLOSENESS_START": 20.0,
-          "TOUCH_START": 15.0,
-          "CLOSENESS_FINAL": 1.5,
+          "N": 200,
+          "K": 150,
+          "CLOSENESS_START": 2.0,
+          "TOUCH_START": 1.5,
+          "CLOSENESS_FINAL": 0.5,
           "TOUCH_FINAL": 1.0,
-          "DIRECTION_FINAL": 2.0
+          "DIRECTION_FINAL": 1.0
         }
       }
     ]
   },
   "hyperparameters": {
     "learning_rate": [1e-4, 5e-4, 1e-3],
-    "batch_size": [128, 256, 512]
+    "batch_size": [64, 32, 128, 256, 512]
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
     "warmup_steps": 400,
-    "reward_scale": 0.1,
+    "reward_scale": 0.5,
     "checkpoint_save_freq": 100
   },
   "agent": {
