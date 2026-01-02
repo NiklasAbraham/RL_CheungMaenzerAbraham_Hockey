@@ -30,11 +30,12 @@ class ALSAFilter:
 if sys.platform == 'linux':
     sys.stderr = ALSAFilter(sys.stderr)
 
-MODEL_PATH = "models/dddqn/hockey-shooting-ddqn_25k_2026-01-02_10-05-20.pt"
+MODEL_PATH = "models/dddqn/hockey-shooting-ddqn_2026-01-02_16-10-30_23k.pt"
 NUM_GAMES = 10
 OPPONENT_TYPE = "basic_weak"
 PAUSE_BETWEEN_GAMES = 1.5
-FRAME_DELAY = 0.1 # 20 FPS = 0.05 seconds per frame # 50 FPS = 0.02 seconds per frame # 10 FPS = 0.1 seconds per frame
+FRAME_DELAY = 1
+MAX_STEPS = 250
 
 def load_ddqn_agent(model_path, state_dim, action_dim):
     from rl_hockey.DDDQN import DDDQN
@@ -87,7 +88,7 @@ def get_video_filename(base_folder="videos", base_name="ddqn_games"):
     filename = f"{base_name}_{dt_str}.mp4"
     return os.path.join(base_folder, filename)
 
-def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE, pause_between_games=PAUSE_BETWEEN_GAMES, frame_delay=FRAME_DELAY):
+def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE, pause_between_games=PAUSE_BETWEEN_GAMES, frame_delay=FRAME_DELAY, max_steps=MAX_STEPS):
     output_file = get_video_filename()
     logger.info("="*60)
     logger.info("DDDQN Agent Video Recording")
@@ -96,6 +97,7 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
     logger.info(f"Output: {output_file}")
     logger.info(f"Games: {num_games}")
     logger.info(f"Opponent: {opponent_type}")
+    logger.info(f"Max steps per game: {max_steps}")
     logger.info("="*60)
     logger.info("Creating hockey environment...")
     env = h_env.HockeyEnv(mode=h_env.Mode.TRAIN_SHOOTING)
@@ -126,7 +128,7 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
     game_results = []
     for game_num in range(1, num_games + 1):
         logger.info(f"Game {game_num}/{num_games}...")
-        frames, steps, reward, winner, info = run_game(env, agent, opponent, game_num, max_steps=250, frame_delay=frame_delay)
+        frames, steps, reward, winner, info = run_game(env, agent, opponent, game_num, max_steps=max_steps, frame_delay=frame_delay)
         all_frames.extend(frames)
         game_results.append({
             'game': game_num,
