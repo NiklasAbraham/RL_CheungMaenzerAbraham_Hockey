@@ -7,14 +7,21 @@ This repository contains the reinforcement learning implementation for the Hocke
 
 ## Conda Environment Setup
 
-### Create and Activate Conda Environment
+### Create and Activate Conda Environment from YAML
 
 ```bash
-# Create a new conda environment with Python 3.10
-conda create --name rl-hockey python=3.10
+# Create conda environment from environment.yml
+conda env create -f environment.yml
 
 # Activate the environment
 conda activate rl-hockey
+```
+
+### Update Conda Environment
+
+```bash
+# Update the conda environment from environment.yml
+conda env update -f environment.yml --prune
 ```
 
 ### Complete Installation Command

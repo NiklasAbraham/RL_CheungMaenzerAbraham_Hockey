@@ -13,9 +13,18 @@ from: ubuntu:24.04
     python3 -m venv /venv
     . /venv/bin/activate
 
+    # Install hockey environment
     pip install "hockey @ git+https://git@github.com/martius-lab/hockey-env.git"
 
-    pip install matplotlib numpy box2d-py pygame gymnasium tensorboardx notebook jupyterlab ipympl torch
+    # Install core dependencies
+    pip install matplotlib numpy box2d-py pygame gymnasium tensorboardx notebook jupyterlab ipympl torch torchvision torchaudio tqdm wandb
+
+    # Install setuptools for package installation
+    pip install setuptools wheel
+
+    # Note: The rl_hockey package will be installed at runtime from the mounted project directory
+    # This allows you to update code without rebuilding the container
+    # Installation command: pip install -e /path/to/RL_CheungMaenzerAbraham_Hockey
 
     # cleanup
     apt-get clean
