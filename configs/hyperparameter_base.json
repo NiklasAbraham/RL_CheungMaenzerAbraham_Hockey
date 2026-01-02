@@ -1,0 +1,49 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "shooting_basics",
+        "episodes": 1000,
+        "environment": {
+          "mode": "TRAIN_SHOOTING",
+          "keep_mode": true
+        },
+        "opponent": {
+          "type": "none",
+          "weight": 1.0
+        },
+        "reward_shaping": {
+          "N": 600,
+          "K": 400,
+          "CLOSENESS_START": 20.0,
+          "TOUCH_START": 15.0,
+          "CLOSENESS_FINAL": 1.5,
+          "TOUCH_FINAL": 1.0,
+          "DIRECTION_FINAL": 2.0
+        }
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": [1e-4, 5e-4, 1e-3],
+    "batch_size": [128, 256, 512]
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 400,
+    "reward_scale": 0.1,
+    "checkpoint_save_freq": 100
+  },
+  "agent": {
+    "type": "DDDQN",
+    "hyperparameters": {
+      "hidden_dim": [[64, 64], [128, 128], [128, 128, 128]],
+      "target_update_freq": [50, 100],
+      "eps": 0.3,
+      "eps_min": 0.05,
+      "eps_decay": [0.999, 0.9995],
+      "use_huber_loss": true
+    }
+  }
+}

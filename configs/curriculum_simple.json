@@ -1,0 +1,70 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "shooting_basics",
+        "episodes": 1000,
+        "environment": {
+          "mode": "TRAIN_SHOOTING",
+          "keep_mode": true
+        },
+        "opponent": {
+          "type": "none",
+          "weight": 1.0
+        },
+        "reward_shaping": {
+          "N": 600,
+          "K": 400,
+          "CLOSENESS_START": 20.0,
+          "TOUCH_START": 15.0,
+          "CLOSENESS_FINAL": 1.5,
+          "TOUCH_FINAL": 1.0,
+          "DIRECTION_FINAL": 2.0
+        }
+      },
+      {
+        "name": "defense_basics",
+        "episodes": 1000,
+        "environment": {
+          "mode": "TRAIN_DEFENSE",
+          "keep_mode": true
+        },
+        "opponent": {
+          "type": "basic_weak",
+          "weight": 1.0
+        },
+        "reward_shaping": {
+          "N": 400,
+          "K": 300,
+          "CLOSENESS_START": 25.0,
+          "TOUCH_START": 10.0,
+          "CLOSENESS_FINAL": 2.0,
+          "TOUCH_FINAL": 1.0,
+          "DIRECTION_FINAL": 1.5
+        }
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.0001,
+    "batch_size": 256
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 400,
+    "reward_scale": 0.1,
+    "checkpoint_save_freq": 100
+  },
+  "agent": {
+    "type": "DDDQN",
+    "hyperparameters": {
+      "hidden_dim": [256, 256, 256],
+      "target_update_freq": 50,
+      "eps": 0.3,
+      "eps_min": 0.05,
+      "eps_decay": 0.999,
+      "use_huber_loss": true
+    }
+  }
+}
