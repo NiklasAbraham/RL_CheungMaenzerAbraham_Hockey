@@ -30,7 +30,7 @@
       },
       {
         "name": "full_competency",
-        "episodes": 32000,
+        "episodes": 40000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {"type": "basic_strong", "weight": 1.0},
         "reward_shaping": null

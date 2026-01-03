@@ -150,7 +150,8 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
     logger.info(f"Output: {output_file}")
     logger.info(f"Games: {num_games}")
     logger.info(f"Opponent: {opponent_type}")
-    logger.info(f"Max steps per game: {max_steps} (environment limit: {env.max_timesteps if hasattr(env, 'max_timesteps') else 'unknown'})")
+    logger.info(f"Environment mode: {env_mode}")
+    logger.info(f"Max steps per game: {max_steps}")
     logger.info(f"Frame delay in video: {frame_delay}s per frame")
     logger.info(f"Video FPS: {video_fps}")
     logger.info("="*60)
@@ -164,7 +165,11 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
     if env_mode not in mode_map:
         raise ValueError(f"Invalid env_mode: {env_mode}. Must be one of {list(mode_map.keys())}")
     env = h_env.HockeyEnv(mode=mode_map[env_mode])
-    logger.info(f"Environment mode: {env_mode} (max_timesteps: {env.max_timesteps if hasattr(env, 'max_timesteps') else 'unknown'})")
+    # Log actual environment limit after creation
+    env_limit = env.max_timesteps if hasattr(env, 'max_timesteps') else 'unknown'
+    logger.info(f"Environment created: mode={env_mode}, max_timesteps={env_limit}")
+    if env_limit != 'unknown' and max_steps > env_limit:
+        logger.warning(f"Warning: max_steps ({max_steps}) exceeds environment limit ({env_limit}). Games will end at {env_limit} steps.")
     state_dim = env.observation_space.shape[0]
     
     # Load checkpoint to get the actual action dimension from the model

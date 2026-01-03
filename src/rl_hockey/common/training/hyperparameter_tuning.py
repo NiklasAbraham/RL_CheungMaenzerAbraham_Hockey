@@ -112,14 +112,18 @@ def create_hyperparameter_grid(curriculum_config: Dict[str, Any], hyperparameter
         if not isinstance(eps_mins, list):
             eps_mins = [eps_mins]
         
+        action_finenesses = agent_hyperparams.get('action_fineness', [None])
+        if not isinstance(action_finenesses, list):
+            action_finenesses = [action_finenesses]
+        
         # Get other agent hyperparameters that should be constant (not in grid)
         agent_constants = {}
         for key, value in agent_hyperparams.items():
-            if key not in ['hidden_dim', 'target_update_freq', 'eps_decay', 'eps', 'eps_min']:
+            if key not in ['hidden_dim', 'target_update_freq', 'eps_decay', 'eps', 'eps_min', 'action_fineness']:
                 agent_constants[key] = value
         
         # Generate all combinations for DDDQN
-        for lr, bs, hd, tuf, ed, eps, eps_min in product(learning_rates, batch_sizes, hidden_dims, target_update_freqs, eps_decays, eps_values, eps_mins):
+        for lr, bs, hd, tuf, ed, eps, eps_min, af in product(learning_rates, batch_sizes, hidden_dims, target_update_freqs, eps_decays, eps_values, eps_mins, action_finenesses):
             # Start with curriculum config to ensure curriculum is always from curriculum_config
             config = json.loads(json.dumps(curriculum_config))  # Deep copy
             
@@ -139,6 +143,8 @@ def create_hyperparameter_grid(curriculum_config: Dict[str, Any], hyperparameter
             config['agent']['hyperparameters']['eps_decay'] = ed
             config['agent']['hyperparameters']['eps'] = eps
             config['agent']['hyperparameters']['eps_min'] = eps_min
+            if af is not None:
+                config['agent']['hyperparameters']['action_fineness'] = af
             
             # Set agent type
             config['agent']['type'] = agent_type
@@ -748,12 +754,12 @@ if __name__ == "__main__":
 
     curriculum_config_path = "configs/curriculum_base.json"  # Path to curriculum configuration JSON file (constant)
     hyperparameter_config_path = "configs/hyperparameter_base.json"  # Path to hyperparameter configuration JSON file (grid search)
-    n_samples = 100  # Number of configurations to sample from the grid
-    num_parallel = None  # Number of parallel workers (None = auto-detect, max 4 for GPU)
+    n_samples = 200  # Number of configurations to sample from the grid
+    num_parallel = 8  # Number of parallel workers (None = auto-detect, max 4 for GPU)
     output_dir = "results/hyperparameter_runs"  # Base output directory for results
     eval_num_games = 200  # Number of games to run for evaluation
     use_weak_opponent = True  # Use weak BasicOpponent for evaluation (set to False to use strong)
-    random_seed = None  # Random seed for sampling configurations
+    random_seed = 42  # Random seed for sampling configurations
     device = None  # CUDA device to use (None = auto-detect, 'cpu' = CPU, 'cuda' = cuda:0, 'cuda:0' = first GPU, 'cuda:1' = second GPU, etc.)
     devices = ["cuda:0", "cuda:1", "cuda:2"]  # List of devices to distribute workers across (e.g., ["cuda:1", "cuda:2"]). If set, device parameter is ignored.
 
