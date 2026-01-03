@@ -18,7 +18,7 @@ from rl_hockey.common.training.opponent_manager import (
 from rl_hockey.common.training.config_validator import validate_config
 from rl_hockey.common.evaluation.agent_evaluator import evaluate_agent
 from rl_hockey.common.utils import discrete_to_continuous_action_with_fineness, set_cuda_device
-from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized
+from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized, ThreadedVectorizedHockeyEnvOptimized
 
 
 def _make_hockey_env(mode, keep_mode):
@@ -57,14 +57,26 @@ def train_run(
         num_envs: Number of parallel environments (1 = single env, 4-8 recommended for speedup)
     """
     # Route to vectorized training if num_envs > 1
+    # Check if we're in a multiprocessing Pool worker to decide which implementation to use
     if num_envs > 1:
-        if verbose:
-            print(f"Using vectorized environments with {num_envs} parallel instances")
-        return _train_run_vectorized(
-            config_path, base_output_dir, run_name, verbose,
-            eval_freq_steps, eval_num_games, eval_weak_opponent,
-            device, checkpoint_path, num_envs
-        )
+        from multiprocessing import current_process
+        current_proc = current_process()
+        is_daemon = getattr(current_proc, 'daemon', False)
+        proc_name = getattr(current_proc, 'name', '')
+        is_pool_worker = 'PoolWorker' in proc_name or is_daemon
+        
+        if num_envs > 1:
+            if is_pool_worker:
+                if verbose:
+                    print(f"Using threaded vectorized environments with {num_envs} parallel instances (Pool worker mode)")
+            else:
+                if verbose:
+                    print(f"Using multiprocess vectorized environments with {num_envs} parallel instances")
+            return _train_run_vectorized(
+                config_path, base_output_dir, run_name, verbose,
+                eval_freq_steps, eval_num_games, eval_weak_opponent,
+                device, checkpoint_path, num_envs, use_threading=is_pool_worker
+            )
     # Set CUDA device if specified
     set_cuda_device(device)
     
@@ -449,11 +461,16 @@ def _train_run_vectorized(
     eval_weak_opponent: bool = True,
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,
-    num_envs: int = 4
+    num_envs: int = 4,
+    use_threading: bool = False
 ):
     """
     Train with vectorized environments (multiple environments in parallel).
     This provides 1.4-2.4x speedup by batching GPU operations.
+    
+    Args:
+        use_threading: If True, use threaded vectorized env (for Pool workers).
+                      If False, use multiprocess vectorized env (better performance).
     """
     set_cuda_device(device)
     
@@ -565,7 +582,10 @@ def _train_run_vectorized(
     sampled_mode_str = phase_config.environment.get_mode_for_episode(0)
     env_mode = getattr(h_env.Mode, sampled_mode_str)
     
-    current_vec_env = VectorizedHockeyEnvOptimized(
+    # Choose appropriate vectorized env class based on whether we're in a Pool worker
+    VecEnvClass = ThreadedVectorizedHockeyEnvOptimized if use_threading else VectorizedHockeyEnvOptimized
+    
+    current_vec_env = VecEnvClass(
         num_envs=num_envs,
         env_fn=partial(_make_hockey_env, mode=env_mode, keep_mode=phase_config.environment.keep_mode)
     )
@@ -718,7 +738,7 @@ def _train_run_vectorized(
                         sampled_mode_str = new_phase_config.environment.get_mode_for_episode(new_phase_local_episode)
                         env_mode = getattr(h_env.Mode, sampled_mode_str)
                         
-                        current_vec_env = VectorizedHockeyEnvOptimized(
+                        current_vec_env = VecEnvClass(
                             num_envs=num_envs,
                             env_fn=partial(_make_hockey_env, mode=env_mode, keep_mode=new_phase_config.environment.keep_mode)
                         )
