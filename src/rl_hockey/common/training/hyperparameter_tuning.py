@@ -239,7 +239,7 @@ def sample_configurations(all_configs: List[Dict[str, Any]], n: int, random_seed
 
 def run_single_config(args):
     """Wrapper function for running a single configuration (for multiprocessing)."""
-    config_dict, run_output_dir, run_name, device = args
+    config_dict, run_output_dir, run_name, device, num_envs = args
     
     # Set CUDA device if specified and available
     if device is not None:
@@ -287,7 +287,7 @@ def run_single_config(args):
     run_dir.mkdir(parents=True, exist_ok=True)
     
     # Pass the run directory to train_run (it will create a timestamped subdirectory inside)
-    result = train_run(temp_config_path, str(run_dir), run_name=run_name, verbose=False)
+    result = train_run(temp_config_path, str(run_dir), run_name=run_name, verbose=False, num_envs=num_envs)
     
     # Find the actual model path (train_run creates its own timestamped directory inside run_dir)
     # Look for model in run_dir / timestamp / models
@@ -524,7 +524,8 @@ def main(
     eval_weak_opponent: bool = True,
     random_seed: Optional[int] = None,
     device: Optional[Union[str, int]] = None,
-    devices: Optional[List[Union[str, int]]] = None
+    devices: Optional[List[Union[str, int]]] = None,
+    num_envs: int = 1
 ):
     """
     Main function to run hyperparameter testing with curriculum learning.
@@ -540,6 +541,7 @@ def main(
         random_seed: Random seed for sampling configurations
         device: CUDA device to use (None = auto-detect, 'cpu' = CPU, 'cuda' = cuda:0, 'cuda:0' = first GPU, 'cuda:1' = second GPU, etc.). Can also be an integer (0, 1, etc.) for device ID. If devices is specified, this is ignored.
         devices: List of CUDA devices to use for distributing workers (e.g., ['cuda:1', 'cuda:2'] or [1, 2]). Workers will be distributed across these devices in round-robin fashion. If None, uses device parameter instead.
+        num_envs: Number of parallel environments to use for vectorized training (1 = single env, 4-8 recommended for speedup)
     """
     # Load curriculum config (constant)
     curriculum_config = load_base_config(curriculum_config_path)
@@ -585,7 +587,7 @@ def main(
     
     # Prepare arguments for multiprocessing
     # Each run will create a subdirectory: main_output_dir / run_name / timestamp / ...
-    args_list = [(config, str(main_output_dir), run_name, dev) for config, run_name, dev in zip(configs, run_names, device_assignments)]
+    args_list = [(config, str(main_output_dir), run_name, dev, num_envs) for config, run_name, dev in zip(configs, run_names, device_assignments)]
     
     # Determine number of parallel workers
     if num_parallel is None:
@@ -595,7 +597,15 @@ def main(
         else:
             num_parallel = min(mp.cpu_count(), len(configs))
     
+    # Note: Vectorized environments now work in Pool workers using threading
+    # So both multiprocessing Pool AND vectorized envs can be used simultaneously!
     print(f"Running {len(configs)} configurations with {num_parallel} parallel workers")
+    if num_envs > 1:
+        if num_parallel > 1:
+            print(f"Using threaded vectorized environments with {num_envs} parallel instances per worker")
+            print(f"  -> {num_parallel} configs training in parallel, each with {num_envs} vectorized envs")
+        else:
+            print(f"Using multiprocess vectorized environments with {num_envs} parallel instances per configuration")
     if devices is not None:
         print(f"Using devices: {devices} (distributed across {len(devices)} device(s))")
         # Show device distribution
@@ -755,7 +765,7 @@ if __name__ == "__main__":
     curriculum_config_path = "configs/curriculum_base.json"  # Path to curriculum configuration JSON file (constant)
     hyperparameter_config_path = "configs/hyperparameter_base.json"  # Path to hyperparameter configuration JSON file (grid search)
     n_samples = 200  # Number of configurations to sample from the grid
-    num_parallel = 8  # Number of parallel workers (None = auto-detect, max 4 for GPU)
+    num_parallel = 12  # Number of parallel workers (None = auto-detect, max 4 for GPU)
     output_dir = "results/hyperparameter_runs"  # Base output directory for results
     eval_num_games = 200  # Number of games to run for evaluation
     use_weak_opponent = True  # Use weak BasicOpponent for evaluation (set to False to use strong)
@@ -765,6 +775,8 @@ if __name__ == "__main__":
 
     # If you want to use strong opponent set this to False
     eval_weak_opponent = use_weak_opponent
+
+    num_envs = 8  # Number of parallel environments for vectorized training (1 = single env, 4-8 recommended)
 
     # Call main with manual variables
     main(
@@ -777,7 +789,8 @@ if __name__ == "__main__":
         eval_weak_opponent=eval_weak_opponent,
         random_seed=random_seed,
         device=device,
-        devices=devices
+        devices=devices,
+        num_envs=num_envs
     )
 
     # nohup python src/rl_hockey/common/training/hyperparameter_tuning.py > hyperparameter_tuning.log 2>&1 &

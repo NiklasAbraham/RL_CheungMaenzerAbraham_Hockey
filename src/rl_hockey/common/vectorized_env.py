@@ -4,7 +4,9 @@ Runs multiple hockey environments in parallel to maximize GPU utilization and tr
 """
 
 import numpy as np
-from multiprocessing import Process, Pipe
+from multiprocessing import Process, Pipe, current_process
+import threading
+import queue
 import hockey.hockey_env as h_env
 
 
@@ -54,6 +56,49 @@ def worker(remote, parent_remote, env_fn):
         env.close()
 
 
+def thread_worker(cmd_queue, result_queue, env_fn):
+    """Worker thread that runs a single environment"""
+    env = env_fn()
+    
+    try:
+        while True:
+            cmd, data = cmd_queue.get()
+            
+            if cmd == 'step':
+                obs, reward, done, trunc, info = env.step(data)
+                # Auto-reset if episode is done
+                if done or trunc:
+                    # Store the terminal observation before reset
+                    terminal_obs = obs
+                    # Reset for next episode
+                    obs, reset_info = env.reset()
+                    # Send terminal observation but with reset state for next step
+                    result_queue.put(('step', (terminal_obs, reward, done, trunc, info)))
+                else:
+                    result_queue.put(('step', (obs, reward, done, trunc, info)))
+                
+            elif cmd == 'reset':
+                obs, info = env.reset()
+                result_queue.put(('reset', (obs, info)))
+                
+            elif cmd == 'close':
+                env.close()
+                break
+                
+            elif cmd == 'get_spaces':
+                result_queue.put(('get_spaces', (env.observation_space, env.action_space)))
+                
+            elif cmd == 'obs_agent_two':
+                obs = env.obs_agent_two()
+                result_queue.put(('obs_agent_two', obs))
+                
+            else:
+                raise NotImplementedError(f"Unknown command: {cmd}")
+                
+    except KeyboardInterrupt:
+        env.close()
+
+
 class VectorizedHockeyEnv:
     """
     Runs multiple hockey environments in parallel for faster data collection.
@@ -88,8 +133,19 @@ class VectorizedHockeyEnv:
         self.processes = []
         for work_remote, remote in zip(self.work_remotes, self.remotes):
             p = Process(target=worker, args=(work_remote, remote, env_fn))
-            p.daemon = True
-            p.start()
+            p.daemon = True  # Auto-cleanup when parent exits
+            try:
+                p.start()
+            except AssertionError as e:
+                if "daemonic processes are not allowed to have children" in str(e):
+                    # This should not happen if train_run properly detects Pool workers
+                    # But provide a helpful error message just in case
+                    raise RuntimeError(
+                        "Cannot use vectorized environments (num_envs > 1) inside multiprocessing Pool workers. "
+                        "The train_run function should automatically disable vectorized environments in this case. "
+                        "If you see this error, please report it as a bug."
+                    ) from e
+                raise
             self.processes.append(p)
             work_remote.close()
         
@@ -161,6 +217,150 @@ class VectorizedHockeyEnv:
     def __del__(self):
         if not self.closed:
             self.close()
+
+
+class ThreadedVectorizedHockeyEnv:
+    """
+    Threaded version of vectorized environment that works inside multiprocessing Pool workers.
+    Uses threads instead of processes, so it can be created from daemon processes.
+    
+    Note: Performance may be lower than multiprocessing version due to GIL,
+    but it still provides speedup through batching and parallel environment execution.
+    """
+    
+    def __init__(self, num_envs, env_fn):
+        self.num_envs = num_envs
+        self.env_fn = env_fn
+        self.closed = False
+        
+        # Create queues for each environment thread
+        self.cmd_queues = [queue.Queue() for _ in range(num_envs)]
+        self.result_queues = [queue.Queue() for _ in range(num_envs)]
+        
+        # Start worker threads
+        self.threads = []
+        for cmd_q, result_q in zip(self.cmd_queues, self.result_queues):
+            t = threading.Thread(target=thread_worker, args=(cmd_q, result_q, env_fn), daemon=True)
+            t.start()
+            self.threads.append(t)
+        
+        # Get environment spaces from first env
+        self.cmd_queues[0].put(('get_spaces', None))
+        cmd, (self.observation_space, self.action_space) = self.result_queues[0].get()
+        
+        # Store mode and keep_mode for compatibility
+        self.mode = None
+        self.keep_mode = None
+    
+    def reset(self):
+        """Reset all environments"""
+        for cmd_q in self.cmd_queues:
+            cmd_q.put(('reset', None))
+        
+        results = []
+        for result_q in self.result_queues:
+            cmd, data = result_q.get()
+            results.append(data)
+        
+        obs = np.stack([r[0] for r in results])
+        return obs
+    
+    def obs_agent_two(self):
+        """Get observations for agent 2 from all environments"""
+        for cmd_q in self.cmd_queues:
+            cmd_q.put(('obs_agent_two', None))
+        
+        results = []
+        for result_q in self.result_queues:
+            cmd, data = result_q.get()
+            results.append(data)
+        
+        return np.stack(results) if len(results) > 1 else results[0]
+    
+    def step(self, actions):
+        """
+        Step all environments with given actions.
+        
+        Args:
+            actions: Array of shape (num_envs, action_dim) or list of actions
+        
+        Returns:
+            obs: (num_envs, obs_dim)
+            rewards: (num_envs,)
+            dones: (num_envs,)
+            truncs: (num_envs,)
+            infos: list of info dicts
+        """
+        for cmd_q, action in zip(self.cmd_queues, actions):
+            cmd_q.put(('step', action))
+        
+        results = []
+        for result_q in self.result_queues:
+            cmd, data = result_q.get()
+            results.append(data)
+        
+        obs = np.stack([r[0] for r in results])
+        rewards = np.array([r[1] for r in results])
+        dones = np.array([r[2] for r in results])
+        truncs = np.array([r[3] for r in results])
+        infos = [r[4] for r in results]
+        
+        return obs, rewards, dones, truncs, infos
+    
+    def close(self):
+        """Close all environments"""
+        if self.closed:
+            return
+        
+        for cmd_q in self.cmd_queues:
+            cmd_q.put(('close', None))
+        
+        for t in self.threads:
+            t.join(timeout=1.0)
+        
+        self.closed = True
+    
+    def __del__(self):
+        if not self.closed:
+            self.close()
+
+
+class ThreadedVectorizedHockeyEnvOptimized(ThreadedVectorizedHockeyEnv):
+    """
+    Optimized threaded version that keeps observations as float32 and minimizes copies.
+    """
+    
+    def __init__(self, num_envs, env_fn):
+        super().__init__(num_envs, env_fn)
+        
+        # Pre-allocate arrays for efficiency
+        obs_shape = self.observation_space.shape
+        self.obs_buffer = np.zeros((num_envs, *obs_shape), dtype=np.float32)
+        self.reward_buffer = np.zeros(num_envs, dtype=np.float32)
+        self.done_buffer = np.zeros(num_envs, dtype=np.bool_)
+        self.trunc_buffer = np.zeros(num_envs, dtype=np.bool_)
+    
+    def step(self, actions):
+        """Optimized step with pre-allocated buffers"""
+        for cmd_q, action in zip(self.cmd_queues, actions):
+            cmd_q.put(('step', action))
+        
+        results = []
+        for result_q in self.result_queues:
+            cmd, data = result_q.get()
+            results.append(data)
+        
+        # Use pre-allocated buffers
+        for i, (obs, reward, done, trunc, info) in enumerate(results):
+            self.obs_buffer[i] = obs.astype(np.float32, copy=False)
+            self.reward_buffer[i] = reward
+            self.done_buffer[i] = done
+            self.trunc_buffer[i] = trunc
+        
+        infos = [r[4] for r in results]
+        
+        return self.obs_buffer.copy(), self.reward_buffer.copy(), \
+               self.done_buffer.copy(), self.trunc_buffer.copy(), infos
 
 
 class VectorizedHockeyEnvOptimized(VectorizedHockeyEnv):
