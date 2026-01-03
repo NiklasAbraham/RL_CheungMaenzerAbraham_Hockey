@@ -5,7 +5,7 @@ and plots performance against different parameters.
 """
 import multiprocessing as mp
 from itertools import product
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
 import torch
 import json
@@ -78,64 +78,141 @@ def create_hyperparameter_grid(curriculum_config: Dict[str, Any], hyperparameter
     # Algorithm-specific hyperparameters (can be lists for grid search)
     agent_hyperparams = hyperparameter_config.get('agent', {}).get('hyperparameters', {})
     
-    # DDDQN specific
-    hidden_dims = agent_hyperparams.get('hidden_dim', [[256, 256, 256]])
-    if not isinstance(hidden_dims, list):
-        hidden_dims = [hidden_dims]
-    # Check if first element is a list (nested list) or a single value
-    if len(hidden_dims) > 0 and not isinstance(hidden_dims[0], list):
-        hidden_dims = [hidden_dims]
-    
-    target_update_freqs = agent_hyperparams.get('target_update_freq', [50])
-    if not isinstance(target_update_freqs, list):
-        target_update_freqs = [target_update_freqs]
-    
-    eps_decays = agent_hyperparams.get('eps_decay', [0.999])
-    if not isinstance(eps_decays, list):
-        eps_decays = [eps_decays]
-    
-    # Get other agent hyperparameters that should be constant (not in grid)
     # Agent type: prefer hyperparameter_config, fallback to curriculum_config
     agent_type = (hyperparameter_config.get('agent', {}).get('type') or 
-                  curriculum_config.get('agent', {}).get('type', 'DDDQN'))
-    agent_constants = {}
-    for key, value in agent_hyperparams.items():
-        if key not in ['hidden_dim', 'target_update_freq', 'eps_decay']:
-            agent_constants[key] = value
+                  curriculum_config.get('agent', {}).get('type'))
     
-    # Generate all combinations
+    if agent_type is None:
+        raise ValueError("agent.type must be specified in either hyperparameter_config or curriculum_config")
+    
     configs = []
-    for lr, bs, hd, tuf, ed in product(learning_rates, batch_sizes, hidden_dims, target_update_freqs, eps_decays):
-        # Start with curriculum config to ensure curriculum is always from curriculum_config
-        config = json.loads(json.dumps(curriculum_config))  # Deep copy
+    
+    if agent_type == "DDDQN":
+        # DDDQN specific hyperparameters
+        hidden_dims = agent_hyperparams.get('hidden_dim', [[256, 256, 256]])
+        if not isinstance(hidden_dims, list):
+            hidden_dims = [hidden_dims]
+        # Check if first element is a list (nested list) or a single value
+        if len(hidden_dims) > 0 and not isinstance(hidden_dims[0], list):
+            hidden_dims = [hidden_dims]
         
-        # Update common hyperparameters with single values (not lists)
-        if 'hyperparameters' not in config:
-            config['hyperparameters'] = {}
-        config['hyperparameters']['learning_rate'] = lr
-        config['hyperparameters']['batch_size'] = bs
+        target_update_freqs = agent_hyperparams.get('target_update_freq', [50])
+        if not isinstance(target_update_freqs, list):
+            target_update_freqs = [target_update_freqs]
         
-        # Update agent-specific hyperparameters with single values
-        if 'agent' not in config:
-            config['agent'] = {}
-        if 'hyperparameters' not in config['agent']:
-            config['agent']['hyperparameters'] = {}
-        config['agent']['hyperparameters']['hidden_dim'] = hd
-        config['agent']['hyperparameters']['target_update_freq'] = tuf
-        config['agent']['hyperparameters']['eps_decay'] = ed
+        eps_decays = agent_hyperparams.get('eps_decay', [0.999])
+        if not isinstance(eps_decays, list):
+            eps_decays = [eps_decays]
         
-        # Set agent type
-        config['agent']['type'] = agent_type
+        eps_values = agent_hyperparams.get('eps', [1.0])
+        if not isinstance(eps_values, list):
+            eps_values = [eps_values]
         
-        # Add constant agent hyperparameters from hyperparameter_config
-        for key, value in agent_constants.items():
-            config['agent']['hyperparameters'][key] = value
+        eps_mins = agent_hyperparams.get('eps_min', [0.05])
+        if not isinstance(eps_mins, list):
+            eps_mins = [eps_mins]
         
-        # Override training parameters from hyperparameter_config if present
-        if 'training' in hyperparameter_config:
-            config['training'] = hyperparameter_config['training']
+        # Get other agent hyperparameters that should be constant (not in grid)
+        agent_constants = {}
+        for key, value in agent_hyperparams.items():
+            if key not in ['hidden_dim', 'target_update_freq', 'eps_decay', 'eps', 'eps_min']:
+                agent_constants[key] = value
         
-        configs.append(config)
+        # Generate all combinations for DDDQN
+        for lr, bs, hd, tuf, ed, eps, eps_min in product(learning_rates, batch_sizes, hidden_dims, target_update_freqs, eps_decays, eps_values, eps_mins):
+            # Start with curriculum config to ensure curriculum is always from curriculum_config
+            config = json.loads(json.dumps(curriculum_config))  # Deep copy
+            
+            # Update common hyperparameters with single values (not lists)
+            if 'hyperparameters' not in config:
+                config['hyperparameters'] = {}
+            config['hyperparameters']['learning_rate'] = lr
+            config['hyperparameters']['batch_size'] = bs
+            
+            # Update agent-specific hyperparameters with single values
+            if 'agent' not in config:
+                config['agent'] = {}
+            if 'hyperparameters' not in config['agent']:
+                config['agent']['hyperparameters'] = {}
+            config['agent']['hyperparameters']['hidden_dim'] = hd
+            config['agent']['hyperparameters']['target_update_freq'] = tuf
+            config['agent']['hyperparameters']['eps_decay'] = ed
+            config['agent']['hyperparameters']['eps'] = eps
+            config['agent']['hyperparameters']['eps_min'] = eps_min
+            
+            # Set agent type
+            config['agent']['type'] = agent_type
+            
+            # Add constant agent hyperparameters from hyperparameter_config
+            for key, value in agent_constants.items():
+                config['agent']['hyperparameters'][key] = value
+            
+            # Override training parameters from hyperparameter_config if present
+            if 'training' in hyperparameter_config:
+                config['training'] = hyperparameter_config['training']
+            
+            configs.append(config)
+    
+    elif agent_type == "SAC":
+        # SAC specific hyperparameters
+        taus = agent_hyperparams.get('tau', [0.005])
+        if not isinstance(taus, list):
+            taus = [taus]
+        
+        alphas = agent_hyperparams.get('alpha', [0.2])
+        if not isinstance(alphas, list):
+            alphas = [alphas]
+        
+        learn_alphas = agent_hyperparams.get('learn_alpha', [True])
+        if not isinstance(learn_alphas, list):
+            learn_alphas = [learn_alphas]
+        
+        noise_types = agent_hyperparams.get('noise', ['normal'])
+        if not isinstance(noise_types, list):
+            noise_types = [noise_types]
+        
+        # Get other agent hyperparameters that should be constant (not in grid)
+        agent_constants = {}
+        for key, value in agent_hyperparams.items():
+            if key not in ['tau', 'alpha', 'learn_alpha', 'noise']:
+                agent_constants[key] = value
+        
+        # Generate all combinations for SAC
+        for lr, bs, tau, alpha, learn_alpha, noise in product(learning_rates, batch_sizes, taus, alphas, learn_alphas, noise_types):
+            # Start with curriculum config to ensure curriculum is always from curriculum_config
+            config = json.loads(json.dumps(curriculum_config))  # Deep copy
+            
+            # Update common hyperparameters with single values (not lists)
+            if 'hyperparameters' not in config:
+                config['hyperparameters'] = {}
+            config['hyperparameters']['learning_rate'] = lr
+            config['hyperparameters']['batch_size'] = bs
+            
+            # Update agent-specific hyperparameters with single values
+            if 'agent' not in config:
+                config['agent'] = {}
+            if 'hyperparameters' not in config['agent']:
+                config['agent']['hyperparameters'] = {}
+            config['agent']['hyperparameters']['tau'] = tau
+            config['agent']['hyperparameters']['alpha'] = alpha
+            config['agent']['hyperparameters']['learn_alpha'] = learn_alpha
+            config['agent']['hyperparameters']['noise'] = noise
+            
+            # Set agent type
+            config['agent']['type'] = agent_type
+            
+            # Add constant agent hyperparameters from hyperparameter_config
+            for key, value in agent_constants.items():
+                config['agent']['hyperparameters'][key] = value
+            
+            # Override training parameters from hyperparameter_config if present
+            if 'training' in hyperparameter_config:
+                config['training'] = hyperparameter_config['training']
+            
+            configs.append(config)
+    
+    else:
+        raise ValueError(f"Unsupported agent type: {agent_type}. Supported types are 'DDDQN' and 'SAC'")
     
     return configs
 
@@ -156,9 +233,39 @@ def sample_configurations(all_configs: List[Dict[str, Any]], n: int, random_seed
 
 def run_single_config(args):
     """Wrapper function for running a single configuration (for multiprocessing)."""
-    config_dict, run_output_dir, run_name = args
+    config_dict, run_output_dir, run_name, device = args
     
-    if torch.cuda.is_available():
+    # Set CUDA device if specified and available
+    if device is not None:
+        if isinstance(device, str):
+            if device == 'cpu':
+                pass  # Will use CPU (torch will detect this)
+            elif device == 'cuda':
+                # Use default CUDA device (cuda:0)
+                if torch.cuda.is_available():
+                    torch.cuda.set_device(0)
+                    torch.cuda.empty_cache()
+            elif device.startswith('cuda:'):
+                device_id = int(device.split(':')[1])
+                if torch.cuda.is_available():
+                    if device_id >= torch.cuda.device_count():
+                        raise ValueError(f"CUDA device {device_id} not available. Only {torch.cuda.device_count()} device(s) available.")
+                    torch.cuda.set_device(device_id)
+                    torch.cuda.empty_cache()
+                else:
+                    raise ValueError(f"CUDA not available, but device '{device}' was requested")
+            else:
+                raise ValueError(f"Invalid device string: {device}. Use 'cpu', 'cuda', or 'cuda:N'")
+        elif isinstance(device, int):
+            # Allow integer device ID for convenience
+            if torch.cuda.is_available():
+                if device >= torch.cuda.device_count():
+                    raise ValueError(f"CUDA device {device} not available. Only {torch.cuda.device_count()} device(s) available.")
+                torch.cuda.set_device(device)
+                torch.cuda.empty_cache()
+            else:
+                raise ValueError(f"CUDA not available, but device {device} was requested")
+    elif torch.cuda.is_available():
         torch.cuda.empty_cache()
     
     import tempfile
@@ -213,6 +320,8 @@ def plot_hyperparameter_analysis(results: List[Dict[str, Any]], output_dir: Path
     hidden_dims = []
     target_update_freqs = []
     eps_decays = []
+    eps_values = []
+    eps_mins = []
     win_rates = []
     mean_rewards = []
     
@@ -225,6 +334,8 @@ def plot_hyperparameter_analysis(results: List[Dict[str, Any]], output_dir: Path
         hidden_dims.append(str(agent_hp.get('hidden_dim', [256, 256, 256])))
         target_update_freqs.append(agent_hp.get('target_update_freq', 50))
         eps_decays.append(agent_hp.get('eps_decay', 0.999))
+        eps_values.append(agent_hp.get('eps', 1.0))
+        eps_mins.append(agent_hp.get('eps_min', 0.05))
         
         eval_result = result.get('evaluation', {})
         win_rates.append(eval_result.get('win_rate', 0.0))
@@ -326,7 +437,53 @@ def plot_hyperparameter_analysis(results: List[Dict[str, Any]], output_dir: Path
         plt.savefig(plots_dir / "win_rate_vs_eps_decay.png")
         plt.close()
     
-    # Plot 5: Hidden Dim Architecture comparison
+    # Plot 5: Epsilon (eps) vs Win Rate
+    unique_eps = sorted(set(eps_values))
+    if len(unique_eps) > 1:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        eps_win_rates = {eps: [] for eps in unique_eps}
+        for eps, wr in zip(eps_values, win_rates):
+            eps_win_rates[eps].append(wr)
+        
+        eps_means = [np.mean(eps_win_rates[eps]) for eps in unique_eps]
+        eps_stds = [np.std(eps_win_rates[eps]) for eps in unique_eps]
+        
+        x_pos = np.arange(len(unique_eps))
+        ax.bar(x_pos, eps_means, yerr=eps_stds, capsize=5)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels([f"{eps:.2f}" for eps in unique_eps], rotation=45, ha='right')
+        ax.set_xlabel('Epsilon (eps)')
+        ax.set_ylabel('Win Rate')
+        ax.set_title('Win Rate vs Epsilon (eps) (other parameters constant)')
+        ax.grid(True, axis='y')
+        plt.tight_layout()
+        plt.savefig(plots_dir / "win_rate_vs_eps.png")
+        plt.close()
+    
+    # Plot 6: Epsilon Min (eps_min) vs Win Rate
+    unique_eps_min = sorted(set(eps_mins))
+    if len(unique_eps_min) > 1:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        eps_min_win_rates = {eps_min: [] for eps_min in unique_eps_min}
+        for eps_min, wr in zip(eps_mins, win_rates):
+            eps_min_win_rates[eps_min].append(wr)
+        
+        eps_min_means = [np.mean(eps_min_win_rates[eps_min]) for eps_min in unique_eps_min]
+        eps_min_stds = [np.std(eps_min_win_rates[eps_min]) for eps_min in unique_eps_min]
+        
+        x_pos = np.arange(len(unique_eps_min))
+        ax.bar(x_pos, eps_min_means, yerr=eps_min_stds, capsize=5)
+        ax.set_xticks(x_pos)
+        ax.set_xticklabels([f"{eps_min:.2f}" for eps_min in unique_eps_min], rotation=45, ha='right')
+        ax.set_xlabel('Epsilon Min (eps_min)')
+        ax.set_ylabel('Win Rate')
+        ax.set_title('Win Rate vs Epsilon Min (eps_min) (other parameters constant)')
+        ax.grid(True, axis='y')
+        plt.tight_layout()
+        plt.savefig(plots_dir / "win_rate_vs_eps_min.png")
+        plt.close()
+    
+    # Plot 7: Hidden Dim Architecture comparison
     unique_hd = sorted(set(hidden_dims))
     if len(unique_hd) > 1:
         fig, ax = plt.subplots(figsize=(12, 6))
@@ -359,7 +516,9 @@ def main(
     output_dir: str = "results/hyperparameter_runs",
     eval_num_games: int = 100,
     eval_weak_opponent: bool = True,
-    random_seed: Optional[int] = None
+    random_seed: Optional[int] = None,
+    device: Optional[Union[str, int]] = None,
+    devices: Optional[List[Union[str, int]]] = None
 ):
     """
     Main function to run hyperparameter testing with curriculum learning.
@@ -373,6 +532,8 @@ def main(
         eval_num_games: Number of games to run for evaluation
         eval_weak_opponent: Whether to use weak (True) or strong (False) BasicOpponent for evaluation
         random_seed: Random seed for sampling configurations
+        device: CUDA device to use (None = auto-detect, 'cpu' = CPU, 'cuda' = cuda:0, 'cuda:0' = first GPU, 'cuda:1' = second GPU, etc.). Can also be an integer (0, 1, etc.) for device ID. If devices is specified, this is ignored.
+        devices: List of CUDA devices to use for distributing workers (e.g., ['cuda:1', 'cuda:2'] or [1, 2]). Workers will be distributed across these devices in round-robin fashion. If None, uses device parameter instead.
     """
     # Load curriculum config (constant)
     curriculum_config = load_base_config(curriculum_config_path)
@@ -401,9 +562,24 @@ def main(
     # Generate run names for all configs (use index to ensure uniqueness)
     run_names = [run_manager.generate_run_name(config, index=i) for i, config in enumerate(configs)]
     
+    # Determine device assignment for each worker
+    # If devices list is provided, use it; otherwise use single device
+    if devices is not None:
+        # Validate devices
+        if not isinstance(devices, list) or len(devices) == 0:
+            raise ValueError("devices must be a non-empty list")
+        # Assign devices in round-robin fashion
+        device_assignments = [devices[i % len(devices)] for i in range(len(configs))]
+    elif device is not None:
+        # All workers use the same device
+        device_assignments = [device] * len(configs)
+    else:
+        # Auto-detect: all workers use None (auto-detect)
+        device_assignments = [None] * len(configs)
+    
     # Prepare arguments for multiprocessing
     # Each run will create a subdirectory: main_output_dir / run_name / timestamp / ...
-    args_list = [(config, str(main_output_dir), run_name) for config, run_name in zip(configs, run_names)]
+    args_list = [(config, str(main_output_dir), run_name, dev) for config, run_name, dev in zip(configs, run_names, device_assignments)]
     
     # Determine number of parallel workers
     if num_parallel is None:
@@ -414,6 +590,19 @@ def main(
             num_parallel = min(mp.cpu_count(), len(configs))
     
     print(f"Running {len(configs)} configurations with {num_parallel} parallel workers")
+    if devices is not None:
+        print(f"Using devices: {devices} (distributed across {len(devices)} device(s))")
+        # Show device distribution
+        device_counts = {}
+        for dev in device_assignments:
+            device_counts[dev] = device_counts.get(dev, 0) + 1
+        print(f"Device distribution: {device_counts}")
+    elif device is not None:
+        print(f"Using device: {device}")
+    elif torch.cuda.is_available():
+        print(f"Using device: cuda (auto-detected, default: cuda:0)")
+    else:
+        print(f"Using device: cpu")
     print(f"Results will be saved to: {main_output_dir}")
     
     # Train all configurations
@@ -559,12 +748,14 @@ if __name__ == "__main__":
 
     curriculum_config_path = "configs/curriculum_base.json"  # Path to curriculum configuration JSON file (constant)
     hyperparameter_config_path = "configs/hyperparameter_base.json"  # Path to hyperparameter configuration JSON file (grid search)
-    n_samples = 10  # Number of configurations to sample from the grid
+    n_samples = 100  # Number of configurations to sample from the grid
     num_parallel = None  # Number of parallel workers (None = auto-detect, max 4 for GPU)
     output_dir = "results/hyperparameter_runs"  # Base output directory for results
-    eval_num_games = 100  # Number of games to run for evaluation
+    eval_num_games = 200  # Number of games to run for evaluation
     use_weak_opponent = True  # Use weak BasicOpponent for evaluation (set to False to use strong)
     random_seed = None  # Random seed for sampling configurations
+    device = None  # CUDA device to use (None = auto-detect, 'cpu' = CPU, 'cuda' = cuda:0, 'cuda:0' = first GPU, 'cuda:1' = second GPU, etc.)
+    devices = ["cuda:0", "cuda:1", "cuda:2"]  # List of devices to distribute workers across (e.g., ["cuda:1", "cuda:2"]). If set, device parameter is ignored.
 
     # If you want to use strong opponent set this to False
     eval_weak_opponent = use_weak_opponent
@@ -578,5 +769,9 @@ if __name__ == "__main__":
         output_dir=output_dir,
         eval_num_games=eval_num_games,
         eval_weak_opponent=eval_weak_opponent,
-        random_seed=random_seed
+        random_seed=random_seed,
+        device=device,
+        devices=devices
     )
+
+    # nohup python src/rl_hockey/common/training/hyperparameter_tuning.py > hyperparameter_tuning.log 2>&1 &

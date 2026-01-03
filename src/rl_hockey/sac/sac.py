@@ -86,6 +86,22 @@ class SAC(Agent):
             action, _ = self.actor.sample(state, noise=noise, calc_log_prob=False)
 
             return action.squeeze(0).cpu().numpy()
+    
+    def act_batch(self, states, deterministic=False):
+        """Process a batch of states at once (for vectorized environments)"""
+        with torch.no_grad():
+            states = torch.from_numpy(states).to(DEVICE)
+            batch_size = states.shape[0]
+
+            if deterministic:
+                noise = torch.zeros((batch_size, self.action_dim), device=DEVICE)
+            else:
+                # Sample noise for each state in batch
+                noise = torch.stack([self.noise_dist.sample().to(DEVICE) for _ in range(batch_size)])
+
+            actions, _ = self.actor.sample(states, noise=noise, calc_log_prob=False)
+
+            return actions.cpu().numpy()
 
     def evaluate(self, state):
         with torch.no_grad():
@@ -192,12 +208,23 @@ class SAC(Agent):
             "alpha_optimizer": self.alpha_optimizer.state_dict()
             if self.config["learn_alpha"]
             else None,
+            "state_dim": self.state_dim,
+            "action_dim": self.action_dim,
+            "config": self.config,
         }
 
         torch.save(checkpoint, filepath)
 
     def load(self, filepath):
-        checkpoint = torch.load(filepath)
+        checkpoint = torch.load(filepath, map_location=DEVICE)
+        
+        # Load state_dim, action_dim, and config if available (for compatibility)
+        if "state_dim" in checkpoint:
+            self.state_dim = checkpoint["state_dim"]
+        if "action_dim" in checkpoint:
+            self.action_dim = checkpoint["action_dim"]
+        if "config" in checkpoint:
+            self.config.update(checkpoint["config"])
 
         self.actor.load_state_dict(checkpoint["actor"])
         self.critic1.load_state_dict(checkpoint["critic1"])
@@ -208,9 +235,16 @@ class SAC(Agent):
         self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer"])
 
         if self.config["learn_alpha"]:
-            self.log_alpha = checkpoint["log_alpha"]
-            self.alpha_optimizer.load_state_dict(checkpoint["alpha_optimizer"])
-            self.alpha = self.log_alpha.exp()
+            if checkpoint.get("log_alpha") is not None:
+                self.log_alpha = checkpoint["log_alpha"].to(DEVICE)
+                if checkpoint.get("alpha_optimizer") is not None:
+                    self.alpha_optimizer.load_state_dict(checkpoint["alpha_optimizer"])
+                self.alpha = self.log_alpha.exp()
+            else:
+                # Old checkpoint without log_alpha, initialize it
+                self.log_alpha = torch.zeros(1, requires_grad=True, device=DEVICE)
+                self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
+                self.alpha = self.log_alpha.exp()
 
     def on_episode_start(self, episode):
         if self.config["noise"] == "pink":

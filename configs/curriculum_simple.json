@@ -3,63 +3,59 @@
     "phases": [
       {
         "name": "shooting_basics",
-        "episodes": 400,
-        "environment": {
-          "mode": "TRAIN_SHOOTING",
-          "keep_mode": true
-        },
-        "opponent": {
-          "type": "none",
-          "weight": 1.0
-        },
+        "episodes": 8000,
+        "environment": {"mode": "TRAIN_SHOOTING", "keep_mode": true},
+        "opponent": {"type": "none", "weight": 1.0},
         "reward_shaping": null
       },
       {
         "name": "defense_basics",
-        "episodes": 300,
-        "environment": {
-          "mode": "TRAIN_DEFENSE",
-          "keep_mode": true
-        },
+        "episodes": 8000,
+        "environment": {"mode": "TRAIN_DEFENSE", "keep_mode": true},
+        "opponent": {"type": "basic_weak", "weight": 1.0},
+        "reward_shaping": null
+      },
+      {
+        "name": "integration_phase",
+        "episodes": 15000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "basic_weak",
-          "weight": 1.0
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.8},
+            {"type": "basic_strong", "weight": 0.2}
+          ]
         },
         "reward_shaping": null
       },
       {
-        "name": "normal_game",
-        "episodes": 500,
-        "environment": {
-          "mode": "NORMAL",
-          "keep_mode": true
-        },
-        "opponent": {
-          "type": "basic_weak",
-          "weight": 1.0
-        },
+        "name": "full_competency",
+        "episodes": 32000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {"type": "basic_strong", "weight": 1.0},
         "reward_shaping": null
       }
     ]
   },
   "hyperparameters": {
-    "learning_rate": 0.0001,
-    "batch_size": 256
+    "learning_rate": 0.0005,
+    "batch_size": 512
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
-    "warmup_steps": 20000,
+    "warmup_steps": 80000,
     "reward_scale": 0.5,
-    "checkpoint_save_freq": 100
+    "checkpoint_save_freq": 5000
   },
   "agent": {
     "type": "DDDQN",
     "hyperparameters": {
-      "hidden_dim": [256, 256, 256],
+      "hidden_dim": [256, 512, 256],
       "target_update_freq": 2000,
       "eps": 1,
-      "eps_min": 0.05,
+      "action_fineness": 3,
+      "eps_min": 0.1,
       "eps_decay": 0.9995,
       "use_huber_loss": true
     }

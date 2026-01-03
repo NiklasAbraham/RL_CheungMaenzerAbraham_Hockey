@@ -93,10 +93,39 @@ def _validate_phase(phase: Dict[str, Any], phase_idx: int) -> List[str]:
     
     # Validate environment
     env = phase.get('environment', {})
-    if 'mode' not in env:
-        errors.append(f"{prefix}.environment.mode is required")
-    elif env['mode'] not in VALID_ENV_MODES:
-        errors.append(f"{prefix}.environment.mode must be one of {VALID_ENV_MODES}")
+    
+    # Check if using mixture or single mode
+    if 'mixture' in env:
+        # Validate mixture
+        mixture = env['mixture']
+        if not isinstance(mixture, list) or len(mixture) == 0:
+            errors.append(f"{prefix}.environment.mixture must be a non-empty list")
+        else:
+            total_weight = 0.0
+            for i, mix_item in enumerate(mixture):
+                if not isinstance(mix_item, dict):
+                    errors.append(f"{prefix}.environment.mixture[{i}] must be a dictionary")
+                else:
+                    if 'mode' not in mix_item:
+                        errors.append(f"{prefix}.environment.mixture[{i}].mode is required")
+                    elif mix_item['mode'] not in VALID_ENV_MODES:
+                        errors.append(f"{prefix}.environment.mixture[{i}].mode must be one of {VALID_ENV_MODES}")
+                    
+                    weight = mix_item.get('weight', 1.0)
+                    if not isinstance(weight, (int, float)) or weight < 0:
+                        errors.append(f"{prefix}.environment.mixture[{i}].weight must be a non-negative number")
+                    else:
+                        total_weight += weight
+            
+            # Weights don't need to sum to 1.0 (will be normalized), but should be positive
+            if total_weight == 0:
+                errors.append(f"{prefix}.environment.mixture weights sum to zero (at least one weight must be positive)")
+    elif 'mode' in env:
+        # Single mode (backward compatible)
+        if env['mode'] not in VALID_ENV_MODES:
+            errors.append(f"{prefix}.environment.mode must be one of {VALID_ENV_MODES}")
+    else:
+        errors.append(f"{prefix}.environment must have either 'mode' or 'mixture'")
     
     if 'keep_mode' in env and not isinstance(env['keep_mode'], bool):
         errors.append(f"{prefix}.environment.keep_mode must be a boolean")
