@@ -1,48 +1,24 @@
 {
-  "curriculum": {
-    "phases": [
-      {
-        "name": "shooting_basics",
-        "episodes": 1000,
-        "environment": {
-          "mode": "TRAIN_SHOOTING",
-          "keep_mode": true
-        },
-        "opponent": {
-          "type": "none",
-          "weight": 1.0
-        },
-        "reward_shaping": {
-          "N": 200,
-          "K": 150,
-          "CLOSENESS_START": 2.0,
-          "TOUCH_START": 1.5,
-          "CLOSENESS_FINAL": 0.5,
-          "TOUCH_FINAL": 1.0,
-          "DIRECTION_FINAL": 1.0
-        }
-      }
-    ]
-  },
   "hyperparameters": {
-    "learning_rate": [1e-4, 5e-4, 1e-3],
-    "batch_size": [64, 32, 128, 256, 512]
+    "learning_rate": [1e-4, 5e-4, 1e-3, 1e-5],
+    "batch_size": [256, 512, 1024]
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
-    "warmup_steps": 400,
+    "warmup_steps": 80000,
     "reward_scale": 0.5,
-    "checkpoint_save_freq": 100
+    "checkpoint_save_freq": 2000
   },
   "agent": {
     "type": "DDDQN",
     "hyperparameters": {
-      "hidden_dim": [[64, 64], [128, 128], [128, 128, 128]],
-      "target_update_freq": [50, 100],
-      "eps": 0.3,
-      "eps_min": 0.05,
-      "eps_decay": [0.999, 0.9995],
+      "hidden_dim": [[256, 256, 256], [128, 128, 128], [64, 64, 64], [128, 128, 128, 128], [512, 512, 512]],
+      "target_update_freq": [500, 2000, 5000, 7000],
+      "eps": [1, 0.5, 0.75, 0.8],
+      "action_fineness": [3, 5, 7],
+      "eps_min": [0.05, 0.1, 0.15, 0.2],
+      "eps_decay": [0.999, 0.9995, 0.998, 0.997],
       "use_huber_loss": true
     }
   }
