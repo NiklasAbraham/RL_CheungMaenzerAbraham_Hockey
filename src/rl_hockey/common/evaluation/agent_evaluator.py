@@ -1,5 +1,6 @@
 import multiprocessing as mp
 import numpy as np
+import os
 from pathlib import Path
 from typing import Dict, Any, Tuple, Optional, Union
 import torch
@@ -70,6 +71,19 @@ def load_agent_params_from_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
     except Exception as e:
         return {}
 
+def _pool_initializer():
+    """Initialize worker processes with a safe working directory."""
+    # Change to a safe directory that always exists
+    # This prevents FileNotFoundError when multiprocessing tries to get cwd
+    try:
+        os.chdir('/tmp')
+    except OSError:
+        # If /tmp doesn't work, try home directory
+        try:
+            os.chdir(os.path.expanduser('~'))
+        except OSError:
+            pass  # If all else fails, let it use current directory
+
 def run_single_game(args: Tuple) -> Dict[str, Any]:
     """
     Run a single game between an agent and a weak opponent.
@@ -80,6 +94,20 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
         Dictionary containing game results
     """
     agent_path, agent_config_dict, weak_opponent, max_steps, seed, device = args
+    
+    # Verify checkpoint file exists before trying to load
+    # Note: agent_path should already be absolute from the parent process
+    if not os.path.exists(agent_path):
+        current_cwd = "unknown"
+        try:
+            current_cwd = os.getcwd()
+        except (OSError, FileNotFoundError):
+            pass
+        raise FileNotFoundError(
+            f"Agent checkpoint not found: {agent_path}\n"
+            f"Current working directory: {current_cwd}\n"
+            f"File is absolute: {os.path.isabs(agent_path)}"
+        )
     
     set_cuda_device(device)
     np.random.seed(seed)
@@ -233,12 +261,47 @@ def evaluate_agent(
     if num_parallel is None:
         num_parallel = min(mp.cpu_count(), num_games)
     
+    # Save current working directory and convert agent_path to absolute path BEFORE changing directories
+    # This ensures worker processes can find the checkpoint file even after we change cwd
+    original_cwd = None
+    try:
+        original_cwd = os.getcwd()
+    except (OSError, FileNotFoundError):
+        original_cwd = None
+    
+    # Convert agent_path to absolute path BEFORE changing directories
+    # This ensures worker processes can find the checkpoint file even after we change cwd
+    if not os.path.isabs(agent_path):
+        if original_cwd is not None:
+            # We have a valid cwd, use os.path.join with cwd to make absolute
+            agent_path = os.path.normpath(os.path.join(original_cwd, agent_path))
+        else:
+            # No valid cwd, try Path.resolve() which doesn't require file to exist
+            try:
+                agent_path = str(Path(agent_path).resolve())
+            except (OSError, RuntimeError):
+                # If that fails, try to expand user and resolve
+                agent_path = os.path.normpath(os.path.expanduser(agent_path))
+    
+    # Change to a safe directory that always exists BEFORE creating Pool
+    # This prevents FileNotFoundError when multiprocessing spawns workers
+    # in SLURM/Singularity environments where the working directory might not be accessible
+    safe_dir = '/tmp'
+    try:
+        home_dir = os.path.expanduser('~')
+        if os.path.exists(home_dir):
+            safe_dir = home_dir
+        else:
+            safe_dir = '/tmp'
+        os.chdir(safe_dir)
+    except (OSError, FileNotFoundError):
+        # If we can't change directory, try to continue
+        pass
     
     try:
         mp.set_start_method('spawn', force=True)
     except RuntimeError:
         pass
-    
     
     seeds = np.random.randint(0, 2**31, size=num_games)
     args_list = [
@@ -247,11 +310,21 @@ def evaluate_agent(
     ]
     
     results = []
-    if num_parallel > 1:
-        with mp.Pool(processes=num_parallel) as pool:
-            results = pool.map(run_single_game, args_list)
-    else:
-        results = [run_single_game(args) for args in args_list]
+    try:
+        if num_parallel > 1:
+            # Use initializer to set a safe working directory for worker processes
+            # This prevents FileNotFoundError when multiprocessing spawns workers
+            with mp.Pool(processes=num_parallel, initializer=_pool_initializer) as pool:
+                results = pool.map(run_single_game, args_list)
+        else:
+            results = [run_single_game(args) for args in args_list]
+    finally:
+        # Restore original working directory if we changed it
+        if original_cwd is not None:
+            try:
+                os.chdir(original_cwd)
+            except (OSError, FileNotFoundError):
+                pass
     
     wins = sum(1 for r in results if r['winner'] == 1)
     losses = sum(1 for r in results if r['winner'] == -1)
