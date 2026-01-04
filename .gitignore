@@ -11,6 +11,12 @@ __pycache__/
 Output/
 data/
 old_reports/
+results/
+
+models/
+models_checkpoint/
+
+videos/
 
 # Distribution / packaging
 .Python
