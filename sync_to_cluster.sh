@@ -24,6 +24,8 @@ rsync -avz --progress \
     --exclude='*.out' \
     --exclude='*.err' \
     --exclude='models/' \
+    --exclude='runs/' \
+    --exclude='results/' \
     --exclude='singularity_build/' \
     --exclude='old/' \
     --exclude='.conda' \
