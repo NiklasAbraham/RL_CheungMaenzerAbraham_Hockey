@@ -13,14 +13,62 @@ from: ubuntu:24.04
     python3 -m venv /venv
     . /venv/bin/activate
 
-    # Install hockey environment
+    # Create requirements.txt directly in the container from embedded content
+    # This will be replaced by cluster_setup.sh with actual requirements
+    cat > /tmp/requirements.txt << 'REQUIREMENTS_EMBEDDED'
+# Requirements will be embedded here by cluster_setup.sh
+REQUIREMENTS_EMBEDDED
+
+    # Install setuptools and wheel first
+    pip install --upgrade pip setuptools wheel
+
+    # Install PyTorch with CUDA 12.6 (supports compute capability 6.1 for GTX 1080 Ti)
+    # This must be installed before other requirements to ensure correct CUDA dependencies
+    pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu126
+
+    # Install hockey environment (must be done separately as it's from git)
     pip install "hockey @ git+https://git@github.com/martius-lab/hockey-env.git"
 
-    # Install core dependencies
-    pip install matplotlib numpy box2d-py pygame gymnasium tensorboardx notebook jupyterlab ipympl torch torchvision torchaudio tqdm wandb
-
-    # Install setuptools for package installation
-    pip install setuptools wheel
+    # Install requirements from requirements.txt (excluding the editable rl_hockey package and hockey)
+    # Filter out rl_hockey and hockey since we install hockey separately above
+    echo "Checking for requirements.txt..."
+    echo "Current directory: $(pwd)"
+    echo "Files in /tmp:"
+    ls -la /tmp/ | head -10 || true
+    echo ""
+    
+    if [ -f /tmp/requirements.txt ]; then
+        echo "✓ Found requirements.txt at /tmp/requirements.txt"
+        echo "Total lines in requirements.txt: $(wc -l < /tmp/requirements.txt)"
+        echo "Filtering out rl_hockey, hockey, torch packages, triton, and CUDA packages (PyTorch installed separately)..."
+        # Create a temp file with filtered requirements
+        # Remove rl_hockey, hockey, torch packages, triton, and nvidia CUDA packages (handled by PyTorch install)
+        grep -v "rl_hockey" /tmp/requirements.txt | \
+        grep -v "^hockey" | \
+        grep -v "^torch" | \
+        grep -v "^triton" | \
+        grep -v "^nvidia-" > /tmp/filtered_requirements.txt
+        echo "Packages to install: $(wc -l < /tmp/filtered_requirements.txt)"
+        echo "First few packages to install:"
+        head -5 /tmp/filtered_requirements.txt
+        echo ""
+        echo "Installing packages from requirements.txt (this may take several minutes)..."
+        pip install -r /tmp/filtered_requirements.txt || {
+            echo "ERROR: pip install failed!"
+            exit 1
+        }
+        echo "✓ Finished installing requirements.txt packages"
+        rm -f /tmp/filtered_requirements.txt
+    else
+        echo "ERROR: requirements.txt not found at /tmp/requirements.txt"
+        echo "This means the %files section did not copy the file."
+        echo "Checking if we can find it elsewhere..."
+        find / -name "requirements.txt" -type f 2>/dev/null | head -5 || echo "Not found anywhere"
+        echo ""
+        echo "The container will only have minimal dependencies."
+        echo "You may need to install packages at runtime or rebuild with requirements.txt in the build directory."
+        exit 1
+    fi
 
     # Note: The rl_hockey package will be installed at runtime from the mounted project directory
     # This allows you to update code without rebuilding the container

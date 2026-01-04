@@ -17,13 +17,13 @@
       },
       {
         "name": "integration_phase",
-        "episodes": 15000,
+        "episodes": 20000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
           "opponents": [
-            {"type": "basic_weak", "weight": 0.8},
-            {"type": "basic_strong", "weight": 0.2}
+            {"type": "basic_weak", "weight": 0.55},
+            {"type": "basic_strong", "weight": 0.45}
           ]
         },
         "reward_shaping": null
@@ -39,7 +39,7 @@
   },
   "hyperparameters": {
     "learning_rate": 0.0005,
-    "batch_size": 512
+    "batch_size": 1024
   },
   "training": {
     "max_episode_steps": 500,
@@ -54,7 +54,7 @@
       "hidden_dim": [256, 512, 256],
       "target_update_freq": 2000,
       "eps": 1,
-      "action_fineness": 3,
+      "action_fineness": 4,
       "eps_min": 0.1,
       "eps_decay": 0.9995,
       "use_huber_loss": true
