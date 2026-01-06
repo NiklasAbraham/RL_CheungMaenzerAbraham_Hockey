@@ -55,5 +55,5 @@ class TwinCritic(nn.Module):
         self.critic2.append(nn.Linear(latent_dim, 1))
 
     def forward(self, state, action):
-        input = torch.cat([state, action], dim=1)
-        return self.critic1(input), self.critic2(input)
+        x = torch.cat([state.to(torch.float32), action.to(torch.float32)], dim=1)
+        return self.critic1(x), self.critic2(x)
