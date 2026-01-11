@@ -104,6 +104,7 @@ def train_run(
     current_env = None
     current_phase_idx = -1
     current_opponent = None
+    current_phase_start = 0
     
     # none is the default action space of 8 for DDDQN
     action_fineness = curriculum.agent.hyperparameters.get('action_fineness', None)
@@ -195,6 +196,7 @@ def train_run(
                     agent.buffer.clear()
                 
                 current_phase_idx = phase_idx
+                current_phase_start = steps
             
             sampled_mode_str = phase_config.environment.get_mode_for_episode(phase_local_episode)
             env_mode = getattr(h_env.Mode, sampled_mode_str)
@@ -325,7 +327,7 @@ def train_run(
                 total_reward += reward
                 total_shaped_reward += shaped_reward
                 
-                if steps >= warmup_steps and steps % train_freq == 0:
+                if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
                     stats = agent.train(updates_per_step)
                     gradient_steps += updates_per_step
                     if isinstance(stats, dict):
@@ -498,6 +500,7 @@ def _train_run_vectorized(
     current_vec_env = None
     current_phase_idx = -1
     current_opponents = [None] * num_envs
+    current_phase_start = 0
     
     action_fineness = curriculum.agent.hyperparameters.get('action_fineness', None)
     
@@ -756,6 +759,7 @@ def _train_run_vectorized(
                             )
                         
                         current_phase_idx = new_phase_idx
+                        current_phase_start = steps
                         phase_config = new_phase_config
                         reward_weights = get_reward_weights(new_phase_local_episode, phase_config)
                 
@@ -765,7 +769,7 @@ def _train_run_vectorized(
         states = next_states
         
         # Train agent
-        if steps >= warmup_steps and steps % train_freq == 0:
+        if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
             stats = agent.train(updates_per_step)
             gradient_steps += updates_per_step
             if isinstance(stats, dict):
