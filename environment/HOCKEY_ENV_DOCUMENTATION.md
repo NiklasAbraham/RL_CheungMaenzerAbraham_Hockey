@@ -579,6 +579,8 @@ The environment provides sparse rewards based on game outcomes:
 - **Loss**: -10
 - **Draw**: 0
 
+It also considers the `reward_closeness_to_puck` proxy reward.
+
 ### Proxy Rewards (Reward Shaping)
 
 The `info` dictionary contains additional proxy rewards for easier learning:

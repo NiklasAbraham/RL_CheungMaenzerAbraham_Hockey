@@ -5,15 +5,41 @@ from typing import Dict, Any, List, Tuple, Optional
 
 
 @dataclass
-class EnvironmentConfig:
-    """Configuration for environment settings."""
+class EnvironmentModeConfig:
     mode: str  # "NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE"
+    weight: float = 1.0  # Weight/probability for this mode in the mixture
+
+
+@dataclass
+class EnvironmentConfig:
+    mode: Optional[str] = None  # "NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE" (for single mode)
+    mixture: Optional[List[EnvironmentModeConfig]] = None  # List of modes with weights (for mixture)
     keep_mode: bool = True
+    
+    def get_mode_for_episode(self, episode: int, random_state=None) -> str:
+        
+        if self.mixture is not None:
+            import numpy as np
+            if random_state is None:
+                random_state = np.random
+            
+            modes = [m.mode for m in self.mixture]
+            weights = [m.weight for m in self.mixture]
+            
+            total_weight = sum(weights)
+            if total_weight == 0:
+                raise ValueError("Environment mixture weights sum to zero")
+            normalized_weights = [w / total_weight for w in weights]
+            
+            return random_state.choice(modes, p=normalized_weights)
+        else:
+            if self.mode is None:
+                raise ValueError("Either 'mode' or 'mixture' must be specified in environment config")
+            return self.mode
 
 
 @dataclass
 class OpponentConfig:
-    """Configuration for opponent settings."""
     type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture"
     weight: float = 1.0
     checkpoint: Optional[str] = None
@@ -23,7 +49,6 @@ class OpponentConfig:
 
 @dataclass
 class RewardShapingConfig:
-    """Configuration for reward shaping parameters."""
     N: int = 600
     K: int = 400
     CLOSENESS_START: float = 20.0
@@ -35,7 +60,6 @@ class RewardShapingConfig:
 
 @dataclass
 class PhaseConfig:
-    """Configuration for a single curriculum phase."""
     name: str
     episodes: int
     environment: EnvironmentConfig
@@ -45,33 +69,51 @@ class PhaseConfig:
 
 @dataclass
 class AgentConfig:
-    """Configuration for agent algorithm and hyperparameters."""
     type: str  # "DDDQN", "SAC", "TD3"
     hyperparameters: Dict[str, Any]
 
 
 @dataclass
 class CurriculumConfig:
-    """Complete curriculum configuration."""
     phases: List[PhaseConfig]
-    hyperparameters: Dict[str, Any]  # Common hyperparameters (learning_rate, batch_size)
+    hyperparameters: Dict[str, Any]
     training: Dict[str, Any]
     agent: AgentConfig
 
 
 def load_curriculum(config_path: str) -> CurriculumConfig:
-    """Load curriculum configuration from JSON file."""
     with open(config_path, 'r') as f:
         config_dict = json.load(f)
     return _parse_config(config_dict)
 
 
 def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
-    """Parse configuration dictionary into dataclasses."""
-    # Parse phases
     phases = []
     for phase_dict in config_dict['curriculum']['phases']:
-        env_config = EnvironmentConfig(**phase_dict['environment'])
+        env_dict = phase_dict['environment']
+        
+        if 'mixture' in env_dict:
+            mixture_list = []
+            for mix_item in env_dict['mixture']:
+                if isinstance(mix_item, dict):
+                    mixture_list.append(EnvironmentModeConfig(
+                        mode=mix_item['mode'],
+                        weight=mix_item.get('weight', 1.0)
+                    ))
+                else:
+                    raise ValueError("Mixture items must be dictionaries with 'mode' and optional 'weight'")
+            
+            env_config = EnvironmentConfig(
+                mode=None,
+                mixture=mixture_list,
+                keep_mode=env_dict.get('keep_mode', True)
+            )
+        else:
+            env_config = EnvironmentConfig(
+                mode=env_dict.get('mode'),
+                mixture=None,
+                keep_mode=env_dict.get('keep_mode', True)
+            )
         
         opponent_dict = phase_dict['opponent']
         opponent_config = OpponentConfig(
@@ -82,7 +124,6 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             opponents=opponent_dict.get('opponents')
         )
         
-        # Handle optional reward shaping
         reward_shaping_dict = phase_dict.get('reward_shaping')
         if reward_shaping_dict is None:
             reward_shaping = None
@@ -98,14 +139,12 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
         )
         phases.append(phase)
     
-    # Parse agent config
     agent_dict = config_dict['agent']
     agent_config = AgentConfig(
         type=agent_dict['type'],
         hyperparameters=agent_dict.get('hyperparameters', {})
     )
     
-    # Create curriculum config
     curriculum_config = CurriculumConfig(
         phases=phases,
         hyperparameters=config_dict.get('hyperparameters', {}),
@@ -117,7 +156,6 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
 
 
 def get_phase_for_episode(curriculum: CurriculumConfig, global_episode: int) -> Tuple[int, int, PhaseConfig]:
-    """Get the current phase for a given global episode number."""
     episode_count = 0
     for phase_idx, phase in enumerate(curriculum.phases):
         if global_episode < episode_count + phase.episodes:
@@ -125,17 +163,14 @@ def get_phase_for_episode(curriculum: CurriculumConfig, global_episode: int) -> 
             return phase_idx, phase_local_episode, phase
         episode_count += phase.episodes
     
-    # If beyond all phases, use last phase
     last_phase = curriculum.phases[-1]
     return len(curriculum.phases) - 1, last_phase.episodes - 1, last_phase
 
 
 def get_total_episodes(curriculum: CurriculumConfig) -> int:
-    """Get total number of episodes across all phases."""
     return sum(phase.episodes for phase in curriculum.phases)
 
 
 def get_current_phase(curriculum: CurriculumConfig, global_episode: int) -> PhaseConfig:
-    """Get current phase configuration for given episode."""
     _, _, phase = get_phase_for_episode(curriculum, global_episode)
     return phase
