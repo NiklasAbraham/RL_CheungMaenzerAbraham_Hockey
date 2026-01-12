@@ -1,0 +1,52 @@
+{
+    "curriculum": {
+      "phases": [
+        {
+          "name": "normal_game",
+          "episodes": 10000,
+          "environment": {
+            "mode": "NORMAL",
+            "keep_mode": true
+          },
+          "opponent": {
+            "type": "none",
+            "weight": 1.0
+          },
+          "reward_shaping": null
+        }
+      ]
+    },
+    "hyperparameters": {
+      "learning_rate": 0.00001,
+      "batch_size": 256
+    },
+    "training": {
+      "max_episode_steps": 500,
+      "updates_per_step": 1,
+      "warmup_steps": 50000,
+      "reward_scale": 1,
+      "checkpoint_save_freq": 500
+    },
+    "agent": {
+      "type": "TD3",
+      "hyperparameters": {
+        "critic_lr": 3e-4,
+        "actor_lr": 3e-4,
+        "critic_dim": 256,
+        "actor_dim": 256,
+        "actor_n_layers": 1,
+        "critic_n_layers": 1,
+        "batch_size": 256,
+        "discount": 0.9999,
+        "policy_update_delay": 2,
+        "tau": 0.01,
+        "noise_type": "normal",
+        "exploration_noise": 0.1,
+        "policy_noise": 0.15,
+        "noise_clip": 0.5,
+        "target_network_update_steps": 5,
+        "prioritized_replay": true
+      }
+    }
+  }
+  

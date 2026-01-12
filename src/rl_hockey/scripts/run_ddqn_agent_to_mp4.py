@@ -7,52 +7,71 @@ import time
 from datetime import datetime
 import logging
 
-warnings.filterwarnings('ignore', category=UserWarning)
-os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
+warnings.filterwarnings("ignore", category=UserWarning)
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='[%(levelname)s] %(message)s'
-)
-logger = logging.getLogger("ddqn_video")
+logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
+logger = logging.getLogger("hockey_video")
+
 
 class ALSAFilter:
     def __init__(self, original_stderr):
         self.original_stderr = original_stderr
 
     def write(self, message):
-        if 'ALSA' not in message and 'pkg_resources' not in message:
+        if "ALSA" not in message and "pkg_resources" not in message:
             self.original_stderr.write(message)
 
     def flush(self):
         self.original_stderr.flush()
 
-if sys.platform == 'linux':
+
+if sys.platform == "linux":
     sys.stderr = ALSAFilter(sys.stderr)
 
-MODEL_PATH = "models/dddqn/hockey-shooting-ddqn_2026-01-02_16-10-30_23k.pt"
-NUM_GAMES = 10
+MODEL_PATH = "/Users/nselcheung/Documents/WiSe 2025/ML4350 Reinforcement Learning/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-06_15-02-31/models/run_lr1e04_bs256_h128_128_128_7703d10e_20260106_150231.pt"
+CONFIG_PATH = "/Users/nselcheung/Documents/WiSe 2025/ML4350 Reinforcement Learning/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-06_15-02-31/configs/run_lr1e04_bs256_h128_128_128_7703d10e_20260106_150231.json"
+NUM_GAMES = 20
 OPPONENT_TYPE = "basic_weak"
 PAUSE_BETWEEN_GAMES = 1.5
 FRAME_DELAY = 1
-MAX_STEPS = 250
+MAX_STEPS = 2000
+
 
 def load_ddqn_agent(model_path, state_dim, action_dim):
     from rl_hockey.DDDQN import DDDQN
+
     agent = DDDQN(
-        state_dim=state_dim,
-        action_dim=action_dim,
-        hidden_dim=[256, 256, 256]
+        state_dim=state_dim, action_dim=action_dim, hidden_dim=[256, 256, 256]
     )
     logger.info(f"Loading model from: {model_path}")
     agent.load(model_path)
     logger.info("Model loaded successfully!")
     return agent
 
+
+def load_td3_agent(model_path, agent_config_path, state_dim, action_dim):
+    from rl_hockey.td3.td3 import TD3
+    import json
+
+    with open(agent_config_path, "r") as f:
+        agent_config = json.load(f)
+    agent = TD3(
+        state_dim=state_dim,
+        action_dim=action_dim,
+        **agent_config["agent"]["hyperparameters"],
+    )
+    logger.info(f"Loading model from: {model_path}")
+    agent.load(model_path)
+    logger.info("Model loaded successfully!")
+    return agent
+
+
 def create_blank_frames(frame_shape, duration_seconds, fps=50):
     num_frames = int(duration_seconds * fps)
     blank_frame = np.zeros(frame_shape, dtype=np.uint8)
     return [blank_frame.copy() for _ in range(num_frames)]
+
 
 def run_game(env, agent, opponent, game_num, max_steps=250, frame_delay=FRAME_DELAY):
     obs, info = env.reset()
@@ -63,8 +82,9 @@ def run_game(env, agent, opponent, game_num, max_steps=250, frame_delay=FRAME_DE
     for step in range(max_steps):
         frame = env.render(mode="rgb_array")
         frames.append(frame)
-        discrete_action = agent.act(obs.astype(np.float32), deterministic=True)
-        action_p1 = env.discrete_to_continous_action(discrete_action)
+        # discrete_action = agent.act(obs.astype(np.float32), deterministic=True)
+        action_p1 = agent.act(obs.astype(np.float32), deterministic=True)
+        # action_p1 = env.discrete_to_continous_action(discrete_action)
         if opponent is not None:
             action_p2 = opponent.act(obs_agent2)
         else:
@@ -77,10 +97,11 @@ def run_game(env, agent, opponent, game_num, max_steps=250, frame_delay=FRAME_DE
         time.sleep(frame_delay)
         if done or truncated:
             break
-    winner = info.get('winner', 0)
+    winner = info.get("winner", 0)
     return frames, step_count, total_reward, winner, info
 
-def get_video_filename(base_folder="videos", base_name="ddqn_games"):
+
+def get_video_filename(base_folder="videos", base_name="td3_games"):
     now = datetime.now()
     dt_str = now.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(base_folder):
@@ -88,24 +109,35 @@ def get_video_filename(base_folder="videos", base_name="ddqn_games"):
     filename = f"{base_name}_{dt_str}.mp4"
     return os.path.join(base_folder, filename)
 
-def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE, pause_between_games=PAUSE_BETWEEN_GAMES, frame_delay=FRAME_DELAY, max_steps=MAX_STEPS):
+
+def main(
+    model_path=MODEL_PATH,
+    config_path=CONFIG_PATH,
+    num_games=NUM_GAMES,
+    opponent_type=OPPONENT_TYPE,
+    pause_between_games=PAUSE_BETWEEN_GAMES,
+    frame_delay=FRAME_DELAY,
+    max_steps=MAX_STEPS,
+):
     output_file = get_video_filename()
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("DDDQN Agent Video Recording")
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info(f"Model: {model_path}")
     logger.info(f"Output: {output_file}")
     logger.info(f"Games: {num_games}")
     logger.info(f"Opponent: {opponent_type}")
     logger.info(f"Max steps per game: {max_steps}")
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("Creating hockey environment...")
     env = h_env.HockeyEnv(mode=h_env.Mode.TRAIN_SHOOTING)
     state_dim = env.observation_space.shape[0]
     discrete_action_dim = 7 if not env.keep_mode else 8
+    action_dim = 8
     logger.info(f"State dimension: {state_dim}")
     logger.info(f"Action dimension: {discrete_action_dim}")
-    agent = load_ddqn_agent(model_path, state_dim, discrete_action_dim)
+    # agent = load_ddqn_agent(model_path, state_dim, discrete_action_dim)
+    agent = load_td3_agent(model_path, config_path, state_dim, action_dim)
     opponent = None
     if opponent_type == "basic_weak":
         opponent = h_env.BasicOpponent(weak=True)
@@ -128,14 +160,13 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
     game_results = []
     for game_num in range(1, num_games + 1):
         logger.info(f"Game {game_num}/{num_games}...")
-        frames, steps, reward, winner, info = run_game(env, agent, opponent, game_num, max_steps=max_steps, frame_delay=frame_delay)
+        frames, steps, reward, winner, info = run_game(
+            env, agent, opponent, game_num, max_steps=max_steps, frame_delay=frame_delay
+        )
         all_frames.extend(frames)
-        game_results.append({
-            'game': game_num,
-            'steps': steps,
-            'reward': reward,
-            'winner': winner
-        })
+        game_results.append(
+            {"game": game_num, "steps": steps, "reward": reward, "winner": winner}
+        )
         winner_str = ""
         if winner == 1:
             winner_str = "Player 1 (Agent) wins!"
@@ -149,42 +180,50 @@ def main(model_path=MODEL_PATH, num_games=NUM_GAMES, opponent_type=OPPONENT_TYPE
             blank_frames = create_blank_frames(frame_shape, pause_between_games, fps=50)
             all_frames.extend(blank_frames)
     env.close()
-    logger.info("="*60)
+    logger.info("=" * 60)
     logger.info("Game Summary")
-    logger.info("="*60)
+    logger.info("=" * 60)
     for result in game_results:
-        winner_str = "Agent" if result['winner'] == 1 else ("Opponent" if result['winner'] == -1 else "Draw")
-        logger.info(f"Game {result['game']}: {result['steps']} steps, "
-                    f"Reward: {result['reward']:.2f}, Winner: {winner_str}")
-    wins = sum(1 for r in game_results if r['winner'] == 1)
-    losses = sum(1 for r in game_results if r['winner'] == -1)
-    draws = sum(1 for r in game_results if r['winner'] == 0)
+        winner_str = (
+            "Agent"
+            if result["winner"] == 1
+            else ("Opponent" if result["winner"] == -1 else "Draw")
+        )
+        logger.info(
+            f"Game {result['game']}: {result['steps']} steps, "
+            f"Reward: {result['reward']:.2f}, Winner: {winner_str}"
+        )
+    wins = sum(1 for r in game_results if r["winner"] == 1)
+    losses = sum(1 for r in game_results if r["winner"] == -1)
+    draws = sum(1 for r in game_results if r["winner"] == 0)
     logger.info(f"Overall: {wins} wins, {losses} losses, {draws} draws")
     if all_frames:
         try:
             import imageio
+
             logger.info(f"Saving {len(all_frames)} frames as MP4 video...")
-            imageio.mimsave(output_file, all_frames, fps=50, codec='libx264', quality=8)
-            file_size = os.path.getsize(output_file) / (1024*1024)
+            imageio.mimsave(output_file, all_frames, fps=50, codec="libx264", quality=8)
+            file_size = os.path.getsize(output_file) / (1024 * 1024)
             logger.info(f"Video saved to '{output_file}'")
             logger.info(f"File size: {file_size:.2f} MB")
         except ImportError:
-            logger.error("="*60)
+            logger.error("=" * 60)
             logger.error("ERROR: imageio not installed!")
-            logger.error("="*60)
+            logger.error("=" * 60)
             logger.error("Please install imageio to save videos:")
             logger.error("  pip install imageio imageio-ffmpeg")
             logger.warning("Saving frames as numpy array instead...")
-            np.savez(output_file.replace('.mp4', '.npz'), frames=np.array(all_frames))
+            np.savez(output_file.replace(".mp4", ".npz"), frames=np.array(all_frames))
             logger.info(f"Frames saved to '{output_file.replace('.mp4', '.npz')}'")
         except Exception as e:
             logger.error(f"Error saving video: {e}")
             logger.warning("Saving frames as numpy array as backup...")
-            np.savez(output_file.replace('.mp4', '.npz'), frames=np.array(all_frames))
+            np.savez(output_file.replace(".mp4", ".npz"), frames=np.array(all_frames))
             logger.info(f"Frames saved to '{output_file.replace('.mp4', '.npz')}'")
     else:
         logger.warning("No frames collected - video not saved.")
     logger.info("Done!")
+
 
 if __name__ == "__main__":
     main()

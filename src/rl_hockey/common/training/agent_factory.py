@@ -23,7 +23,7 @@ def get_action_space_info(
         action_dim = 6
         is_discrete = False
     elif agent_type == "TD3":
-        action_dim = 7 if not env.keep_mode else 8
+        action_dim = env.action_space.shape[0] // 2
         is_discrete = False
     else:
         raise NotImplementedError(
