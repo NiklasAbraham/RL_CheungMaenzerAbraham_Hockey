@@ -6,26 +6,37 @@ import hockey.hockey_env as h_env
 from rl_hockey.common.training.agent_factory import create_agent, get_action_space_info
 from rl_hockey.common.training.curriculum_manager import AgentConfig, load_curriculum
 
+
 def run_single_game(args: Tuple) -> Dict[str, Any]:
     agent_path, agent_config_dict, weak_opponent, max_steps, seed = args
     np.random.seed(seed)
     env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
-    state_dim, action_dim, is_discrete = get_action_space_info(env, agent_config_dict['type'])
+    state_dim, action_dim, is_discrete = get_action_space_info(
+        env, agent_config_dict["type"]
+    )
     from rl_hockey.common.training.curriculum_manager import AgentConfig
+
     agent_config = AgentConfig(
-        type=agent_config_dict['type'],
-        hyperparameters=agent_config_dict['hyperparameters']
+        type=agent_config_dict["type"],
+        hyperparameters=agent_config_dict["hyperparameters"],
     )
     agent = create_agent(agent_config, state_dim, action_dim, is_discrete, {})
     agent.load(agent_path)
-    if hasattr(agent, 'q_network'):
+    if hasattr(agent, "q_network"):
         agent.q_network.eval()
-    if hasattr(agent, 'q_network_target'):
+    if hasattr(agent, "q_network_target"):
         agent.q_network_target.eval()
-    if hasattr(agent, 'actor') and hasattr(agent.actor, 'eval'):
+    if hasattr(agent, "actor") and hasattr(agent.actor, "eval"):
         agent.actor.eval()
-    if hasattr(agent, 'critic1') and hasattr(agent.critic1, 'eval'):
+    if hasattr(agent, "critic1") and hasattr(agent.critic1, "eval"):
         agent.critic1.eval()
+    # For TD3
+    if hasattr(agent, "actor_target") and hasattr(agent.actor_target, "eval"):
+        agent.actor_target.eval()
+    if hasattr(agent, "twincritic_online") and hasattr(agent.twincritic_online, "eval"):
+        agent.twincritic_online.eval()
+    if hasattr(agent, "twincritic_target") and hasattr(agent.twincritic_target, "eval"):
+        agent.twincritic_target.eval()
     opponent = h_env.BasicOpponent(weak=weak_opponent)
     state, _ = env.reset()
     obs_agent2 = env.obs_agent_two()
@@ -44,13 +55,10 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
         obs_agent2 = env.obs_agent_two()
         if done or trunc:
             break
-    winner = info.get('winner', 0)
+    winner = info.get("winner", 0)
     env.close()
-    return {
-        'winner': winner,
-        'reward': total_reward,
-        'steps': step + 1
-    }
+    return {"winner": winner, "reward": total_reward, "steps": step + 1}
+
 
 def evaluate_agent(
     agent_path: str,
@@ -59,20 +67,20 @@ def evaluate_agent(
     num_games: int = 100,
     weak_opponent: bool = True,
     max_steps: int = 250,
-    num_parallel: int = None
+    num_parallel: int = None,
 ) -> Dict[str, Any]:
     if config_path is not None:
         curriculum = load_curriculum(config_path)
         agent_config_dict = {
-            'type': curriculum.agent.type,
-            'hyperparameters': curriculum.agent.hyperparameters
+            "type": curriculum.agent.type,
+            "hyperparameters": curriculum.agent.hyperparameters,
         }
     elif agent_config_dict is None:
         raise ValueError("Either config_path or agent_config_dict must be provided")
     if num_parallel is None:
         num_parallel = min(mp.cpu_count(), num_games)
     try:
-        mp.set_start_method('spawn', force=True)
+        mp.set_start_method("spawn", force=True)
     except RuntimeError:
         pass
     seeds = np.random.randint(0, 2**31, size=num_games)
@@ -86,29 +94,39 @@ def evaluate_agent(
             results = pool.map(run_single_game, args_list)
     else:
         results = [run_single_game(args) for args in args_list]
-    wins = sum(1 for r in results if r['winner'] == 1)
-    losses = sum(1 for r in results if r['winner'] == -1)
-    draws = sum(1 for r in results if r['winner'] == 0)
-    rewards = [r['reward'] for r in results]
+    wins = sum(1 for r in results if r["winner"] == 1)
+    losses = sum(1 for r in results if r["winner"] == -1)
+    draws = sum(1 for r in results if r["winner"] == 0)
+    rewards = [r["reward"] for r in results]
     mean_reward = np.mean(rewards)
     std_reward = np.std(rewards)
     win_rate = wins / num_games if num_games > 0 else 0.0
     return {
-        'wins': wins,
-        'losses': losses,
-        'draws': draws,
-        'win_rate': win_rate,
-        'mean_reward': mean_reward,
-        'std_reward': std_reward,
-        'num_games': num_games,
-        'weak_opponent': weak_opponent,
-        'all_rewards': rewards,
-        'all_winners': [r['winner'] for r in results]
+        "wins": wins,
+        "losses": losses,
+        "draws": draws,
+        "win_rate": win_rate,
+        "mean_reward": mean_reward,
+        "std_reward": std_reward,
+        "num_games": num_games,
+        "weak_opponent": weak_opponent,
+        "all_rewards": rewards,
+        "all_winners": [r["winner"] for r in results],
     }
+
 
 if __name__ == "__main__":
     try:
-        mp.set_start_method('spawn', force=True)
+        mp.set_start_method("spawn", force=True)
     except RuntimeError:
         pass
-    print(evaluate_agent(agent_path="results/hyperparameter_runs/2026-01-02_13-12-27/models/run_lr1e04_bs256_h128_128_128_7703d10e_20260102_131227_ep009100.pt", config_path="configs/curriculum_simple.json", num_games=100, weak_opponent=True, max_steps=250, num_parallel=None))
+    print(
+        evaluate_agent(
+            agent_path="/Users/nselcheung/Documents/WiSe 2025/ML4350 Reinforcement Learning/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-06_15-02-31/models/run_lr1e04_bs256_h128_128_128_7703d10e_20260106_150231.pt",
+            config_path="configs/curriculum_td3.json",
+            num_games=200,
+            weak_opponent=True,
+            max_steps=1000,
+            num_parallel=None,
+        )
+    )
