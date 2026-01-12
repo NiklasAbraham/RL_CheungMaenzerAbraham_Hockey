@@ -98,11 +98,9 @@ def get_opponent_action(
 ) -> np.ndarray:
     """Get action from opponent."""
     if opponent is None:
-        # Random actions (zeros)
-        return np.zeros(6)  # Default action size
+        return np.zeros(6)
     
     elif isinstance(opponent, h_env.BasicOpponent):
-        # BasicOpponent uses obs_agent_two format
         return opponent.act(obs)
     
     elif isinstance(opponent, Agent):
@@ -120,10 +118,9 @@ def create_self_play_opponent(
     is_discrete: Optional[bool] = None,
     deterministic: bool = True
 ) -> Agent:
-    """Create a self-play opponent from current agent or checkpoint."""
     if checkpoint is None:
         opponent_agent = copy.deepcopy(agent)
-        # Set PyTorch networks to evaluation mode if they exist
+
         if hasattr(opponent_agent, 'q_network'):
             opponent_agent.q_network.eval()
         if hasattr(opponent_agent, 'q_network_target'):
@@ -153,18 +150,14 @@ def load_agent_checkpoint(
     action_dim: int,
     is_discrete: bool
 ) -> Agent:
-    """Load an agent from checkpoint."""
     from rl_hockey.common.training.agent_factory import create_agent
     
-    # Create agent with same config
     agent = create_agent(
-        agent_config, state_dim, action_dim, is_discrete, {}
+        agent_config, state_dim, action_dim, {}
     )
     
-    # Load checkpoint
     agent.load(checkpoint_path)
     
-    # Set PyTorch networks to evaluation mode if they exist
     if hasattr(agent, 'q_network'):
         agent.q_network.eval()
     if hasattr(agent, 'q_network_target'):
@@ -178,7 +171,6 @@ def load_agent_checkpoint(
 
 
 def _find_latest_checkpoint(checkpoint_dir: str) -> str:
-    """Find the most recent checkpoint in a directory."""
     checkpoint_path = Path(checkpoint_dir)
     checkpoints = list(checkpoint_path.glob("*.pt"))
     checkpoints.sort(key=lambda p: p.stat().st_mtime, reverse=True)

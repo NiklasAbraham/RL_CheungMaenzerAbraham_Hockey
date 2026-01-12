@@ -28,13 +28,17 @@ class RunManager:
     
     def generate_run_name(self, config: Dict[str, Any], index: int = None) -> str:
         """Generate a unique run name based on configuration."""
+        # Extract agent hyperparameters (nested structure)
+        agent_hyperparams = config.get('agent', {}).get('hyperparameters', {})
+        common_hyperparams = config.get('hyperparameters', {})
+        
         # Create a hash from key hyperparameters for uniqueness
         key_params = {
-            'hidden_dim': config.get('hidden_dim', [128, 128, 128]),
-            'learning_rate': config.get('learning_rate', 0.0001),
-            'batch_size': config.get('batch_size', 256),
-            'target_update_freq': config.get('target_update_freq', 50),
-            'eps_decay': config.get('eps_decay', 0.999),
+            'hidden_dim': agent_hyperparams.get('hidden_dim', [128, 128, 128]),
+            'learning_rate': common_hyperparams.get('learning_rate', 0.0001),
+            'batch_size': common_hyperparams.get('batch_size', 256),
+            'target_update_freq': agent_hyperparams.get('target_update_freq', 50),
+            'eps_decay': agent_hyperparams.get('eps_decay', 0.999),
         }
         
         # Create a short hash
