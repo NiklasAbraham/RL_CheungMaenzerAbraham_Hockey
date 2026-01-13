@@ -17,7 +17,7 @@ from rl_hockey.common.training.opponent_manager import (
 )
 from rl_hockey.common.training.config_validator import validate_config
 from rl_hockey.common.evaluation.agent_evaluator import evaluate_agent
-from rl_hockey.common.utils import discrete_to_continuous_action_with_fineness, set_cuda_device
+from rl_hockey.common.utils import discrete_to_continuous_action_with_fineness, set_cuda_device, get_resource_usage
 from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized, ThreadedVectorizedHockeyEnvOptimized
 
 
@@ -136,6 +136,9 @@ def train_run(
     gradient_steps = 0
     evaluation_results = []
     last_eval_step = 0
+    resource_logs = []
+    resource_log_freq = training_params.get('resource_log_freq', 1000)  # Log every N steps
+    last_resource_log_step = 0
     
     def get_reward_weights(episode_idx, phase_config):
         reward_shaping = phase_config.reward_shaping
@@ -327,6 +330,18 @@ def train_run(
                 total_reward += reward
                 total_shaped_reward += shaped_reward
                 
+                # Log resource usage at intervals
+                if resource_log_freq > 0 and steps - last_resource_log_step >= resource_log_freq:
+                    try:
+                        resource_usage = get_resource_usage()
+                        resource_usage['step'] = steps
+                        resource_usage['episode'] = global_episode
+                        resource_logs.append(resource_usage)
+                        last_resource_log_step = steps
+                    except Exception as e:
+                        if verbose:
+                            print(f"Warning: Failed to log resource usage: {e}")
+                            
                 if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
                     stats = agent.train(updates_per_step)
                     gradient_steps += updates_per_step
@@ -417,6 +432,8 @@ def train_run(
     run_manager.save_config(run_name, _curriculum_to_dict(curriculum))
     run_manager.save_rewards_csv(run_name, rewards, phases=phases)
     run_manager.save_losses_csv(run_name, losses)
+    if resource_logs:
+        run_manager.save_resources_csv(run_name, resource_logs)
     
     if verbose:
         print(f"\nTraining Summary:")
@@ -534,6 +551,9 @@ def _train_run_vectorized(
     gradient_steps = 0
     evaluation_results = []
     last_eval_step = 0
+    resource_logs = []
+    resource_log_freq = training_params.get('resource_log_freq', 1000)  # Log every N steps
+    last_resource_log_step = 0
     
     # Track episode state for each parallel environment
     episode_rewards = [0.0] * num_envs
@@ -768,6 +788,18 @@ def _train_run_vectorized(
         # Update states
         states = next_states
         
+        # Log resource usage at intervals
+        if resource_log_freq > 0 and steps - last_resource_log_step >= resource_log_freq:
+            try:
+                resource_usage = get_resource_usage()
+                resource_usage['step'] = steps
+                resource_usage['episode'] = completed_episodes
+                resource_logs.append(resource_usage)
+                last_resource_log_step = steps
+            except Exception as e:
+                if verbose:
+                    print(f"Warning: Failed to log resource usage: {e}")
+        
         # Train agent
         if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
             stats = agent.train(updates_per_step)
@@ -849,6 +881,10 @@ def _train_run_vectorized(
     run_manager.save_config(run_name, _curriculum_to_dict(curriculum))
     run_manager.save_rewards_csv(run_name, rewards, phases=phases)
     run_manager.save_losses_csv(run_name, losses)
+    if resource_logs:
+        run_manager.save_resources_csv(run_name, resource_logs)
+    if resource_logs:
+        run_manager.save_resources_csv(run_name, resource_logs)
     
     if verbose:
         print(f"\nTraining Summary:")
