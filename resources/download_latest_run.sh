@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # Script to download the latest hyperparameter run from the cluster
-# Usage: ./download_latest_run.sh [server_address]
+# Usage: ./resources/download_latest_run.sh [server_address]
 
 # Configuration
 SERVER="${1:-tcml-login1}"
 # SSH config should handle the full hostname mapping
 REMOTE_PROJECT_DIR="~/RL_CheungMaenzerAbraham_Hockey"
-LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 REMOTE_RUNS_DIR="${REMOTE_PROJECT_DIR}/results/hyperparameter_runs"
 LOCAL_RUNS_DIR="${LOCAL_PROJECT_DIR}/results/hyperparameter_runs"
 
