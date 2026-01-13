@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 
 from rl_hockey.DDDQN import DDDQN
 from rl_hockey.sac.sac import SAC
-from rl_hockey.td3.td3 import TD3
+from rl_hockey.td3.td3_reference import TD3
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.training.curriculum_manager import AgentConfig
 from rl_hockey.common.utils import get_discrete_action_dim
@@ -22,13 +22,6 @@ def get_action_space_info(env: h_env.HockeyEnv, agent_type: str = "DDDQN", finen
         # continuous action space with 3 or 4 dimensions depending on keep_mode
         action_dim = 3 if not env.keep_mode else 4
         is_discrete = False
-    elif agent_type == "TD3":
-        action_dim = env.action_space.shape[0] // 2
-        is_discrete = False
-    else:
-        raise NotImplementedError(
-            f"{agent_type} is not implemented. Choose from DDDQN, SAC, TD3. Danke!"
-        )
 
     return state_dim, action_dim, is_discrete
 
