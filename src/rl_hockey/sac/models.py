@@ -3,19 +3,32 @@ import torch.nn as nn
 from torch.distributions import Normal
 
 
-class Critic(nn.Module):
-    def __init__(self, state_dim, action_dim, latent_dim=256, activation=nn.ReLU):
+# TODO: use BatchRenorm instead
+class MLP(nn.Module):
+    def __init__(self, input_dim, output_dim, latent_dims, activation, use_batchnorm=False):
         super().__init__()
 
-        self.net = nn.Sequential(
-            nn.Linear(state_dim + action_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, 1),
-        )
+        layers = []
+        dim = input_dim
+        for latent_dim in latent_dims:
+            layers.append(nn.Linear(dim, latent_dim))
+            layers.append(activation())
+            if use_batchnorm:
+                layers.append(nn.BatchNorm1d(latent_dim))
+            dim = latent_dim
+        layers.append(nn.Linear(dim, output_dim))
+
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.net(x)
+
+
+class Critic(nn.Module):
+    def __init__(self, state_dim, action_dim, latent_dims=[256, 256], activation=nn.ReLU):
+        super().__init__()
+
+        self.net = MLP(state_dim + action_dim, 1, latent_dims, activation)
 
     def forward(self, state, action):
         input = torch.cat([state, action], dim=1)
@@ -23,18 +36,10 @@ class Critic(nn.Module):
 
 
 class Actor(nn.Module):
-    def __init__(self, state_dim, action_dim, latent_dim=256, activation=nn.ReLU):
+    def __init__(self, state_dim, action_dim, latent_dims=[256, 256], activation=nn.ReLU):
         super().__init__()
 
-        self.net = nn.Sequential(
-            nn.Linear(state_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, latent_dim),
-            activation(),
-            nn.Linear(latent_dim, 2 * action_dim),
-        )
+        self.net = MLP(state_dim, 2 * action_dim, latent_dims, activation)
 
     def forward(self, state):
         output = self.net(state)
