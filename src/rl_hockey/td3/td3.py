@@ -72,12 +72,14 @@ class TD3(Agent):
         self.transition_count = 0
 
         self.actor = Actor(
-            state_dim, action_dim, self.actor_dim, self.actor_n_layers
+            state_dim, action_dim, self.actor_dim, self.actor_n_layers, max_action=self.action_max
         ).to(DEVICE)
         self.actor_target = Actor(
-            state_dim, action_dim, self.actor_dim, self.actor_n_layers
+            state_dim, action_dim, self.actor_dim, self.actor_n_layers, max_action=self.action_max
         ).to(DEVICE)
         self.actor_target.load_state_dict(self.actor.state_dict())
+
+        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
 
         self.twincritic_online = TwinCritic(
             state_dim, action_dim, self.critic_dim, self.critic_n_layers
@@ -87,18 +89,17 @@ class TD3(Agent):
         ).to(DEVICE)
         self.twincritic_target.load_state_dict(self.twincritic_online.state_dict())
 
+        self.critic_optimizer = optim.Adam(
+            self.twincritic_online.parameters(),
+            lr=self.critic_lr,
+        )
+
         if self.verbose:
             print("Initialized Actor:")
             print(self.actor)
 
             print("Initialized Critics:")
             print(self.twincritic_online.critic1)
-
-        self.critic_optimizer = optim.Adam(
-            self.twincritic_online.parameters(),
-            lr=self.critic_lr,
-        )
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=self.actor_lr)
 
         # TODO: implement lr scheduler
         # self.scheduler = LambdaLR(critic_optimizer, lr_lambda=)
@@ -188,108 +189,107 @@ class TD3(Agent):
 
             return value.squeeze().item()
 
-    def train(self, steps=1):
+    def train(self):
         critic_losses = []
         actor_losses = []
 
-        for i in range(steps):
-            if self.prioritized_replay:
+        if self.prioritized_replay:
+            (
                 (
-                    (
-                        state,
-                        action,
-                        reward,
-                        next_state,
-                        done,
-                    ),
-                    idxs,
-                    is_weight,
-                ) = self.buffer.sample(self.batch_size)
-            else:
-                state, action, reward, next_state, done = self.buffer.sample(
-                    self.batch_size
-                )
+                    state,
+                    action,
+                    reward,
+                    next_state,
+                    done,
+                ),
+                idxs,
+                is_weight,
+            ) = self.buffer.sample(self.batch_size)
+        else:
+            state, action, reward, next_state, done = self.buffer.sample(
+                self.batch_size
+            )
 
-            state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
-            action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
-            reward = torch.from_numpy(reward).to(dtype=torch.float32, device=DEVICE)
-            next_state = torch.from_numpy(next_state).to(
+        state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
+        action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
+        reward = torch.from_numpy(reward).to(dtype=torch.float32, device=DEVICE)
+        next_state = torch.from_numpy(next_state).to(
+            dtype=torch.float32, device=DEVICE
+        )
+        done = torch.from_numpy(done).to(dtype=torch.float32, device=DEVICE)
+
+        # calculate critic target
+        with torch.no_grad():
+            next_action = self.actor_target(next_state)
+
+            # Double clipping with Gaussian Noise
+            sampled_noise = self.policy_noise_dist.sample((self.batch_size,)).to(
+                DEVICE
+            )
+            next_action += torch.clamp(
+                sampled_noise,
+                -self.noise_clip,
+                self.noise_clip,
+            )
+            next_action = torch.clamp(next_action, self.action_min, self.action_max)
+
+            # Double Q Network with minimum Q value
+            q1_target, q2_target = self.twincritic_target(next_state, next_action)
+            next_value = torch.min(q1_target, q2_target)
+
+            target = reward + (1 - done) * self.discount * next_value
+
+        q1_online, q2_online = self.twincritic_online(state, action)
+
+        if self.prioritized_replay:
+            td_errors = (
+                (torch.abs(q1_online - target) + torch.abs(q2_online - target))
+                .detach()
+                .cpu()
+                .numpy()
+                # .flatten()
+            )
+            # print(td_errors.shape)
+            for idx, error in zip(idxs, td_errors):
+                self.buffer.update(idx, error)
+            is_weight = torch.from_numpy(is_weight).to(
                 dtype=torch.float32, device=DEVICE
             )
-            done = torch.from_numpy(done).to(dtype=torch.float32, device=DEVICE)
+            c1_loss = F.mse_loss(q1_online, target, reduction="none")
+            c2_loss = F.mse_loss(q2_online, target, reduction="none")
+            critic_loss = torch.mean(is_weight * (c1_loss + c2_loss))
+        else:
+            c1_loss = F.mse_loss(q1_online, target)
+            c2_loss = F.mse_loss(q2_online, target)
+            critic_loss = c1_loss + c2_loss
 
-            # calculate critic target
-            with torch.no_grad():
-                next_action = self.actor_target(next_state)
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
 
-                # Double clipping with Gaussian Noise
-                sampled_noise = self.policy_noise_dist.sample((self.batch_size,)).to(
-                    DEVICE
-                )
-                next_action += torch.clamp(
-                    sampled_noise,
-                    -self.noise_clip,
-                    self.noise_clip,
-                )
-                next_action = torch.clamp(next_action, self.action_min, self.action_max)
+        # Clip the gradients
+        # torch.nn.utils.clip_grad_norm_(
+        #     self.twincritic_online.parameters(), max_norm=0.5
+        # )
+        self.critic_optimizer.step()
 
-                # Double Q Network with minimum Q value
-                q1_target, q2_target = self.twincritic_target(next_state, next_action)
-                next_value = torch.min(q1_target, q2_target)
+        critic_losses.append(critic_loss.item())
 
-                target = reward + (1 - done) * self.discount * next_value
+        self.learn_steps_counter += 1
 
-            q1_online, q2_online = self.twincritic_online(state, action)
+        # Accumulative updates for actor
+        if self.learn_steps_counter % self.update_actor_iter == 0:
 
-            if self.prioritized_replay:
-                td_errors = (
-                    (torch.abs(q1_online - target) + torch.abs(q2_online - target))
-                    .detach()
-                    .cpu()
-                    .numpy()
-                    # .flatten()
-                )
-                # print(td_errors.shape)
-                for idx, error in zip(idxs, td_errors):
-                    self.buffer.update(idx, error)
-                is_weight = torch.from_numpy(is_weight).to(
-                    dtype=torch.float32, device=DEVICE
-                )
-                c1_loss = F.mse_loss(q1_online, target, reduction="none")
-                c2_loss = F.mse_loss(q2_online, target, reduction="none")
-                critic_loss = torch.mean(is_weight * (c1_loss + c2_loss))
-            else:
-                c1_loss = F.mse_loss(q1_online, target)
-                c2_loss = F.mse_loss(q2_online, target)
-                critic_loss = c1_loss + c2_loss
+            self.actor_optimizer.zero_grad()
+            new_action = self.actor(state)
+            actor_q1_loss, _ = self.twincritic_online(state, new_action)
+            actor_loss = -torch.mean(actor_q1_loss)
+            actor_loss.backward()
+            self.actor_optimizer.step()
 
-            self.critic_optimizer.zero_grad()
-            critic_loss.backward()
+            actor_losses.append(actor_loss.item())
 
-            # Clip the gradients
-            # torch.nn.utils.clip_grad_norm_(
-            #     self.twincritic_online.parameters(), max_norm=0.5
-            # )
-            self.critic_optimizer.step()
-
-            critic_losses.append(critic_loss.item())
-
-            self.learn_steps_counter += 1
-
-            # Accumulative updates for actor
-            if self.learn_steps_counter % self.update_actor_iter == 0:
-
-                self.actor_optimizer.zero_grad()
-                new_action = self.actor(state)
-                actor_q1_loss, _ = self.twincritic_online(state, new_action)
-                actor_loss = -torch.mean(actor_q1_loss)
-                actor_loss.backward()
-                self.actor_optimizer.step()
-
-                actor_losses.append(actor_loss.item())
-
-            if self.learn_steps_counter % self.target_network_update_steps == 0:
-                self.update_network_parameters()
+        if self.learn_steps_counter % self.target_network_update_steps == 0:
+            self.update_network_parameters()
 
         return {"critic_loss": critic_losses, "actor_loss": actor_losses}
 
