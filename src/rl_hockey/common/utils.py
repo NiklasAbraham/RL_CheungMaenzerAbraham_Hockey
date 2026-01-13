@@ -1,6 +1,8 @@
 import numpy as np
 import torch
-from typing import Optional, Union
+import psutil
+import time
+from typing import Optional, Union, Dict, Any
 
 
 def mirror_state(state):
@@ -207,4 +209,118 @@ def set_cuda_device(device: Optional[Union[str, int]]):
                 raise ValueError(f"CUDA not available, but device {device} was requested")
     elif torch.cuda.is_available():
         torch.cuda.empty_cache()
+
+
+def get_resource_usage() -> Dict[str, Any]:
+    """
+    Collect GPU and CPU usage metrics.
+    
+    Returns:
+        Dictionary with resource usage metrics including:
+        - gpu_utilization: GPU utilization percentage (0-100)
+        - gpu_memory_used: GPU memory used in MB
+        - gpu_memory_total: Total GPU memory in MB
+        - gpu_memory_percent: GPU memory usage percentage
+        - gpu_temperature: GPU temperature in Celsius
+        - cpu_percent: CPU usage percentage (average across all cores)
+        - cpu_per_core: CPU usage per core (list of percentages)
+        - memory_used: System memory used in MB
+        - memory_total: Total system memory in MB
+        - memory_percent: System memory usage percentage
+        - load_avg: System load average (1, 5, 15 min)
+    """
+    metrics = {
+        'timestamp': time.time(),
+    }
+    
+    # CPU metrics
+    try:
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_per_core = psutil.cpu_percent(interval=0.1, percpu=True)
+        load_avg = psutil.getloadavg() if hasattr(psutil, 'getloadavg') else (0, 0, 0)
+        
+        metrics['cpu_percent'] = cpu_percent
+        metrics['cpu_per_core'] = cpu_per_core
+        metrics['cpu_cores'] = len(cpu_per_core)
+        metrics['load_avg_1min'] = load_avg[0] if len(load_avg) > 0 else 0
+        metrics['load_avg_5min'] = load_avg[1] if len(load_avg) > 1 else 0
+        metrics['load_avg_15min'] = load_avg[2] if len(load_avg) > 2 else 0
+    except Exception as e:
+        metrics['cpu_percent'] = 0
+        metrics['cpu_per_core'] = []
+        metrics['cpu_cores'] = 0
+        metrics['load_avg_1min'] = 0
+        metrics['load_avg_5min'] = 0
+        metrics['load_avg_15min'] = 0
+    
+    # Memory metrics
+    try:
+        mem = psutil.virtual_memory()
+        metrics['memory_used'] = mem.used / (1024 * 1024)  # MB
+        metrics['memory_total'] = mem.total / (1024 * 1024)  # MB
+        metrics['memory_percent'] = mem.percent
+        metrics['memory_available'] = mem.available / (1024 * 1024)  # MB
+    except Exception as e:
+        metrics['memory_used'] = 0
+        metrics['memory_total'] = 0
+        metrics['memory_percent'] = 0
+        metrics['memory_available'] = 0
+    
+    # GPU metrics
+    try:
+        if torch.cuda.is_available():
+            device = torch.cuda.current_device()
+            
+            # GPU utilization and memory
+            memory_allocated = torch.cuda.memory_allocated(device) / (1024 * 1024)  # MB
+            memory_reserved = torch.cuda.memory_reserved(device) / (1024 * 1024)  # MB
+            memory_total = torch.cuda.get_device_properties(device).total_memory / (1024 * 1024)  # MB
+            
+            # Try to get utilization via nvidia-smi (if available)
+            gpu_util = None
+            gpu_temp = None
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ['nvidia-smi', '--query-gpu=utilization.gpu,temperature.gpu', '--format=csv,noheader,nounits'],
+                    capture_output=True,
+                    text=True,
+                    timeout=1
+                )
+                if result.returncode == 0:
+                    parts = result.stdout.strip().split(', ')
+                    if len(parts) >= 2:
+                        gpu_util = float(parts[0].strip())
+                        gpu_temp = float(parts[1].strip())
+            except Exception:
+                pass
+            
+            metrics['gpu_available'] = True
+            metrics['gpu_device'] = device
+            metrics['gpu_memory_allocated'] = memory_allocated
+            metrics['gpu_memory_reserved'] = memory_reserved
+            metrics['gpu_memory_total'] = memory_total
+            metrics['gpu_memory_percent'] = (memory_reserved / memory_total) * 100 if memory_total > 0 else 0
+            metrics['gpu_utilization'] = gpu_util if gpu_util is not None else 0
+            metrics['gpu_temperature'] = gpu_temp if gpu_temp is not None else 0
+        else:
+            metrics['gpu_available'] = False
+            metrics['gpu_device'] = None
+            metrics['gpu_memory_allocated'] = 0
+            metrics['gpu_memory_reserved'] = 0
+            metrics['gpu_memory_total'] = 0
+            metrics['gpu_memory_percent'] = 0
+            metrics['gpu_utilization'] = 0
+            metrics['gpu_temperature'] = 0
+    except Exception as e:
+        metrics['gpu_available'] = False
+        metrics['gpu_device'] = None
+        metrics['gpu_memory_allocated'] = 0
+        metrics['gpu_memory_reserved'] = 0
+        metrics['gpu_memory_total'] = 0
+        metrics['gpu_memory_percent'] = 0
+        metrics['gpu_utilization'] = 0
+        metrics['gpu_temperature'] = 0
+    
+    return metrics
 

@@ -18,7 +18,7 @@ echo "✓ Project directory exists: $PROJECT_DIR"
 CONTAINER="$PROJECT_DIR/singularity_build/rl_hockey.simg"
 if [ ! -f "$CONTAINER" ]; then
     echo "WARNING: Container not found: $CONTAINER"
-    echo "  You need to build the container first: bash cluster_setup.sh"
+    echo "  You need to build the container first: bash resources/cluster_setup.sh"
 else
     echo "✓ Container exists: $CONTAINER"
 fi
@@ -42,7 +42,7 @@ echo "✓ Training script exists: $SCRIPT"
 # Display resource requirements from sbatch file
 echo ""
 echo "=== Resource Requirements ==="
-grep "^#SBATCH --" "$PROJECT_DIR/train_single_run.sbatch" | grep -v "^#.*$" | while read line; do
+grep "^#SBATCH --" "$PROJECT_DIR/resources/train_single_run.sbatch" | grep -v "^#.*$" | while read line; do
     echo "  $line"
 done
 
@@ -75,4 +75,4 @@ echo "  Parallel Environments: 24 (via NUM_ENVS)"
 echo ""
 echo "To submit the job, run:"
 echo "  cd $PROJECT_DIR"
-echo "  sbatch train_single_run.sbatch"
+echo "  sbatch resources/train_single_run.sbatch"

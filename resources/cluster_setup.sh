@@ -1,6 +1,6 @@
 #!/bin/bash
 # Setup script to run on the TCML cluster after syncing files
-# Run this script on the cluster: bash cluster_setup.sh
+# Run this script on the cluster: bash resources/cluster_setup.sh
 
 set -e
 
@@ -83,6 +83,6 @@ echo ""
 echo "Container location: $PROJECT_DIR/singularity_build/rl_hockey.simg"
 echo ""
 echo "Next steps:"
-echo "1. Update train_single_run.sbatch if needed (check paths and email)"
-echo "2. Submit the job: sbatch train_single_run.sbatch"
+echo "1. Update resources/train_single_run.sbatch if needed (check paths and email)"
+echo "2. Submit the job: sbatch resources/train_single_run.sbatch"
 echo "3. Monitor with: squeue -u \$USER"

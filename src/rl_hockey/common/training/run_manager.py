@@ -69,6 +69,7 @@ class RunManager:
             'csv_rewards': self.csvs_dir / f"{run_name}_rewards.csv",
             'csv_losses': self.csvs_dir / f"{run_name}_losses.csv",
             'csv_evaluation': self.csvs_dir / f"{run_name}_evaluation.csv",
+            'csv_resources': self.csvs_dir / f"{run_name}_resources.csv",
             'model': self.models_dir / f"{run_name}.pt",
         }
     
@@ -227,6 +228,40 @@ class RunManager:
         plt.tight_layout()
         plt.savefig(paths['plot_evaluation'])
         plt.close()
+    
+    def save_resources_csv(self, run_name: str, resource_logs: List[Dict[str, Any]]):
+        """Save resource usage logs to CSV file."""
+        if not resource_logs:
+            return
+        
+        paths = self.get_run_directories(run_name)
+        
+        # Get all unique keys from all resource logs
+        all_keys = set()
+        for log in resource_logs:
+            all_keys.update(log.keys())
+        
+        # Sort keys for consistent column order
+        key_order = [
+            'step', 'episode', 'timestamp',
+            'cpu_percent', 'cpu_cores', 'load_avg_1min', 'load_avg_5min', 'load_avg_15min',
+            'memory_used', 'memory_total', 'memory_percent', 'memory_available',
+            'gpu_available', 'gpu_device', 'gpu_utilization', 'gpu_memory_allocated',
+            'gpu_memory_reserved', 'gpu_memory_total', 'gpu_memory_percent', 'gpu_temperature'
+        ]
+        
+        # Order keys: known keys first, then any others
+        ordered_keys = [k for k in key_order if k in all_keys]
+        remaining_keys = sorted([k for k in all_keys if k not in key_order])
+        csv_keys = ordered_keys + remaining_keys
+        
+        with open(paths['csv_resources'], 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(csv_keys)
+            
+            for log in resource_logs:
+                row = [log.get(key, '') for key in csv_keys]
+                writer.writerow(row)
     
     @staticmethod
     def _moving_average(data: List[float], window_size: int) -> List[float]:
