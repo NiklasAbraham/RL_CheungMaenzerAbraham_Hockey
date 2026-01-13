@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from rl_hockey.common import *
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class Actor(nn.Module):
@@ -65,55 +65,92 @@ class TD3(Agent):
         self,
         state_dim,
         action_dim,
-        max_action,
-        discount=0.99,
-        tau=0.005,
-        policy_noise=0.2,
-        noise_clip=0.5,
-        policy_freq=2,
+        **user_config
     ):
+        super().__init__()
 
-        self.actor = Actor(state_dim, action_dim, max_action).to(device)
+        self.config = {
+            "learning_rate": 3e-4,
+            "max_action": 1.0,
+            "discount": 0.99,
+            "tau": 0.005,
+            "expl_noise": 0.1,
+            "policy_noise": 0.2,
+            "noise_clip": 0.5,
+            "policy_freq": 2,
+            "batch_size": 256,
+        }
+        self.config.update(user_config)
+
+        self.actor = Actor(state_dim, action_dim, self.config["max_action"]).to(DEVICE)
         self.actor_target = copy.deepcopy(self.actor)
-        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=3e-4)
+        self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.config["learning_rate"])
 
-        self.critic = Critic(state_dim, action_dim).to(device)
+        self.critic = Critic(state_dim, action_dim).to(DEVICE)
         self.critic_target = copy.deepcopy(self.critic)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=3e-4)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.config["learning_rate"])
 
-        self.max_action = max_action
-        self.discount = discount
-        self.tau = tau
-        self.policy_noise = policy_noise
-        self.noise_clip = noise_clip
-        self.policy_freq = policy_freq
+        self.action_dim = action_dim
+        self.state_dim = state_dim
+        self.max_action = self.config["max_action"]
+        self.discount = self.config["discount"]
+        self.tau = self.config["tau"]
+        self.expl_noise = self.config["expl_noise"]
+        self.policy_noise = self.config["policy_noise"]
+        self.noise_clip = self.config["noise_clip"]
+        self.policy_freq = self.config["policy_freq"]
+        self.batch_size = self.config["batch_size"]
 
         self.total_it = 0
 
-    def act(self, state, deterministic):
-        state = torch.FloatTensor(state.reshape(1, -1)).to(device)
-        return self.actor(state).cpu().data.numpy().flatten()
+    def act(self, state, deterministic=False):
+        with torch.no_grad():
+            state = torch.FloatTensor(state).unsqueeze(0).to(DEVICE)
+            action = self.actor(state).squeeze(0).cpu().numpy()
+            if not deterministic:
+                action += np.random.normal(
+                    0, self.max_action * self.expl_noise, size=self.action_dim
+                ).clip(-self.max_action, self.max_action)
 
-    def train(self, replay_buffer, batch_size=256):
+            return action
+
+
+    def evaluate(self, state):
+        with torch.no_grad():
+            state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
+
+            # 1. Get the deterministic action (No sampling, no log_prob)
+            action = self.actor(state)
+
+            # 2. Get the Q-values from both critics
+            q1, q2 = self.critic(state, action)
+
+            # 3. Take the conservative estimate (min)
+            value = torch.min(q1, q2)
+            return value.squeeze().item()
+
+
+    def train(self, steps):
         self.total_it += 1
 
         # Sample replay buffer
-        state, action, next_state, reward, not_done = replay_buffer.sample(batch_size)
+        state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
+
+        state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
+        action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
+        reward = torch.from_numpy(reward).to(dtype=torch.float32, device=DEVICE)
+        next_state = torch.from_numpy(next_state).to(
+            dtype=torch.float32, device=DEVICE
+        )
+        done = torch.from_numpy(done).to(dtype=torch.float32, device=DEVICE)
 
         with torch.no_grad():
-            # Select action according to policy and add clipped noise
-            noise = (torch.randn_like(action) * self.policy_noise).clamp(
-                -self.noise_clip, self.noise_clip
-            )
-
-            next_action = (self.actor_target(next_state) + noise).clamp(
-                -self.max_action, self.max_action
-            )
+            next_action = self.actor_target(next_state)
 
             # Compute the target Q value
             target_Q1, target_Q2 = self.critic_target(next_state, next_action)
             target_Q = torch.min(target_Q1, target_Q2)
-            target_Q = reward + not_done * self.discount * target_Q
+            target_Q = reward + (1-done) * self.discount * target_Q
 
         # Get current Q estimates
         current_Q1, current_Q2 = self.critic(state, action)

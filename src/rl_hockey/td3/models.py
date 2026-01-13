@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class Actor(nn.Module):
     def __init__(
-        self, state_dim, action_dim, latent_dim=256, num_layers=1, activation=nn.ReLU
+        self, state_dim, action_dim, latent_dim=256, num_layers=1, activation=nn.ReLU, max_action=1.0
     ):
         super().__init__()
         self.net = nn.Sequential(
@@ -18,8 +18,10 @@ class Actor(nn.Module):
         self.net.append(nn.Linear(latent_dim, action_dim))
         self.net.append(nn.Tanh())
 
+        self.max_action = max_action
+
     def forward(self, state):
-        return self.net(state.to(torch.float32))
+        return self.max_action * self.net(state.to(torch.float32))
 
 
 class TwinCritic(nn.Module):
