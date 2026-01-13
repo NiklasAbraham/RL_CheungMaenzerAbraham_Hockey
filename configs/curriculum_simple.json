@@ -3,14 +3,14 @@
     "phases": [
       {
         "name": "shooting_basics",
-        "episodes": 8000,
+        "episodes": 10000,
         "environment": {"mode": "TRAIN_SHOOTING", "keep_mode": true},
         "opponent": {"type": "none", "weight": 1.0},
         "reward_shaping": null
       },
       {
         "name": "defense_basics",
-        "episodes": 8000,
+        "episodes": 10000,
         "environment": {"mode": "TRAIN_DEFENSE", "keep_mode": true},
         "opponent": {"type": "basic_weak", "weight": 1.0},
         "reward_shaping": null
@@ -54,7 +54,7 @@
       "hidden_dim": [256, 512, 256],
       "target_update_freq": 2000,
       "eps": 1,
-      "action_fineness": 4,
+      "action_fineness": 7,
       "eps_min": 0.1,
       "eps_decay": 0.9995,
       "use_huber_loss": true

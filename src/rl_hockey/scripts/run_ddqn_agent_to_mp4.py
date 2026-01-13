@@ -31,8 +31,8 @@ class ALSAFilter:
 if sys.platform == 'linux':
     sys.stderr = ALSAFilter(sys.stderr)
 
-MODEL_PATH = "results/hyperparameter_runs/2026-01-03_13-43-03/models/run_lr5e04_bs512_h256_512_256_7e411fc0_20260103_134303_vec8_ep045000.pt"
-NUM_GAMES = 20
+MODEL_PATH = "results/hyperparameter_runs/2026-01-03_18-24-14/run_lr1e04_bs256_h512_512_512_31fb74b2_0002/2026-01-03_18-24-17/models/run_lr1e04_bs256_h512_512_512_31fb74b2_0002.pt"
+NUM_GAMES = 25
 OPPONENT_TYPE = "basic_strong"
 PAUSE_BETWEEN_GAMES = 1.5
 FRAME_DELAY = 0.05  # Delay in video playback (seconds per frame). Execution runs at full speed.
