@@ -61,15 +61,16 @@ if [ ! -f "./rl_hockey.def" ]; then
 fi
 echo "✓ rl_hockey.def found"
 
-if [ ! -f "./requirements.txt" ]; then
-    echo "ERROR: requirements.txt not found in build directory!"
+# Verify requirements.txt exists in project root (it's embedded into container.def, not copied here)
+if [ ! -f "../requirements.txt" ]; then
+    echo "ERROR: requirements.txt not found in project root!"
     exit 1
 fi
-echo "✓ requirements.txt found ($(wc -l < ./requirements.txt) lines)"
+echo "✓ requirements.txt found in project root ($(wc -l < ../requirements.txt) lines)"
 
-# Show that requirements.txt is in the same directory as the .def file
+# Show files in build directory
 echo "Files in build directory:"
-ls -lh *.def *.txt 2>/dev/null || ls -lh
+ls -lh *.def 2>/dev/null || ls -lh
 
 # Build the container
 echo ""

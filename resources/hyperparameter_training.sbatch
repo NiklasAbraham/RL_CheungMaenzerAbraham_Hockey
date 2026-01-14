@@ -33,8 +33,8 @@
 # your email - CHANGE THIS!
 
 # Activate the singularity container
-# Adjust the path to your container image
-SINGULARITY_IMAGE="/path/to/your/container.sif"
+# Path to the Singularity container image
+SINGULARITY_IMAGE="$HOME/RL_CheungMaenzerAbraham_Hockey/singularity_build/rl_hockey.simg"
 
 # Set working directory to your project directory
 # This should be the root of your RL_CheungMaenzerAbraham_Hockey project
