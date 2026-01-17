@@ -6,8 +6,9 @@
 #SBATCH --partition=week
 # Partition: day, week, or month
 
-#SBATCH --gres=gpu:1
-# Request 1 GPU
+#SBATCH --gres=gpu:A4000:1
+# Request 1 2080ti GPU (CUDA capability 7.5, supports torch.compile)
+# Alternative options: gpu:A4000:1 (CUDA 8.6) or gpu:1080ti:1 (CUDA 6.1, no torch.compile)
 
 #SBATCH --mem=32G
 # Request 32GB of memory (16 parallel environments + replay buffer need more memory)
@@ -24,7 +25,7 @@
 #SBATCH --mail-type=ALL
 # Email notifications: NONE, BEGIN, END, FAIL, REQUEUE, ALL
 
-#SBATCH --mail-user=niklas-sebastian.abraham@student.uni-tuebingen.de
+#SBATCH --mail-user=blabla@student.uni-tuebingen.de
 # Your email address
 
 # Path to the Singularity container image
@@ -37,6 +38,10 @@ cd "$PROJECT_DIR"
 # Set number of parallel environments to match CPU cores
 export NUM_ENVS=16
 
+# Enable anomaly detection for debugging inplace operation errors
+# This will significantly slow down training but provides detailed error information
+export ENABLE_ANOMALY_DETECTION=true
+
 # Run the training script using singularity
 # Since the container is read-only, we can't install packages into /venv
 # Instead, we add the src directory to PYTHONPATH so Python can find rl_hockey
@@ -45,7 +50,7 @@ singularity exec \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && export NUM_ENVS=$NUM_ENVS && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
+    /bin/bash -c "source /venv/bin/activate && export NUM_ENVS=$NUM_ENVS && export ENABLE_ANOMALY_DETECTION=$ENABLE_ANOMALY_DETECTION && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
 
 # Alternative: Run with custom parameters by modifying train_single_run.py
 # Or uncomment and modify the following line to pass parameters directly:

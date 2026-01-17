@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 
 
 VALID_ENV_MODES = ["NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE"]
-VALID_AGENT_TYPES = ["DDDQN", "SAC", "TD3"]
+VALID_AGENT_TYPES = ["DDDQN", "SAC", "TD3", "TDMPC2"]
 VALID_OPPONENT_TYPES = ["none", "basic_weak", "basic_strong", "self_play", "weighted_mixture"]
 
 
@@ -262,6 +262,80 @@ def _validate_agent(agent: Dict[str, Any]) -> List[str]:
         # TD3 specific validations (if implemented)
         if 'tau' in hyperparams and (not isinstance(hyperparams['tau'], (int, float)) or hyperparams['tau'] <= 0):
             errors.append("agent.hyperparameters.tau must be a positive number")
+    
+    elif agent_type == "TDMPC2":
+        # TDMPC2 specific validations
+        if 'latent_dim' in hyperparams:
+            latent_dim = hyperparams['latent_dim']
+            if not isinstance(latent_dim, int) or latent_dim <= 0:
+                errors.append("agent.hyperparameters.latent_dim must be a positive integer")
+        
+        if 'hidden_dim' in hyperparams:
+            hidden_dim = hyperparams['hidden_dim']
+            if not isinstance(hidden_dim, list) or len(hidden_dim) == 0:
+                errors.append("agent.hyperparameters.hidden_dim must be a non-empty list")
+            elif not all(isinstance(x, int) and x > 0 for x in hidden_dim):
+                errors.append("agent.hyperparameters.hidden_dim must contain positive integers")
+        
+        if 'num_q' in hyperparams:
+            num_q = hyperparams['num_q']
+            if not isinstance(num_q, int) or num_q <= 0:
+                errors.append("agent.hyperparameters.num_q must be a positive integer")
+        
+        if 'horizon' in hyperparams:
+            horizon = hyperparams['horizon']
+            if not isinstance(horizon, int) or horizon <= 0:
+                errors.append("agent.hyperparameters.horizon must be a positive integer")
+        
+        if 'num_samples' in hyperparams:
+            num_samples = hyperparams['num_samples']
+            if not isinstance(num_samples, int) or num_samples <= 0:
+                errors.append("agent.hyperparameters.num_samples must be a positive integer")
+        
+        if 'num_iterations' in hyperparams:
+            num_iterations = hyperparams['num_iterations']
+            if not isinstance(num_iterations, int) or num_iterations <= 0:
+                errors.append("agent.hyperparameters.num_iterations must be a positive integer")
+        
+        if 'temperature' in hyperparams:
+            temperature = hyperparams['temperature']
+            if not isinstance(temperature, (int, float)) or temperature <= 0:
+                errors.append("agent.hyperparameters.temperature must be a positive number")
+        
+        if 'gamma' in hyperparams:
+            gamma = hyperparams['gamma']
+            if not isinstance(gamma, (int, float)) or gamma <= 0 or gamma > 1:
+                errors.append("agent.hyperparameters.gamma must be a number between 0 and 1")
+
+        if 'simnorm_temperature' in hyperparams:
+            simnorm_temperature = hyperparams['simnorm_temperature']
+            if not isinstance(simnorm_temperature, (int, float)) or simnorm_temperature <= 0:
+                errors.append("agent.hyperparameters.simnorm_temperature must be a positive number")
+
+        if 'log_std_min' in hyperparams or 'log_std_max' in hyperparams:
+            log_std_min = hyperparams.get('log_std_min', None)
+            log_std_max = hyperparams.get('log_std_max', None)
+            if log_std_min is not None and not isinstance(log_std_min, (int, float)):
+                errors.append("agent.hyperparameters.log_std_min must be a number")
+            if log_std_max is not None and not isinstance(log_std_max, (int, float)):
+                errors.append("agent.hyperparameters.log_std_max must be a number")
+            if log_std_min is not None and log_std_max is not None and log_std_min >= log_std_max:
+                errors.append("agent.hyperparameters.log_std_min must be < log_std_max")
+
+        if 'lambda_coef' in hyperparams:
+            lambda_coef = hyperparams['lambda_coef']
+            if not isinstance(lambda_coef, (int, float)) or lambda_coef <= 0 or lambda_coef > 1:
+                errors.append("agent.hyperparameters.lambda_coef must be in (0, 1]")
+
+        if 'policy_alpha' in hyperparams:
+            policy_alpha = hyperparams['policy_alpha']
+            if not isinstance(policy_alpha, (int, float)) or policy_alpha < 0:
+                errors.append("agent.hyperparameters.policy_alpha must be non-negative")
+
+        if 'policy_beta' in hyperparams:
+            policy_beta = hyperparams['policy_beta']
+            if not isinstance(policy_beta, (int, float)) or policy_beta < 0:
+                errors.append("agent.hyperparameters.policy_beta must be non-negative")
     
     return errors
 

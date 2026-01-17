@@ -14,7 +14,7 @@ def train_single_run(
     base_output_dir: str = "results/runs",
     run_name: str = None,
     verbose: bool = True,
-    eval_freq_steps: int = 800000,
+    eval_freq_steps: int = 100_000,
     eval_num_games: int = 200,
     eval_weak_opponent: bool = True,
     device: Optional[Union[str, int]] = None,
@@ -54,13 +54,19 @@ def train_single_run(
 if __name__ == "__main__":
     import torch
 
-    path_to_config = "configs/curriculum_simple.json"
+    # Enable TF32 for better performance on Ampere+ GPUs
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision("high")
+
+    path_to_config = "configs/curriculum_tdmpc2.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
         device = "cuda:0"
+        print(f"CUDA available: Using GPU {device} ({torch.cuda.get_device_name(0)})")
     else:
         device = "cpu"
+        print("CUDA not available: Using CPU")
 
     # Get num_envs from environment variable if set, otherwise use default
     import os
@@ -69,11 +75,17 @@ if __name__ == "__main__":
         os.environ.get("NUM_ENVS", "24")
     )  # Default to 24 for 24 CPU cores (max)
 
+    # Enable anomaly detection for debugging inplace operation errors
+    # Set ENABLE_ANOMALY_DETECTION=true before running to get detailed error information
+    # Note: This will significantly slow down training, use only for debugging
+    # Example: ENABLE_ANOMALY_DETECTION=true python src/rl_hockey/common/training/train_single_run.py
+
     train_single_run(
         path_to_config,
-        base_output_dir="results/hyperparameter_runs",
+        base_output_dir="results/tdmpc2_runs",
         device=device,
         num_envs=num_envs,
     )
 
     # nohup python src/rl_hockey/common/training/train_single_run.py > train_single_run.log 2>&1 &
+    # To enable anomaly detection: ENABLE_ANOMALY_DETECTION=true nohup python src/rl_hockey/common/training/train_single_run.py > train_single_run.log 2>&1 &
