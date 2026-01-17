@@ -2,7 +2,7 @@ from typing import Optional, Tuple
 
 import hockey.hockey_env as h_env
 
-from rl_hockey.td3.td3_reference import TD3
+from rl_hockey.td3.td3 import TD3
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.training.curriculum_manager import AgentConfig
 from rl_hockey.common.utils import get_discrete_action_dim

@@ -136,10 +136,10 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
     # For TD3
     if hasattr(agent, "actor_target") and hasattr(agent.actor_target, "eval"):
         agent.actor_target.eval()
-    if hasattr(agent, "twincritic_online") and hasattr(agent.twincritic_online, "eval"):
-        agent.twincritic_online.eval()
-    if hasattr(agent, "twincritic_target") and hasattr(agent.twincritic_target, "eval"):
-        agent.twincritic_target.eval()
+    if hasattr(agent, "critic") and hasattr(agent.critic, "eval"):
+        agent.critic.eval()
+    if hasattr(agent, "critic_target") and hasattr(agent.critic_target, "eval"):
+        agent.critic_target.eval()
     opponent = h_env.BasicOpponent(weak=weak_opponent)
     state, _ = env.reset()
     obs_agent2 = env.obs_agent_two()
