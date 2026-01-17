@@ -28,7 +28,8 @@ class RunManager:
     
     def generate_run_name(self, config: Dict[str, Any], index: int = None) -> str:
         """Generate a unique run name based on configuration."""
-        # Extract agent hyperparameters (nested structure)
+        # Extract agent type and hyperparameters
+        agent_type = config.get('agent', {}).get('type', 'unknown')
         agent_hyperparams = config.get('agent', {}).get('hyperparameters', {})
         common_hyperparams = config.get('hyperparameters', {})
         
@@ -52,10 +53,10 @@ class RunManager:
         
         # Use index if provided, otherwise use timestamp
         if index is not None:
-            run_name = f"run_{lr_str}_{batch_str}_{hidden_str}_{config_hash}_{index:04d}"
+            run_name = f"{agent_type}_run_{lr_str}_{batch_str}_{hidden_str}_{config_hash}_{index:04d}"
         else:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            run_name = f"run_{lr_str}_{batch_str}_{hidden_str}_{config_hash}_{timestamp}"
+            run_name = f"{agent_type}_run_{lr_str}_{batch_str}_{hidden_str}_{config_hash}_{timestamp}"
         
         return run_name
     

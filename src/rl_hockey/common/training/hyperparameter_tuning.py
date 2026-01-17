@@ -752,6 +752,10 @@ def main(
 
 
 if __name__ == "__main__":
+    # Enable TF32 for better performance on Ampere+ GPUs
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision('high')
+    
     try:
         mp.set_start_method('spawn', force=True)
     except RuntimeError:

@@ -1,0 +1,57 @@
+import torch.nn as nn
+
+from rl_hockey.TD_MPC2.util import SimNorm
+
+
+class Encoder(nn.Module):
+    """
+    Encodes states to latent states.
+
+    Architecture from TD-MPC2 paper:
+    - Input layer
+    - 2-3 hidden layers with SimNorm
+    - Output to latent dimension
+    """
+
+    def __init__(
+        self,
+        state_dim=18,
+        latent_dim=512,
+        hidden_dim=[256, 256, 256],
+        simnorm_temperature=1.0,
+    ):
+        super().__init__()
+
+        layers = []
+
+        # Input layer
+        layers.append(nn.Linear(state_dim, hidden_dim[0]))
+        layers.append(nn.LayerNorm(hidden_dim[0]))
+        layers.append(nn.Mish())
+
+        # Hidden layers
+        for i in range(1, len(hidden_dim)):
+            layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
+            layers.append(nn.LayerNorm(hidden_dim[i]))
+            layers.append(nn.Mish())
+
+        # Output layer
+        layers.append(nn.Linear(hidden_dim[-1], latent_dim))
+        layers.append(
+            SimNorm(
+                latent_dim,
+                simplex_dim=min(8, latent_dim),
+                temperature=simnorm_temperature,
+            )
+        )
+
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, state):
+        """
+        Args:
+            state: (batch, state_dim) state
+        Returns:
+            latent: (batch, latent_dim) latent state
+        """
+        return self.net(state)
