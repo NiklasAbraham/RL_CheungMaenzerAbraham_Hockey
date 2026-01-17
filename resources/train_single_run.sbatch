@@ -38,10 +38,6 @@ cd "$PROJECT_DIR"
 # Set number of parallel environments to match CPU cores
 export NUM_ENVS=16
 
-# Enable anomaly detection for debugging inplace operation errors
-# This will significantly slow down training but provides detailed error information
-export ENABLE_ANOMALY_DETECTION=true
-
 # Run the training script using singularity
 # Since the container is read-only, we can't install packages into /venv
 # Instead, we add the src directory to PYTHONPATH so Python can find rl_hockey
@@ -50,7 +46,7 @@ singularity exec \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && export NUM_ENVS=$NUM_ENVS && export ENABLE_ANOMALY_DETECTION=$ENABLE_ANOMALY_DETECTION && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
+    /bin/bash -c "source /venv/bin/activate && export NUM_ENVS=$NUM_ENVS && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
 
 # Alternative: Run with custom parameters by modifying train_single_run.py
 # Or uncomment and modify the following line to pass parameters directly:

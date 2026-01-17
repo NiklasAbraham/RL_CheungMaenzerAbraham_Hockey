@@ -432,10 +432,7 @@ def train_run(
                         logger.warning(f"Failed to log resource usage: {e}")
 
             if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
-                # Enable anomaly detection if environment variable is set (for debugging)
-                import os
-                enable_anomaly = os.environ.get("ENABLE_ANOMALY_DETECTION", "False").lower() == "true"
-                stats = agent.train(updates_per_step, enable_anomaly_detection=enable_anomaly)
+                stats = agent.train(updates_per_step)
                 gradient_steps += updates_per_step
                 if isinstance(stats, dict):
                     loss_list = None
@@ -1091,10 +1088,7 @@ def _train_run_vectorized(
 
         # Train agent
         if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
-            # Enable anomaly detection if environment variable is set (for debugging)
-            import os
-            enable_anomaly = os.environ.get("ENABLE_ANOMALY_DETECTION", "False").lower() == "true"
-            stats = agent.train(updates_per_step, enable_anomaly_detection=enable_anomaly)
+            stats = agent.train(updates_per_step)
             gradient_steps += updates_per_step
             if isinstance(stats, dict):
                 loss_list = None
