@@ -1,16 +1,67 @@
-import os
+import copy
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-
 from rl_hockey.common import *
 from rl_hockey.td3.models import Actor, Critic
-import copy
+import os
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# https://arxiv.org/pdf/1802.09477
+# class Actor(nn.Module):
+#     def __init__(self, state_dim, action_dim, max_action):
+#         super(Actor, self).__init__()
+
+#         self.l1 = nn.Linear(state_dim, 256)
+#         self.l2 = nn.Linear(256, 256)
+#         self.l3 = nn.Linear(256, action_dim)
+
+#         self.max_action = max_action
+
+#     def forward(self, state):
+#         a = F.relu(self.l1(state))
+#         a = F.relu(self.l2(a))
+#         return self.max_action * torch.tanh(self.l3(a))
+
+
+# class Critic(nn.Module):
+#     def __init__(self, state_dim, action_dim):
+#         super(Critic, self).__init__()
+
+#         # Q1 architecture
+#         self.l1 = nn.Linear(state_dim + action_dim, 256)
+#         self.l2 = nn.Linear(256, 256)
+#         self.l3 = nn.Linear(256, 1)
+
+#         # Q2 architecture
+#         self.l4 = nn.Linear(state_dim + action_dim, 256)
+#         self.l5 = nn.Linear(256, 256)
+#         self.l6 = nn.Linear(256, 1)
+
+#     def forward(self, state, action):
+#         sa = torch.cat([state, action], 1)
+
+#         q1 = F.relu(self.l1(sa))
+#         q1 = F.relu(self.l2(q1))
+#         q1 = self.l3(q1)
+
+#         q2 = F.relu(self.l4(sa))
+#         q2 = F.relu(self.l5(q2))
+#         q2 = self.l6(q2)
+#         return q1, q2
+
+#     def Q1(self, state, action):
+#         sa = torch.cat([state, action], 1)
+
+#         q1 = F.relu(self.l1(sa))
+#         q1 = F.relu(self.l2(q1))
+#         q1 = self.l3(q1)
+#         return q1
+
+
 class TD3(Agent):
     def __init__(
         self,
@@ -29,15 +80,17 @@ class TD3(Agent):
             "policy_noise": 0.2,
             "noise_clip": 0.5,
             "policy_freq": 2,
-            "batch_size": 256
+            "batch_size": 256,
+            "latent_dim": [256, 256],
+            "activation": nn.ReLU,
         }
         self.config.update(user_config)
 
-        self.actor = Actor(state_dim, action_dim, self.config["max_action"]).to(DEVICE)
+        self.actor = Actor(state_dim, action_dim, self.config["latent_dim"], self.config["activation"], self.config["max_action"]).to(DEVICE)
         self.actor_target = copy.deepcopy(self.actor)
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.config["learning_rate"])
 
-        self.critic = Critic(state_dim, action_dim).to(DEVICE)
+        self.critic = Critic(state_dim, action_dim, self.config["latent_dim"], self.config["activation"]).to(DEVICE)
         self.critic_target = copy.deepcopy(self.critic)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=self.config["learning_rate"])
 
@@ -98,72 +151,70 @@ class TD3(Agent):
     def train(self, steps):
         critic_losses = []
         actor_losses = []
+    
+        self.total_it += 1
 
-        for step in range(steps):
-            self.total_it += 1
-            
-            # Sample replay buffer
-            state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
+        # Sample replay buffer
+        state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
 
-            state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
-            action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
-            reward = torch.from_numpy(reward).to(dtype=torch.float32, device=DEVICE)
-            next_state = torch.from_numpy(next_state).to(
-                dtype=torch.float32, device=DEVICE
-            )
-            done = torch.from_numpy(done).to(dtype=torch.float32, device=DEVICE)
+        state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
+        action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
+        reward = torch.from_numpy(reward).to(dtype=torch.float32, device=DEVICE)
+        next_state = torch.from_numpy(next_state).to(
+            dtype=torch.float32, device=DEVICE
+        )
+        done = torch.from_numpy(done).to(dtype=torch.float32, device=DEVICE)
 
-            with torch.no_grad():
-                next_action = self.actor_target(next_state)
+        with torch.no_grad():
+            next_action = self.actor_target(next_state)
 
-                # Compute the target Q value
-                target_Q1, target_Q2 = self.critic_target(next_state, next_action)
-                target_Q = torch.min(target_Q1, target_Q2)
-                target_Q = reward + (1-done) * self.discount * target_Q
+            # Compute the target Q value
+            target_Q1, target_Q2 = self.critic_target(next_state, next_action)
+            target_Q = torch.min(target_Q1, target_Q2)
+            target_Q = reward + (1-done) * self.discount * target_Q
 
-            # Get current Q estimates
-            current_Q1, current_Q2 = self.critic(state, action)
+        # Get current Q estimates
+        current_Q1, current_Q2 = self.critic(state, action)
 
-            # Compute critic loss
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-                current_Q2, target_Q
-            )
+        # Compute critic loss
+        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+            current_Q2, target_Q
+        )
+    
+        critic_losses.append(critic_loss.item())
 
-            critic_losses.append(critic_loss.item())
+        # Optimize the critic
+        self.critic_optimizer.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
 
-            # Optimize the critic
-            self.critic_optimizer.zero_grad()
-            critic_loss.backward()
-            self.critic_optimizer.step()
+        # Delayed policy updates
+        if self.total_it % self.policy_freq == 0:
 
-            # Delayed policy updates
-            if self.total_it % self.policy_freq == 0:
+            # Compute actor losse
+            actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
+            actor_losses.append(actor_loss.item())
 
-                # Compute actor losses
-                actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
+            # Optimize the actor
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward()
+            self.actor_optimizer.step()
 
-                # Optimize the actor
-                self.actor_optimizer.zero_grad()
-                actor_loss.backward()
-                self.actor_optimizer.step()
+            # Update the frozen target models
+            for param, target_param in zip(
+                self.critic.parameters(), self.critic_target.parameters()
+            ):
+                target_param.data.copy_(
+                    self.tau * param.data + (1 - self.tau) * target_param.data
+                )
 
-                # Update the frozen target models
-                for param, target_param in zip(
-                    self.critic.parameters(), self.critic_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        self.tau * param.data + (1 - self.tau) * target_param.data
-                    )
+            for param, target_param in zip(
+                self.actor.parameters(), self.actor_target.parameters()
+            ):
+                target_param.data.copy_(
+                    self.tau * param.data + (1 - self.tau) * target_param.data
+                )
 
-                for param, target_param in zip(
-                    self.actor.parameters(), self.actor_target.parameters()
-                ):
-                    target_param.data.copy_(
-                        self.tau * param.data + (1 - self.tau) * target_param.data
-                    )
-                
-                actor_losses.append(actor_loss.item())
-            
         return {"critic_loss": critic_losses, "actor_loss": actor_losses}
 
     def save(self, filepath):
