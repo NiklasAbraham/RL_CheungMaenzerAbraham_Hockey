@@ -39,4 +39,5 @@ class QFunction(nn.Module):
             q: (batch, 1) predicted Q-value
         """
         x = torch.cat([latent, action], dim=-1)
-        return self.net(x)
+        q = self.net(x)
+        return q
