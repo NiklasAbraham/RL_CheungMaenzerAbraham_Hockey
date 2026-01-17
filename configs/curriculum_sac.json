@@ -2,56 +2,43 @@
   "curriculum": {
     "phases": [
       {
-        "name": "shooting_basics",
-        "episodes": 400,
-        "environment": {
-          "mode": "TRAIN_SHOOTING",
-          "keep_mode": true
-        },
+        "name": "easy",
+        "episodes": 40000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "none",
-          "weight": 1.0
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.80},
+            {"type": "basic_strong", "weight": 0.20}
+          ]
         },
         "reward_shaping": null
       },
       {
-        "name": "defense_basics",
-        "episodes": 300,
-        "environment": {
-          "mode": "TRAIN_DEFENSE",
-          "keep_mode": true
-        },
+        "name": "easy",
+        "episodes": 40000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "basic_weak",
-          "weight": 1.0
-        },
-        "reward_shaping": null
-      },
-      {
-        "name": "normal_game",
-        "episodes": 500,
-        "environment": {
-          "mode": "NORMAL",
-          "keep_mode": true
-        },
-        "opponent": {
-          "type": "basic_weak",
-          "weight": 1.0
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.10},
+            {"type": "basic_strong", "weight": 0.90}
+          ]
         },
         "reward_shaping": null
       }
     ]
   },
   "hyperparameters": {
-    "learning_rate": 0.0003,
-    "batch_size": 256
+    "learning_rate": 0.0005,
+    "batch_size": 1024
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
-    "warmup_steps": 20000,
+    "warmup_steps": 80000,
     "reward_scale": 0.5,
-    "checkpoint_save_freq": 100
+    "checkpoint_save_freq": 5000
   },
   "agent": {
     "type": "SAC",
