@@ -24,7 +24,7 @@
 #SBATCH --mail-type=ALL
 # Email notifications: NONE, BEGIN, END, FAIL, REQUEUE, ALL
 
-#SBATCH --mail-user=niklas-sebastian.abraham@student.uni-tuebingen.de
+#SBATCH --mail-user=jannik.maenzer@student.uni-tuebingen.de
 # Your email address
 
 # Path to the Singularity container image

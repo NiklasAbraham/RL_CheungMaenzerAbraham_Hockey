@@ -54,7 +54,7 @@ def train_single_run(
 if __name__ == "__main__":
     import torch
 
-    path_to_config = "configs/curriculum_simple.json"
+    path_to_config = "configs/curriculum_sac.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
