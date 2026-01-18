@@ -9,13 +9,6 @@
         "reward_shaping": null
       },
       {
-        "name": "defense_basics",
-        "episodes": 2000,
-        "environment": {"mode": "TRAIN_DEFENSE", "keep_mode": true},
-        "opponent": {"type": "basic_weak", "weight": 1.0},
-        "reward_shaping": null
-      },
-      {
         "name": "integration_phase",
         "episodes": 3000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
@@ -55,7 +48,7 @@
       "hidden_dim": [128, 256, 128],
       "num_q": 3,
       "gamma": 0.99,
-      "horizon": 5,
+      "horizon": 3,
       "num_samples": 128,
       "num_iterations": 4,
       "temperature": 0.5
