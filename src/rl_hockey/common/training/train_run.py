@@ -156,6 +156,10 @@ def train_run(
         device=device,
     )
 
+    # Log the agent network architecture
+    if verbose:
+        print("\n" + agent.log_architecture() + "\n")
+
     if checkpoint_path is not None:
         if verbose:
             print(f"Loading agent from checkpoint: {checkpoint_path}")
@@ -690,6 +694,10 @@ def _train_run_vectorized(
         curriculum.hyperparameters,
         device=device,
     )
+
+    # Log the agent network architecture
+    if verbose:
+        print("\n" + agent.log_architecture() + "\n")
 
     # Enable fast mode for TDMPC2 if specified in training config
     if hasattr(agent, "set_fast_mode") and training_params.get("use_fast_mode", False):

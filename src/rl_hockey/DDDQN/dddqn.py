@@ -66,16 +66,16 @@ class DDDQN(Agent):
                     action = np.random.randint(0, self.action_dim)
 
             return action
-    
+
     def act_batch(self, states, deterministic=False):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             state_tensor = torch.from_numpy(states).float().to(DEVICE)
             if state_tensor.dim() == 1:
                 state_tensor = state_tensor.unsqueeze(0)
-            
+
             q_values = self.q_network(state_tensor)
-            
+
             if deterministic:
                 actions = q_values.argmax(dim=1).cpu().numpy()
             else:
@@ -83,16 +83,16 @@ class DDDQN(Agent):
                 # For each state in batch, decide whether to explore or exploit
                 batch_size = state_tensor.shape[0]
                 random_mask = np.random.random(batch_size) < eps
-                
+
                 # Get greedy actions
                 greedy_actions = q_values.argmax(dim=1).cpu().numpy()
-                
+
                 # Get random actions
                 random_actions = np.random.randint(0, self.action_dim, size=batch_size)
-                
+
                 # Combine: use random where mask is True, greedy otherwise
                 actions = np.where(random_mask, random_actions, greedy_actions)
-            
+
             return actions
 
     def evaluate(self, state):
@@ -114,17 +114,32 @@ class DDDQN(Agent):
             )
 
             state = torch.from_numpy(state).float().to(DEVICE, non_blocking=True)
-            action = torch.from_numpy(action.astype(np.int64) if action.dtype == np.float32 else action).long().to(DEVICE, non_blocking=True)
+            action = (
+                torch.from_numpy(
+                    action.astype(np.int64) if action.dtype == np.float32 else action
+                )
+                .long()
+                .to(DEVICE, non_blocking=True)
+            )
             if action.dim() > 1:
                 action = action.squeeze(1)
-            reward = torch.from_numpy(reward).float().to(DEVICE, non_blocking=True).squeeze(-1)
+            reward = (
+                torch.from_numpy(reward)
+                .float()
+                .to(DEVICE, non_blocking=True)
+                .squeeze(-1)
+            )
 
             reward_clip = self.config.get("reward_clip", None)
             if reward_clip is not None:
                 reward = torch.clamp(reward, -reward_clip, reward_clip)
-            
-            next_state = torch.from_numpy(next_state).float().to(DEVICE, non_blocking=True)
-            done = torch.from_numpy(done).float().to(DEVICE, non_blocking=True).squeeze(-1)
+
+            next_state = (
+                torch.from_numpy(next_state).float().to(DEVICE, non_blocking=True)
+            )
+            done = (
+                torch.from_numpy(done).float().to(DEVICE, non_blocking=True).squeeze(-1)
+            )
 
             with torch.no_grad():
                 next_q_values = self.q_network(next_state)
@@ -141,12 +156,14 @@ class DDDQN(Agent):
                 loss = F.smooth_l1_loss(current_q_value, target)
             else:
                 loss = F.mse_loss(current_q_value, target)
-            
+
             self.optimizer.zero_grad(set_to_none=True)
             loss.backward()
 
             grad_clip = self.config.get("grad_clip", 10.0)
-            torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=grad_clip)
+            torch.nn.utils.clip_grad_norm_(
+                self.q_network.parameters(), max_norm=grad_clip
+            )
             self.optimizer.step()
 
             losses.append(loss.item())
@@ -189,9 +206,15 @@ class DDDQN(Agent):
         self.config.update(checkpoint["config"])
         hidden_dim = checkpoint.get("hidden_dim", [256, 256, 256])
 
-        self.q_network = DuelingDQN_Network(self.state_dim, self.action_dim, hidden_dim=hidden_dim).to(DEVICE)
-        self.q_network_target = DuelingDQN_Network(self.state_dim, self.action_dim, hidden_dim=hidden_dim).to(DEVICE)
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.config["learning_rate"])
+        self.q_network = DuelingDQN_Network(
+            self.state_dim, self.action_dim, hidden_dim=hidden_dim
+        ).to(DEVICE)
+        self.q_network_target = DuelingDQN_Network(
+            self.state_dim, self.action_dim, hidden_dim=hidden_dim
+        ).to(DEVICE)
+        self.optimizer = optim.Adam(
+            self.q_network.parameters(), lr=self.config["learning_rate"]
+        )
 
         self.q_network.load_state_dict(checkpoint["q_network"])
         self.q_network_target.load_state_dict(checkpoint["q_network_target"])
