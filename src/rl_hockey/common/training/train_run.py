@@ -608,8 +608,16 @@ def train_run(
         )
 
         # Log episode information (always log, even if no losses)
+        # Get environment mode and opponent type for logging
+        sampled_mode_str = phase_config.environment.get_mode_for_episode(
+            phase_local_episode
+        )
+        opponent_type = phase_config.opponent.type
+        
         loss_info_parts = [
-            f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}"
+            f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}",
+            f"env={sampled_mode_str}",
+            f"opponent={opponent_type}"
         ]
         if avg_losses:
             for loss_key in sorted(avg_losses.keys()):
@@ -1079,8 +1087,20 @@ def _train_run_vectorized(
                 )
 
                 # Log episode information (always log, even if no losses)
+                # Get environment mode and opponent type for logging
+                # Compute phase_local_episode for current episode
+                _, current_phase_local_episode, current_phase_config = get_phase_for_episode(
+                    curriculum, completed_episodes
+                )
+                sampled_mode_str = current_phase_config.environment.get_mode_for_episode(
+                    current_phase_local_episode
+                )
+                opponent_type = current_phase_config.opponent.type
+                
                 loss_info_parts = [
-                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}"
+                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}",
+                    f"env={sampled_mode_str}",
+                    f"opponent={opponent_type}"
                 ]
                 if avg_losses:
                     for loss_key in sorted(avg_losses.keys()):

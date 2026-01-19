@@ -1,4 +1,4 @@
-# TD-MPC2: A model-based reinforcement learning approach to hockey player tracking
+# TD-MPC2 implementation
 
 import copy
 import logging
@@ -25,8 +25,6 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
 
 
-# https://arxiv.org/pdf/2310.16828
-# here all the models come together for the workflow
 class TDMPC2(Agent):
     def __init__(
         self,
@@ -53,8 +51,8 @@ class TDMPC2(Agent):
         batch_size=256,
         device="cuda",
         num_bins=101,
-        vmin=-10.0,
-        vmax=10.0,
+        vmin=-5.0,
+        vmax=5.0,
         tau=0.01,
         grad_clip_norm=20.0,
         consistency_coef=20.0,
@@ -134,7 +132,6 @@ class TDMPC2(Agent):
             num_q, latent_dim, action_dim, hidden_dim, num_bins, vmin, vmax
         ).to(self.device)
 
-        # Prepare detached Q usage for policy updates (stateless functional_call).
         self._init_detached_q_ensemble()
 
         self.target_q_ensemble = copy.deepcopy(self.q_ensemble)
@@ -240,17 +237,7 @@ class TDMPC2(Agent):
 
     @torch.no_grad()
     def act(self, obs, deterministic=False, t0=False):
-        """
-        Select action using MPC planning.
-
-        Args:
-            obs: (obs_dim,) observation
-            deterministic: if True, return mean action
-            t0: if True, this is the first step of the episode
-
-        Returns:
-            action: (action_dim,) planned action
-        """
+        """Select action using MPC planning."""
         obs = torch.FloatTensor(obs).to(self.device)
 
         z = self.encoder(obs.unsqueeze(0)).squeeze(0)
@@ -269,22 +256,7 @@ class TDMPC2(Agent):
         prev_predicted_next_latent=None,
         t0=False,
     ):
-        """
-        Select action using MPC planning and collect statistics from forward pass.
-
-        Args:
-            obs: (obs_dim,) observation
-            deterministic: if True, return mean action
-            prev_action: (action_dim,) previous action for smoothness metrics (optional)
-            prev_latent: (latent_dim,) previous latent state for smoothness metrics (optional)
-            prev_predicted_next_latent: (latent_dim,) predicted next latent from previous step (optional)
-                                       Used to compute dynamics prediction error
-            t0: if True, this is the first step of the episode
-
-        Returns:
-            action: (action_dim,) planned action
-            stats: dict containing statistics from forward pass
-        """
+        """Select action using MPC planning and collect statistics."""
         obs_tensor = torch.FloatTensor(obs).to(self.device)
         obs_batch = obs_tensor.unsqueeze(0)
 
@@ -418,21 +390,10 @@ class TDMPC2(Agent):
 
     @torch.no_grad()
     def act_batch(self, obs_batch, deterministic=False):
-        """
-        Select actions for batch of observations (for vectorized environments).
-
-        Args:
-            obs_batch: (batch_size, obs_dim) observations
-            deterministic: if True, return mean actions
-
-        Returns:
-            actions: (batch_size, action_dim) planned actions
-        """
+        """Select actions for batch of observations."""
         obs_batch = torch.FloatTensor(obs_batch).to(self.device)
 
         z_batch = self.encoder(obs_batch)
-
-        # Plan actions for each state in batch
         actions = []
         for z in z_batch:
             action = self.planner.plan(z, return_mean=deterministic)
@@ -441,23 +402,11 @@ class TDMPC2(Agent):
         return torch.stack(actions).cpu().numpy()
 
     def evaluate(self, obs):
-        """
-        Evaluate state value using Q-ensemble.
-
-        Args:
-            obs: (obs_dim,) observation
-
-        Returns:
-            value: scalar state value
-        """
+        """Evaluate state value using Q-ensemble."""
         with torch.no_grad():
             obs = torch.FloatTensor(obs).to(self.device)
             z = self.encoder(obs.unsqueeze(0))
-
-            # Use policy to get action
             action = self.policy.mean_action(z)
-
-            # Get minimum Q-value from ensemble
             q_value = self.q_ensemble.min(z, action)
 
             return q_value.item()
@@ -640,10 +589,7 @@ class TDMPC2(Agent):
         return
 
     def _q_ensemble_detached(self, latent, action):
-        """
-        Forward through Q-ensemble with detached parameters while keeping
-        gradients through inputs (for policy optimization).
-        """
+        """Forward through Q-ensemble with detached parameters."""
         params = {
             name: param.detach() for name, param in self.q_ensemble.named_parameters()
         }
@@ -651,22 +597,13 @@ class TDMPC2(Agent):
         return functional_call(self.q_ensemble, {**params, **buffers}, (latent, action))
 
     def _update_policy(self, zs):
-        """
-        Update policy to maximize Q-values + entropy.
-
-        Q-values are detached to prevent gradient flow back to q_ensemble.
-        This ensures policy only updates based on current Q-function estimates.
-        """
+        """Update policy to maximize Q-values + entropy."""
         self.pi_optimizer.zero_grad()
 
         num_states = zs.shape[0]
         batch_size = zs.shape[1]
         zs_flat = zs.reshape(-1, zs.shape[-1])
-
-        # Sample actions from policy - gradients WILL flow through here
         actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
-
-        # Get Q-values using detached parameters (no Q grad, but action grads flow)
         q_logits_all = self._q_ensemble_detached(zs_flat, actions)
         num_q = len(q_logits_all)
         idx = torch.randperm(num_q, device=zs.device)[:2]
@@ -680,11 +617,9 @@ class TDMPC2(Agent):
             ],
             dim=0,
         )
-        qs_flat = q_values.mean(dim=0)  # Match TD-MPC2: average of two Q-functions
-
+        qs_flat = q_values.mean(dim=0)
         qs = qs_flat.reshape(num_states, batch_size, 1)
 
-        # Properly reshape scaled entropy
         if scaled_entropies.dim() == 1:
             scaled_entropies = scaled_entropies.reshape(num_states, batch_size, 1)
         else:
@@ -692,14 +627,10 @@ class TDMPC2(Agent):
 
         self.scale.update(qs[0].detach())
         qs_scaled = self.scale(qs)
-
-        # Temporal weighting with lambda_coef
         rho = torch.pow(
             torch.tensor(self.lambda_coef, device=self.device),
             torch.arange(num_states, device=self.device),
         )
-
-        # Policy loss: maximize Q-values and entropy
         pi_loss = (
             -(self.entropy_coef * scaled_entropies + qs_scaled).mean(dim=(1, 2)) * rho
         ).mean()
@@ -841,11 +772,10 @@ class TDMPC2(Agent):
         else:
             self.target_q_ensemble.load_state_dict(checkpoint["q_ensemble"])
 
-        # Re-initialize detached Q-ensemble to point to newly loaded weights
         self._init_detached_q_ensemble()
 
     def log_architecture(self):
-        """Log the TD-MPC2 network architecture."""
+        """Log network architecture."""
 
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)

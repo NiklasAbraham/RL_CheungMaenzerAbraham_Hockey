@@ -5,14 +5,7 @@ from rl_hockey.TD_MPC2.util import SimNorm
 
 
 class DynamicsSimple(nn.Module):
-    """
-    Predicts next latent state given current latent state and action.
-
-    Architecture matches original TD-MPC2 paper:
-    - Input: current latent state and action
-    - Output: next latent state (no residual connection)
-    - SimNorm is the activation of the output layer (inside MLP)
-    """
+    """Predicts next latent state given current latent state and action."""
 
     def __init__(
         self,
@@ -43,18 +36,7 @@ class DynamicsSimple(nn.Module):
         )
 
     def forward(self, latent, action):
-        """
-        Architecture matches original TD-MPC2:
-        - Concatenate latent state and action
-        - Pass through MLP (SimNorm is activation of output layer)
-        - Return next latent state directly (no residual connection)
-
-        Args:
-            latent: (batch, latent_dim) current latent state
-            action: (batch, action_dim) action
-        Returns:
-            latent_next: (batch, latent_dim) next latent state
-        """
+        """Forward pass through dynamics model."""
         x = torch.cat([latent, action], dim=-1)
         z_after_linear = self.net(x)
         latent_next = self.simnorm(z_after_linear)

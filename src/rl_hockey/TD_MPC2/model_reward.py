@@ -11,19 +11,15 @@ class Reward(nn.Module):
         super().__init__()
 
         layers = []
-
-        # Input layer
         layers.append(nn.Linear(latent_dim + action_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
         layers.append(nn.Mish())
 
-        # Hidden layers
         for i in range(1, len(hidden_dim)):
             layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
             layers.append(nn.LayerNorm(hidden_dim[i]))
             layers.append(nn.Mish())
 
-        # Output layer (logits for num_bins)
         layers.append(nn.Linear(hidden_dim[-1], num_bins))
 
         self.net = nn.Sequential(*layers)
@@ -32,13 +28,7 @@ class Reward(nn.Module):
         self.vmax = vmax
 
     def forward(self, latent, action):
-        """
-        Args:
-            latent: (batch, latent_dim) current latent state
-            action: (batch, action_dim) action
-        Returns:
-            reward_logits: (batch, num_bins) predicted reward logits
-        """
+        """Forward pass through reward model."""
         x = torch.cat([latent, action], dim=-1)
 
         return self.net(x)

@@ -18,7 +18,7 @@ class MPPIPlannerSimplePaper(nn.Module):
         num_iterations=6,
         temperature=0.5,
         gamma=0.99,
-        std_init=2.0,  # max_std from original config
+        std_init=2.0,
         std_min=0.05,
         std_decay=0.9,
         num_bins=101,
@@ -47,33 +47,16 @@ class MPPIPlannerSimplePaper(nn.Module):
         self.num_pi_trajs = num_pi_trajs
         self.num_elites = num_elites
 
-        # Pre-compute gamma powers for efficiency (register as buffer so it moves with device)
         self.register_buffer(
             "gamma_powers",
             torch.tensor([gamma**h for h in range(horizon + 1)], dtype=torch.float32),
         )
-
-        # Buffer for warm-starting: stores previous mean action sequence
-        # Will be initialized on first call when action_dim is known
         self.register_buffer("_prev_mean", None)
 
     def rollout_trajectories(
         self, z_init, actions, dynamics, reward_predictor, gamma=0.99
     ):
-        """
-        Rollout trajectories in latent space.
-
-        Args:
-            z_init: (latent_dim,) initial latent state
-            actions: (num_samples, horizon, action_dim) action sequences
-            dynamics: dynamics model
-            reward_predictor: reward predictor
-            gamma: discount factor
-
-        Returns:
-            returns: (num_samples,) discounted returns for each trajectory
-            final_states: (num_samples, latent_dim) final latent states
-        """
+        """Rollout trajectories in latent space."""
         num_samples, horizon, action_dim = actions.shape
 
         z = z_init.unsqueeze(0).expand(num_samples, -1)
@@ -89,8 +72,6 @@ class MPPIPlannerSimplePaper(nn.Module):
 
         for h in range(horizon):
             a = actions[:, h, :]
-
-            # Convert reward logits to scalar
             r_logits = reward_predictor(z, a)
             r = two_hot_inv(r_logits, self.num_bins, self.vmin, self.vmax).squeeze(-1)
             returns += gamma_powers[h] * r
@@ -100,15 +81,7 @@ class MPPIPlannerSimplePaper(nn.Module):
         return returns, z
 
     def plan(self, latent, return_mean=True, t0=False, return_stats=False):
-        """
-        Plan action using MPPI with policy seeding and warm-starting.
-
-        Args:
-            latent: (latent_dim,) initial latent state
-            return_mean: if True, return mean action; else return best sampled action
-            t0: if True, this is the first observation in the episode (no warm-starting)
-            return_stats: if True, also return planning statistics
-        """
+        """Plan action using MPPI."""
         if self.action_dim is None:
             if self.policy is not None:
                 test_mean = self.policy.mean_action(
@@ -235,14 +208,11 @@ class MPPIPlannerSimplePaper(nn.Module):
         if self._prev_mean is not None:
             self._prev_mean.copy_(mean)
 
-        # Select action following original TD-MPC2 implementation
         rand_idx = gumbel_softmax_sample(score)
         action = elite_actions[0, rand_idx, :]
         final_std = std[0]
         
         if not return_mean:
-            # Add exploration noise during training (not evaluation)
-            # This is critical for exploration - matches original TD-MPC2
             action = action + final_std * torch.randn(self.action_dim, device=action.device)
             action = action.clamp(-1, 1)
 

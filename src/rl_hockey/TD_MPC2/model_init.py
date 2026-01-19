@@ -1,17 +1,10 @@
-# Weight initialization utilities for TD-MPC2
-# Based on original TD-MPC2 implementation
+# Weight initialization utilities
 
 import torch.nn as nn
 
 
 def weight_init(m):
-    """
-    Custom weight initialization for TD-MPC2.
-    Uses truncated normal initialization for Linear layers.
-
-    Args:
-        m: PyTorch module to initialize
-    """
+    """Weight initialization for Linear layers."""
     if isinstance(m, nn.Linear):
         nn.init.trunc_normal_(m.weight, std=0.02)
         if m.bias is not None:
@@ -19,14 +12,7 @@ def weight_init(m):
 
 
 def zero_init_output_layer(module):
-    """
-    Zero-initialize the output layer of a network.
-    Used for reward and Q-function networks to start with conservative estimates.
-
-    Args:
-        module: PyTorch module whose last linear layer should be zero-initialized
-    """
-    # Find the last Linear layer in the module
+    """Zero-initialize the output layer of a network."""
     last_linear = None
     for m in module.modules():
         if isinstance(m, nn.Linear):

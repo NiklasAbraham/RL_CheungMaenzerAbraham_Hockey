@@ -5,10 +5,7 @@ import torch.nn.functional as F
 
 
 class SimNorm(nn.Module):
-    """
-    Simplicial Normalization layer from TD-MPC2 paper.
-    Alternative to LayerNorm that works better for RL.
-    """
+    """Simplicial normalization layer."""
 
     def __init__(self, dim, simplex_dim=8, temperature=1.0):
         super().__init__()
@@ -17,10 +14,6 @@ class SimNorm(nn.Module):
         self.temperature = temperature
 
     def forward(self, x):
-        # Input: x of shape (batch, dim)
-        # Output: normalized x of shape (batch, dim)
-
-        # Check if input shape is valid and if dim is divisible by simplex_dim
         if x.dim() != 2 or x.shape[1] != self.dim:
             raise ValueError(
                 f"Input x must have shape (batch, {self.dim}), got {tuple(x.shape)}"
@@ -30,61 +23,35 @@ class SimNorm(nn.Module):
                 f"dim ({self.dim}) must be divisible by simplex_dim ({self.simplex_dim})"
             )
 
-        # (batch, group, simplex_dim)
         group = self.dim // self.simplex_dim
         x = x.reshape(x.shape[0], group, self.simplex_dim)
-
-        # per-simplex softmax normalization (SimNorm)
         x = F.softmax(x / self.temperature, dim=2)
-
-        # flatten back to (batch, dim)
         x = x.reshape(x.shape[0], self.dim)
 
         return x
 
 
 def symlog(x):
-    """
-    Symmetric logarithmic function.
-    Adapted from https://github.com/danijar/dreamerv3.
-    """
+    """Symmetric logarithmic function."""
     return torch.sign(x) * torch.log(1 + torch.abs(x))
 
 
 def symexp(x):
-    """
-    Symmetric exponential function.
-    Adapted from https://github.com/danijar/dreamerv3.
-    """
+    """Symmetric exponential function."""
     return torch.sign(x) * (torch.exp(torch.abs(x)) - 1)
 
 
 def two_hot(x, num_bins, vmin, vmax):
-    """
-    Converts scalars to soft two-hot encoded targets.
-
-    Args:
-        x: (batch, 1) or (batch,) tensor of scalar values
-        num_bins: number of bins for discretization
-        vmin: minimum value for bin range
-        vmax: maximum value for bin range
-    
-    Returns:
-        soft_two_hot: (batch, num_bins) tensor of soft two-hot encoded values
-    """
+    """Converts scalars to soft two-hot encoded targets."""
     if num_bins == 0:
         return x
     elif num_bins == 1:
         return symlog(x)
     
-    # Ensure x is (batch, 1)
     if x.dim() == 1:
         x = x.unsqueeze(-1)
     
-    # Apply symmetric log and clamp to range
     x_symlog = torch.clamp(symlog(x), vmin, vmax).squeeze(1)
-    
-    # Compute bin index and offset (matches reference implementation)
     bin_size = (vmax - vmin) / (num_bins - 1)
     bin_idx = torch.floor((x_symlog - vmin) / bin_size)
     bin_offset = ((x_symlog - vmin) / bin_size - bin_idx).unsqueeze(-1)
@@ -101,50 +68,20 @@ def two_hot(x, num_bins, vmin, vmax):
 
 
 def two_hot_inv(x, num_bins, vmin, vmax):
-    """
-    Converts soft two-hot encoded vectors to scalars.
-
-    Args:
-        x: (batch, num_bins) tensor of logits
-        num_bins: number of bins for discretization
-        vmin: minimum value for bin range
-        vmax: maximum value for bin range
-    
-    Returns:
-        scalars: (batch, 1) tensor of scalar values
-    """
+    """Converts soft two-hot encoded vectors to scalars."""
     if num_bins == 0:
         return x
     elif num_bins == 1:
         return symexp(x)
     
-    # Convert logits to probabilities
     x_probs = F.softmax(x, dim=-1)
-    
-    # Create bin centers
     dreg_bins = torch.linspace(vmin, vmax, num_bins, device=x.device, dtype=x.dtype)
-    
-    # Compute weighted sum
     x_symlog = torch.sum(x_probs * dreg_bins, dim=-1, keepdim=True)
-    
-    # Convert back from symmetric log space
     return symexp(x_symlog)
 
 
 def soft_ce(pred, target, num_bins, vmin, vmax):
-    """
-    Computes cross entropy loss between predictions and soft targets.
-
-    Args:
-        pred: (batch, num_bins) tensor of logits
-        target: (batch, 1) or (batch,) tensor of scalar target values
-        num_bins: number of bins for discretization
-        vmin: minimum value for bin range
-        vmax: maximum value for bin range
-    
-    Returns:
-        loss: (batch, 1) tensor of per-sample losses
-    """
+    """Computes cross entropy loss between predictions and soft targets."""
     target_two_hot = two_hot(target, num_bins, vmin, vmax)
     pred_log_softmax = F.log_softmax(pred, dim=-1)
     loss = -(target_two_hot * pred_log_softmax).sum(-1, keepdim=True)
@@ -153,9 +90,7 @@ def soft_ce(pred, target, num_bins, vmin, vmax):
 
 
 class RunningScale(torch.nn.Module):
-    """
-    Running trimmed scale estimator for normalizing Q-values.
-    """
+    """Running trimmed scale estimator for normalizing Q-values."""
 
     def __init__(self, tau=0.01):
         super().__init__()
@@ -194,16 +129,7 @@ class RunningScale(torch.nn.Module):
 
 
 def gumbel_softmax_sample(logits, temperature=1.0):
-    """
-    Sample from the Gumbel-Softmax distribution.
-
-    Args:
-        logits: (batch,) or (batch, n) log probabilities or scores
-        temperature: temperature for sampling
-    
-    Returns:
-        index: sampled index
-    """
+    """Sample from the Gumbel-Softmax distribution."""
     gumbels = -torch.empty_like(logits).exponential_().log()
     gumbels = (logits.log() + gumbels) / temperature
     y_soft = gumbels.softmax(dim=-1)
