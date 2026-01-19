@@ -12,14 +12,30 @@
             {"type": "basic_strong", "weight": 0.45}
           ]
         },
-        "reward_shaping": null
+        "reward_shaping": {
+          "N": 500,
+          "K": 1000,
+          "CLOSENESS_START": 0.5,
+          "TOUCH_START": 0.5,
+          "CLOSENESS_FINAL": 0.1,
+          "TOUCH_FINAL": 0.2, 
+          "DIRECTION_FINAL": 0.7
+        }
       },
       {
         "name": "full_competency",
         "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {"type": "basic_strong", "weight": 1.0},
-        "reward_shaping": null
+        "reward_shaping": {
+          "N": 500,
+          "K": 1000,
+          "CLOSENESS_START": 0.5,
+          "TOUCH_START": 0.5,
+          "CLOSENESS_FINAL": 0.1,
+          "TOUCH_FINAL": 0.2,
+          "DIRECTION_FINAL": 0.7
+        }
       }
     ]
   },
@@ -32,18 +48,18 @@
     "updates_per_step": 1,
     "warmup_steps": 5000,
     "reward_scale": 0.5,
-    "checkpoint_save_freq": 100
+    "checkpoint_save_freq": 20
   },
   "agent": {
     "type": "TDMPC2",
     "hyperparameters": {
-      "latent_dim": 256,
-      "hidden_dim": [128, 128, 128],
-      "num_q": 4,
+      "latent_dim": 512,
+      "hidden_dim": [512, 512, 512],
+      "num_q": 5,
       "gamma": 0.99,
-      "horizon": 50,
+      "horizon": 3,
       "num_samples": 512,
-      "num_iterations": 4,
+      "num_iterations": 6,
       "temperature": 0.5
     }
   }

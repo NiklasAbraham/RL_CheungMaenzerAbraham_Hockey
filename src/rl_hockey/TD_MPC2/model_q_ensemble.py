@@ -89,18 +89,13 @@ class QEnsemble(nn.Module):
         avg_val = q_values.mean(dim=1, keepdim=True)
         return avg_val
 
-    def avg_subsample_detached(self, latent, action, k=2):
-        """Returns average Q-value from k sampled heads (detached for policy update)."""
-        num_q = len(self.q_functions)
-        if k > num_q:
-            k = num_q
-        idx = torch.randperm(num_q, device=latent.device)[:k]
-        idx_list = idx.cpu().tolist()
-        q_logits_list = [self.q_functions[i](latent.detach(), action) for i in idx_list]
+    def avg(self, latent, action):
+        """Returns average Q-value from the entire ensemble."""
+        q_list = self.forward(latent, action)
         q_values = torch.cat(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
-                for q_logits in q_logits_list
+                for q_logits in q_list
             ],
             dim=1,
         )

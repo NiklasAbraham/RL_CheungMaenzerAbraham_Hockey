@@ -34,6 +34,7 @@ REQUIREMENTS_EMBEDDED
 
     pip install tensordict
     pip install pink-noise-rl
+    pip install matplotlib
     pip install psutil
 
     # Install hockey environment (must be done separately as it's from git)
