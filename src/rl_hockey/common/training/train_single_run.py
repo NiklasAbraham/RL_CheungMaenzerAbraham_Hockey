@@ -4,7 +4,22 @@ Can use either JSON config file or dict config.
 Supports vectorized environments for faster training.
 """
 
+import logging
+import sys
 from typing import Optional, Union
+
+# Configure logging (ensure it's configured before importing train_run)
+# Unbuffer stdout for immediate output in batch jobs
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,  # Force reconfiguration if already configured
+)
 
 from rl_hockey.common.training.train_run import train_run
 
@@ -19,7 +34,7 @@ def train_single_run(
     eval_weak_opponent: bool = True,
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,
-    num_envs: int = 1,
+    num_envs: int = 4,
 ):
     """
     Train a single run with optional vectorized environments.

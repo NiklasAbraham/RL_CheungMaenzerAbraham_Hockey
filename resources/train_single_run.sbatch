@@ -38,15 +38,22 @@ cd "$PROJECT_DIR"
 # Set number of parallel environments to match CPU cores
 export NUM_ENVS=16
 
+# Disable Python output buffering for immediate logging in batch jobs
+export PYTHONUNBUFFERED=1
+
 # Run the training script using singularity
 # Since the container is read-only, we can't install packages into /venv
-# Instead, we add the src directory to PYTHONPATH so Python can find rl_hockey
+# Install missing packages to a user-writable location if needed
+USER_PACKAGES_DIR="$PROJECT_DIR/.user_packages"
+mkdir -p "$USER_PACKAGES_DIR"
+
+# Run the training script using singularity
 singularity exec \
     --nv \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && export NUM_ENVS=$NUM_ENVS && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
+    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export NUM_ENVS=$NUM_ENVS && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
 
 # Alternative: Run with custom parameters by modifying train_single_run.py
 # Or uncomment and modify the following line to pass parameters directly:

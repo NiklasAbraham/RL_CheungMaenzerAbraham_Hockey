@@ -85,8 +85,6 @@ def create_agent(
         log_std_min = agent_hyperparams.pop("log_std_min", -10.0)
         log_std_max = agent_hyperparams.pop("log_std_max", 2.0)
         lambda_coef = agent_hyperparams.pop("lambda_coef", 0.95)
-        policy_alpha = agent_hyperparams.pop("policy_alpha", 1.0)
-        policy_beta = agent_hyperparams.pop("policy_beta", 1.0)
 
         # Use provided device or default to CPU/CUDA
         if device is None:
@@ -113,8 +111,6 @@ def create_agent(
             log_std_min=log_std_min,
             log_std_max=log_std_max,
             lambda_coef=lambda_coef,
-            policy_alpha=policy_alpha,
-            policy_beta=policy_beta,
         )
     elif agent_config.type == "TD3":
         raise NotImplementedError("TD3 is not yet implemented")

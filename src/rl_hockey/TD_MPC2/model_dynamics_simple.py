@@ -8,10 +8,10 @@ class DynamicsSimple(nn.Module):
     """
     Predicts next latent state given current latent state and action.
 
-    Architecture from TD-MPC2 paper:
+    Architecture matches original TD-MPC2 paper:
     - Input: current latent state and action
-    - Output: next latent state
-    - Residual connection: next latent state = current latent state + predicted change
+    - Output: next latent state (no residual connection)
+    - SimNorm is the activation of the output layer (inside MLP)
     """
 
     def __init__(
@@ -25,19 +25,17 @@ class DynamicsSimple(nn.Module):
 
         layers = []
 
-        # Input layer
         layers.append(nn.Linear(latent_dim + action_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
         layers.append(nn.Mish())
 
-        # Hidden layers
         for i in range(1, len(hidden_dim)):
             layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
             layers.append(nn.LayerNorm(hidden_dim[i]))
             layers.append(nn.Mish())
 
-        # Output layer
         layers.append(nn.Linear(hidden_dim[-1], latent_dim))
+        layers.append(nn.LayerNorm(latent_dim))
 
         self.net = nn.Sequential(*layers)
         self.simnorm = SimNorm(
@@ -46,11 +44,10 @@ class DynamicsSimple(nn.Module):
 
     def forward(self, latent, action):
         """
-
-        Architecture from TD-MPC2 paper:
-        - Input: current latent state and action
-        - Output: next latent state
-        - Residual connection: next latent state = current latent state + predicted change
+        Architecture matches original TD-MPC2:
+        - Concatenate latent state and action
+        - Pass through MLP (SimNorm is activation of output layer)
+        - Return next latent state directly (no residual connection)
 
         Args:
             latent: (batch, latent_dim) current latent state
@@ -59,8 +56,7 @@ class DynamicsSimple(nn.Module):
             latent_next: (batch, latent_dim) next latent state
         """
         x = torch.cat([latent, action], dim=-1)
+        z_after_linear = self.net(x)
+        latent_next = self.simnorm(z_after_linear)
 
-        delta_z = self.net(x)
-
-        latent_next = latent + delta_z
-        return self.simnorm(latent_next)
+        return latent_next
