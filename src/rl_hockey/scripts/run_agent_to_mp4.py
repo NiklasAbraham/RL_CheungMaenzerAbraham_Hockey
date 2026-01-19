@@ -37,7 +37,7 @@ if sys.platform == "linux":
 
 # Allow MODEL_PATH to be overridden via environment variable
 # If relative path, convert to absolute based on script location or PROJECT_DIR
-_DEFAULT_MODEL_PATH = "results/tdmpc2_runs/2026-01-19_12-35-33/models/TDMPC2_run_lr3e04_bs1024_h128_256_128_4ddb1403_20260119_123533_vec4_ep000250.pt"
+_DEFAULT_MODEL_PATH = "results/tdmpc2_runs/2026-01-19_14-04-23/models/TDMPC2_run_lr3e04_bs512_h128_128_8a6b8dff_20260119_140423_vec4_ep000100.pt"
 _MODEL_PATH_ENV = os.environ.get("MODEL_PATH", _DEFAULT_MODEL_PATH)
 
 if os.path.isabs(_MODEL_PATH_ENV):

@@ -13,32 +13,22 @@ class QFunction(nn.Module):
         super().__init__()
 
         layers = []
-
-        # Input layer
         layers.append(nn.Linear(latent_dim + action_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
         layers.append(nn.Mish())
 
-        # Hidden layers
         for i in range(1, len(hidden_dim)):
             layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
             layers.append(nn.LayerNorm(hidden_dim[i]))
             layers.append(nn.Mish())
 
-        # Output layer (logits for num_bins)
         layers.append(nn.Linear(hidden_dim[-1], num_bins))
 
         self.net = nn.Sequential(*layers)
         self.num_bins = num_bins
 
     def forward(self, latent, action):
-        """
-        Args:
-            latent: (batch, latent_dim) current latent state
-            action: (batch, action_dim) action
-        Returns:
-            q_logits: (batch, num_bins) predicted Q-value logits
-        """
+        """Forward pass through Q-function."""
         x = torch.cat([latent, action], dim=-1)
         q_logits = self.net(x)
         return q_logits

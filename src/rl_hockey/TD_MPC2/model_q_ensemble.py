@@ -36,24 +36,12 @@ class QEnsemble(nn.Module):
         self.vmax = vmax
 
     def forward(self, latent, action):
-        """
-        Args:
-            latent: (batch, latent_dim) current latent state
-            action: (batch, action_dim) action
-        Returns:
-            q_list: list of (batch, num_bins) predicted Q-value logits from each Q-function
-        """
+        """Forward pass through Q-ensemble."""
         q_list = [q_func(latent, action) for q_func in self.q_functions]
         return q_list
 
     def min(self, latent, action):
-        """
-        Args:
-            latent: (batch, latent_dim) current latent state
-            action: (batch, action_dim) action
-        Returns:
-            q: (batch, 1) minimum predicted Q-value (converted from logits)
-        """
+        """Returns minimum Q-value from ensemble."""
         q_list = self.forward(latent, action)
         q_values = torch.cat(
             [
@@ -66,14 +54,7 @@ class QEnsemble(nn.Module):
         return min_val
 
     def min_subsample(self, latent, action, k=2):
-        """
-        Args:
-            latent: (batch, latent_dim)
-            action: (batch, action_dim)
-            k: number of Q-heads to sample
-        Returns:
-            q: (batch, 1) min value among sampled heads (converted from logits)
-        """
+        """Returns minimum Q-value from k sampled heads."""
         num_q = len(self.q_functions)
         if k > num_q:
             k = num_q
@@ -91,16 +72,7 @@ class QEnsemble(nn.Module):
         return min_val
 
     def avg_subsample(self, latent, action, k=2):
-        """
-        Return average Q-value from k randomly sampled Q-heads.
-
-        Args:
-            latent: (batch, latent_dim)
-            action: (batch, action_dim)
-            k: number of Q-heads to sample
-        Returns:
-            q: (batch, 1) average value among sampled heads (converted from logits)
-        """
+        """Returns average Q-value from k sampled heads."""
         num_q = len(self.q_functions)
         if k > num_q:
             k = num_q
@@ -118,16 +90,7 @@ class QEnsemble(nn.Module):
         return avg_val
 
     def avg_subsample_detached(self, latent, action, k=2):
-        """
-        Return average Q-value from k randomly sampled Q-heads for policy update.
-
-        Args:
-            latent: (batch, latent_dim)
-            action: (batch, action_dim)
-            k: number of Q-heads to sample
-        Returns:
-            q: (batch, 1) average value among sampled heads
-        """
+        """Returns average Q-value from k sampled heads (detached for policy update)."""
         num_q = len(self.q_functions)
         if k > num_q:
             k = num_q

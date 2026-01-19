@@ -22,13 +22,10 @@ class Policy(nn.Module):
         self.log_std_max = log_std_max
 
         layers = []
-
-        # Input layer
         layers.append(nn.Linear(latent_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
         layers.append(nn.Mish())
 
-        # Hidden layers
         for i in range(1, len(hidden_dim)):
             layers.append(nn.Linear(hidden_dim[i - 1], hidden_dim[i]))
             layers.append(nn.LayerNorm(hidden_dim[i]))
@@ -52,10 +49,7 @@ class Policy(nn.Module):
         return torch.tanh(mean)
 
     def sample(self, latent):
-        """
-        Sample action from policy.
-        Returns action, log_prob, mean, and scaled_entropy.
-        """
+        """Sample action from policy."""
         mean, std, log_std = self._distribution(latent)
         eps = torch.randn_like(mean)
         pre_tanh = mean + std * eps
@@ -66,8 +60,6 @@ class Policy(nn.Module):
         
         squash_correction = torch.log(torch.relu(1 - action.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
         log_prob = gaussian_log_prob - squash_correction
-        
-        # TD-MPC2 uses Gaussian entropy (ignoring tanh transformation)
         entropy = -gaussian_log_prob
         
         return action, log_prob, torch.tanh(mean), entropy
