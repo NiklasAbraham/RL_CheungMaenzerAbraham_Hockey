@@ -4,10 +4,10 @@ import torch.nn as nn
 
 class Reward(nn.Module):
     """
-    Predicts immediate reward given latent state and action.
+    Predicts reward given latent state and action.
     """
 
-    def __init__(self, latent_dim=512, action_dim=8, hidden_dim=[256, 256, 256]):
+    def __init__(self, latent_dim=512, action_dim=8, hidden_dim=[256, 256, 256], num_bins=101, vmin=-10.0, vmax=10.0):
         super().__init__()
 
         layers = []
@@ -23,10 +23,13 @@ class Reward(nn.Module):
             layers.append(nn.LayerNorm(hidden_dim[i]))
             layers.append(nn.Mish())
 
-        # Output layer (scalar reward)
-        layers.append(nn.Linear(hidden_dim[-1], 1))
+        # Output layer (logits for num_bins)
+        layers.append(nn.Linear(hidden_dim[-1], num_bins))
 
         self.net = nn.Sequential(*layers)
+        self.num_bins = num_bins
+        self.vmin = vmin
+        self.vmax = vmax
 
     def forward(self, latent, action):
         """
@@ -34,7 +37,7 @@ class Reward(nn.Module):
             latent: (batch, latent_dim) current latent state
             action: (batch, action_dim) action
         Returns:
-            reward: (batch, 1) predicted reward
+            reward_logits: (batch, num_bins) predicted reward logits
         """
         x = torch.cat([latent, action], dim=-1)
 

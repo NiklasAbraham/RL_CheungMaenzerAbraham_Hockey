@@ -1,12 +1,19 @@
 import logging
 import os
+import sys
 from functools import partial
 from typing import Optional, Union
 
 import hockey.hockey_env as h_env
 import numpy as np
-from tqdm import tqdm
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
 logger = logging.getLogger(__name__)
 
 from rl_hockey.common import utils
@@ -168,8 +175,10 @@ def train_run(
             print("Checkpoint loaded successfully")
 
     losses = []
+    all_losses_dict = {}  # Dictionary to store all loss types: {loss_type: [values]}
     rewards = []
     phases = []
+    episode_logs = []  # List to store episode logs with all loss types
     steps = 0
     gradient_steps = 0
     evaluation_results = []
@@ -220,9 +229,7 @@ def train_run(
                 "direction": DIRECTION_FINAL,
             }
 
-    pbar = tqdm(range(total_episodes), desc=run_name, disable=not verbose)
-
-    for global_episode in pbar:
+    for global_episode in range(total_episodes):
         phase_idx, phase_local_episode, phase_config = get_phase_for_episode(
             curriculum, global_episode
         )
@@ -282,6 +289,8 @@ def train_run(
         # Reset episode resource tracking
         current_episode_cpu_samples = []
         current_episode_gpu_samples = []
+        # Track losses for this episode
+        episode_losses = {}
 
         if (
             phase_config.opponent.type == "self_play"
@@ -439,6 +448,22 @@ def train_run(
                 stats = agent.train(updates_per_step)
                 gradient_steps += updates_per_step
                 if isinstance(stats, dict):
+                    # Track all loss types from stats
+                    for loss_key, loss_value in stats.items():
+                        if loss_value is not None and "loss" in loss_key.lower():
+                            if loss_key not in all_losses_dict:
+                                all_losses_dict[loss_key] = []
+                            if loss_key not in episode_losses:
+                                episode_losses[loss_key] = []
+
+                            if isinstance(loss_value, list):
+                                all_losses_dict[loss_key].extend(loss_value)
+                                episode_losses[loss_key].extend(loss_value)
+                            else:
+                                all_losses_dict[loss_key].append(loss_value)
+                                episode_losses[loss_key].append(loss_value)
+
+                    # Keep backward compatibility: extract single loss for old loss tracking
                     loss_list = None
                     if "loss" in stats and stats["loss"] is not None:
                         loss_list = stats["loss"]
@@ -535,8 +560,11 @@ def train_run(
             }
         )
 
-        # Calculate and print averages over last n episodes
-        if len(episode_resource_samples) >= episode_resource_window:
+        # Calculate and print averages over last n episodes (only once every episode_resource_window episodes)
+        if (
+            len(episode_resource_samples) >= episode_resource_window
+            and (global_episode + 1) % episode_resource_window == 0
+        ):
             recent_samples = episode_resource_samples[-episode_resource_window:]
             avg_cpu = sum(s["cpu_percent"] for s in recent_samples) / len(
                 recent_samples
@@ -558,23 +586,43 @@ def train_run(
                 agent,
                 phase_index=phase_idx,
                 phase_episode=phase_local_episode,
+                episode_logs=episode_logs,
             )
 
-        if verbose:
-            pbar.set_postfix(
-                {
-                    "reward": total_reward,
-                    "shaped": f"{total_shaped_reward:.1f}",
-                    "phase": phase_config.name[:10],
-                    "eps": agent.config.get("eps", "N/A")
-                    if hasattr(agent, "config")
-                    else "N/A",
-                }
-            )
+        # Log all losses at end of episode
+        # Calculate average losses for this episode
+        avg_losses = {}
+        if episode_losses:
+            for loss_key, loss_values in episode_losses.items():
+                if loss_values:
+                    avg_losses[loss_key] = sum(loss_values) / len(loss_values)
+
+        # Store episode log (always, even if no losses)
+        episode_logs.append(
+            {
+                "episode": global_episode + 1,
+                "reward": total_reward,
+                "shaped_reward": total_shaped_reward,
+                "losses": avg_losses,
+            }
+        )
+
+        # Log episode information (always log, even if no losses)
+        loss_info_parts = [
+            f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}"
+        ]
+        if avg_losses:
+            for loss_key in sorted(avg_losses.keys()):
+                loss_info_parts.append(f"{loss_key}={avg_losses[loss_key]:.6f}")
+        else:
+            loss_info_parts.append("(no training in this episode)")
+        logger.info(" | ".join(loss_info_parts))
 
     run_manager.save_config(run_name, _curriculum_to_dict(curriculum))
     run_manager.save_rewards_csv(run_name, rewards, phases=phases)
     run_manager.save_losses_csv(run_name, losses)
+    if episode_logs:
+        run_manager.save_episode_logs_csv(run_name, episode_logs)
     if resource_logs:
         run_manager.save_resources_csv(run_name, resource_logs)
 
@@ -715,8 +763,10 @@ def _train_run_vectorized(
             print("Checkpoint loaded successfully")
 
     losses = []
+    all_losses_dict = {}  # Dictionary to store all loss types: {loss_type: [values]}
     rewards = []
     phases = []
+    episode_logs = []  # List to store episode logs with all loss types
     steps = 0
     gradient_steps = 0
     evaluation_results = []
@@ -738,6 +788,8 @@ def _train_run_vectorized(
     episode_shaped_rewards = [0.0] * num_envs
     episode_steps = [0] * num_envs
     completed_episodes = 0
+    # Track losses for current episode (across all training steps)
+    current_episode_losses = {}
 
     def get_reward_weights(episode_idx, phase_config):
         reward_shaping = phase_config.reward_shaping
@@ -772,8 +824,6 @@ def _train_run_vectorized(
                 "touch": TOUCH_FINAL,
                 "direction": DIRECTION_FINAL,
             }
-
-    pbar = tqdm(total=total_episodes, desc=run_name, disable=not verbose)
 
     # Initialize first phase
     phase_idx, phase_local_episode, phase_config = get_phase_for_episode(curriculum, 0)
@@ -948,7 +998,6 @@ def _train_run_vectorized(
                 rewards.append(episode_rewards[i])
                 phases.append(phase_config.name)
                 completed_episodes += 1
-                pbar.update(1)
 
                 # Calculate episode averages for resource usage (using recent samples)
                 episode_cpu_avg = (
@@ -971,8 +1020,11 @@ def _train_run_vectorized(
                     }
                 )
 
-                # Calculate and print averages over last n episodes
-                if len(episode_resource_samples) >= episode_resource_window:
+                # Calculate and print averages over last n episodes (only once every episode_resource_window episodes)
+                if (
+                    len(episode_resource_samples) >= episode_resource_window
+                    and completed_episodes % episode_resource_window == 0
+                ):
                     recent_samples = episode_resource_samples[-episode_resource_window:]
                     avg_cpu = sum(s["cpu_percent"] for s in recent_samples) / len(
                         recent_samples
@@ -987,6 +1039,17 @@ def _train_run_vectorized(
                             f"CPU: {avg_cpu:.1f}%, GPU: {avg_gpu:.1f}%"
                         )
 
+                # Trim resource sample lists to prevent unbounded growth
+                # Keep only last 100 samples (enough for ~5 episodes at 20 samples/episode)
+                if len(current_episode_cpu_samples) > 100:
+                    current_episode_cpu_samples = current_episode_cpu_samples[-100:]
+                if len(current_episode_gpu_samples) > 100:
+                    current_episode_gpu_samples = current_episode_gpu_samples[-100:]
+
+                # Save episode rewards before resetting (for logging)
+                final_episode_reward = episode_rewards[i]
+                final_episode_shaped_reward = episode_shaped_rewards[i]
+
                 # Reset episode tracking for this environment
                 episode_rewards[i] = 0.0
                 episode_shaped_rewards[i] = 0.0
@@ -997,17 +1060,37 @@ def _train_run_vectorized(
                 # But we need to initialize the next episode
                 agent.on_episode_start(completed_episodes)
 
-                # Update progress bar
-                if verbose:
-                    pbar.set_postfix(
-                        {
-                            "reward": rewards[-1] if rewards else 0,
-                            "phase": phase_config.name[:10],
-                            "eps": agent.config.get("eps", "N/A")
-                            if hasattr(agent, "config")
-                            else "N/A",
-                        }
-                    )
+                # Log all losses at end of episode
+                # Calculate average losses for this episode
+                avg_losses = {}
+                if current_episode_losses:
+                    for loss_key, loss_values in current_episode_losses.items():
+                        if loss_values:
+                            avg_losses[loss_key] = sum(loss_values) / len(loss_values)
+
+                # Store episode log (always, even if no losses)
+                episode_logs.append(
+                    {
+                        "episode": completed_episodes,
+                        "reward": final_episode_reward,
+                        "shaped_reward": final_episode_shaped_reward,
+                        "losses": avg_losses,
+                    }
+                )
+
+                # Log episode information (always log, even if no losses)
+                loss_info_parts = [
+                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}"
+                ]
+                if avg_losses:
+                    for loss_key in sorted(avg_losses.keys()):
+                        loss_info_parts.append(f"{loss_key}={avg_losses[loss_key]:.6f}")
+                else:
+                    loss_info_parts.append("(no training in this episode)")
+                logger.info(" | ".join(loss_info_parts))
+
+                # Reset episode losses after logging (for next episode)
+                current_episode_losses = {}
 
                 # Check if we need to change phase
                 if completed_episodes < total_episodes:
@@ -1099,6 +1182,22 @@ def _train_run_vectorized(
             stats = agent.train(updates_per_step)
             gradient_steps += updates_per_step
             if isinstance(stats, dict):
+                # Track all loss types from stats
+                for loss_key, loss_value in stats.items():
+                    if loss_value is not None and "loss" in loss_key.lower():
+                        if loss_key not in all_losses_dict:
+                            all_losses_dict[loss_key] = []
+                        if loss_key not in current_episode_losses:
+                            current_episode_losses[loss_key] = []
+
+                        if isinstance(loss_value, list):
+                            all_losses_dict[loss_key].extend(loss_value)
+                            current_episode_losses[loss_key].extend(loss_value)
+                        else:
+                            all_losses_dict[loss_key].append(loss_value)
+                            current_episode_losses[loss_key].append(loss_value)
+
+                # Keep backward compatibility: extract single loss for old loss tracking
                 loss_list = None
                 if "loss" in stats and stats["loss"] is not None:
                     loss_list = stats["loss"]
@@ -1173,16 +1272,15 @@ def _train_run_vectorized(
                 agent,
                 phase_index=phase_idx,
                 phase_episode=phase_local_episode,
+                episode_logs=episode_logs,
             )
-
-    pbar.close()
 
     # Save final results
     run_manager.save_config(run_name, _curriculum_to_dict(curriculum))
     run_manager.save_rewards_csv(run_name, rewards, phases=phases)
     run_manager.save_losses_csv(run_name, losses)
-    if resource_logs:
-        run_manager.save_resources_csv(run_name, resource_logs)
+    if episode_logs:
+        run_manager.save_episode_logs_csv(run_name, episode_logs)
     if resource_logs:
         run_manager.save_resources_csv(run_name, resource_logs)
 

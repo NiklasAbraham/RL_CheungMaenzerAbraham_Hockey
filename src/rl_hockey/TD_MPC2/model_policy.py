@@ -1,4 +1,4 @@
-# Policy network for action initialization in MPC.
+# Policy network.
 
 import torch
 import torch.nn as nn
@@ -6,7 +6,7 @@ import torch.nn as nn
 
 class Policy(nn.Module):
     """
-    Stochastic policy prior for action initialization in MPC.
+    Stochastic policy for action initialization in MPC.
     """
 
     def __init__(
@@ -41,8 +41,9 @@ class Policy(nn.Module):
     def _distribution(self, latent):
         h = self.net(latent)
         mean = self.mean_head(h)
-        log_std = self.log_std_head(h)
-        log_std = torch.clamp(log_std, self.log_std_min, self.log_std_max)
+        log_std_raw = self.log_std_head(h)
+        log_std_dif = self.log_std_max - self.log_std_min
+        log_std = self.log_std_min + 0.5 * log_std_dif * (torch.tanh(log_std_raw) + 1)
         std = torch.exp(log_std)
         return mean, std, log_std
 
@@ -51,23 +52,29 @@ class Policy(nn.Module):
         return torch.tanh(mean)
 
     def sample(self, latent):
+        """
+        Sample action from policy.
+        Returns action, log_prob, mean, and scaled_entropy.
+        """
         mean, std, log_std = self._distribution(latent)
         eps = torch.randn_like(mean)
         pre_tanh = mean + std * eps
         action = torch.tanh(pre_tanh)
 
-        # Tanh-squashed Gaussian log-prob
-        log_prob = -0.5 * (
-            ((pre_tanh - mean) / (std + 1e-6)) ** 2
-            + 2 * log_std
-            + torch.log(torch.tensor(2.0 * torch.pi, device=pre_tanh.device))
-        )
-        log_prob = log_prob.sum(dim=-1, keepdim=True)
-        # Use non-inplace operation to avoid gradient computation errors
-        log_prob = log_prob - torch.log(1 - action.pow(2) + 1e-6).sum(
-            dim=-1, keepdim=True
-        )
-        return action, log_prob, torch.tanh(mean)
+        gaussian_log_prob = -0.5 * eps.pow(2) - log_std - 0.9189385175704956
+        gaussian_log_prob = gaussian_log_prob.sum(dim=-1, keepdim=True)
+        
+        action_dim = action.shape[-1]
+        scaled_log_prob = gaussian_log_prob * action_dim
+        
+        squash_correction = torch.log(torch.relu(1 - action.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
+        log_prob = gaussian_log_prob - squash_correction
+        
+        entropy_scale = scaled_log_prob / (log_prob + 1e-8)
+        scaled_entropy = -log_prob * entropy_scale
+        scaled_entropy = torch.clamp(scaled_entropy, min=-100.0, max=100.0)
+        
+        return action, log_prob, torch.tanh(mean), scaled_entropy
 
     def forward(self, latent):
         return self.mean_action(latent)

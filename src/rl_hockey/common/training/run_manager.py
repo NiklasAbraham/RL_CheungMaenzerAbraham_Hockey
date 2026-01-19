@@ -71,6 +71,7 @@ class RunManager:
             'csv_losses': self.csvs_dir / f"{run_name}_losses.csv",
             'csv_evaluation': self.csvs_dir / f"{run_name}_evaluation.csv",
             'csv_resources': self.csvs_dir / f"{run_name}_resources.csv",
+            'csv_episode_logs': self.csvs_dir / f"{run_name}_episode_logs.csv",
             'model': self.models_dir / f"{run_name}.pt",
         }
     
@@ -150,7 +151,7 @@ class RunManager:
         """Get model save path for a run."""
         return self.get_run_directories(run_name)['model']
     
-    def save_checkpoint(self, run_name: str, episode: int, agent: Any, phase_index: int = None, phase_episode: int = None):
+    def save_checkpoint(self, run_name: str, episode: int, agent: Any, phase_index: int = None, phase_episode: int = None, episode_logs: List[Dict[str, Any]] = None):
         """Save a checkpoint for the current training state."""
         checkpoint_name = f"{run_name}_ep{episode:06d}"
         checkpoint_path = self.models_dir / f"{checkpoint_name}.pt"
@@ -165,6 +166,11 @@ class RunManager:
         }
         with open(metadata_path, 'w') as f:
             json.dump(metadata, f, indent=2)
+        
+        # Save episode logs CSV with checkpoint
+        if episode_logs:
+            checkpoint_csv_path = self.csvs_dir / f"{checkpoint_name}_episode_logs.csv"
+            self.save_episode_logs_csv(checkpoint_name, episode_logs, checkpoint_csv_path)
     
     def get_checkpoint_path(self, run_name: str, episode: int) -> Path:
         """Get checkpoint path for a specific episode."""
@@ -262,6 +268,50 @@ class RunManager:
             
             for log in resource_logs:
                 row = [log.get(key, '') for key in csv_keys]
+                writer.writerow(row)
+    
+    def save_episode_logs_csv(self, run_name: str, episode_logs: List[Dict[str, Any]], custom_path: Path = None):
+        """Save episode logs with all loss types to CSV file."""
+        if not episode_logs:
+            return
+        
+        # Use custom path if provided (for checkpoints), otherwise use default
+        if custom_path is not None:
+            csv_path = custom_path
+        else:
+            paths = self.get_run_directories(run_name)
+            csv_path = paths['csv_episode_logs']
+        
+        # Collect all possible loss keys from all episodes
+        all_loss_keys = set()
+        for log in episode_logs:
+            if 'losses' in log and isinstance(log['losses'], dict):
+                all_loss_keys.update(log['losses'].keys())
+        
+        # Sort loss keys for consistent column order
+        sorted_loss_keys = sorted(all_loss_keys)
+        
+        # Define column order: episode, reward, shaped_reward first, then all loss types
+        csv_keys = ['episode', 'reward', 'shaped_reward'] + sorted_loss_keys
+        
+        with open(csv_path, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(csv_keys)
+            
+            for log in episode_logs:
+                row = [
+                    log.get('episode', ''),
+                    log.get('reward', ''),
+                    log.get('shaped_reward', ''),
+                ]
+                # Add loss values in sorted order
+                losses_dict = log.get('losses', {})
+                for loss_key in sorted_loss_keys:
+                    loss_value = losses_dict.get(loss_key, '')
+                    # If it's a list, compute average; otherwise use value directly
+                    if isinstance(loss_value, list):
+                        loss_value = sum(loss_value) / len(loss_value) if loss_value else ''
+                    row.append(loss_value)
                 writer.writerow(row)
     
     @staticmethod
