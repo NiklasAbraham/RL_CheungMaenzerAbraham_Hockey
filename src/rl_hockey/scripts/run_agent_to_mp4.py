@@ -37,7 +37,7 @@ if sys.platform == "linux":
 
 # Allow MODEL_PATH to be overridden via environment variable
 # If relative path, convert to absolute based on script location or PROJECT_DIR
-_DEFAULT_MODEL_PATH = "results/tdmpc2_runs/2026-01-18_12-12-17/models/TDMPC2_run_lr3e04_bs256_h128_256_128_42e91061_20260118_121217_vec16_temp_eval.pt"
+_DEFAULT_MODEL_PATH = "results/tdmpc2_runs/2026-01-19_12-35-33/models/TDMPC2_run_lr3e04_bs1024_h128_256_128_4ddb1403_20260119_123533_vec4_ep000250.pt"
 _MODEL_PATH_ENV = os.environ.get("MODEL_PATH", _DEFAULT_MODEL_PATH)
 
 if os.path.isabs(_MODEL_PATH_ENV):
@@ -50,7 +50,9 @@ else:
     else:
         # Fall back to relative path from script location
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(script_dir))
+        # Script is at: PROJECT_ROOT/src/rl_hockey/scripts/
+        # Go up 3 levels to reach PROJECT_ROOT
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
         MODEL_PATH = os.path.join(project_root, _MODEL_PATH_ENV)
 NUM_GAMES = 25
 OPPONENT_TYPE = "basic_strong"
@@ -437,6 +439,7 @@ def run_game(
                     prev_action=prev_action_p1,
                     prev_latent=prev_latent,
                     prev_predicted_next_latent=prev_predicted_next_latent,
+                    t0=(step == 0),
                 )
                 game_stats.append(step_stats)
                 # Extract latent, action, and predicted next latent for next iteration
@@ -450,7 +453,7 @@ def run_game(
                     else np.array(action_p1)
                 )
             else:
-                action_p1 = agent.act(obs_float, deterministic=True)
+                action_p1 = agent.act(obs_float, deterministic=True, t0=(step == 0))
                 prev_action_p1 = (
                     action_p1.copy() if hasattr(action_p1, "copy") else action_p1
                 )

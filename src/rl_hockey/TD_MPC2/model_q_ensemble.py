@@ -78,7 +78,8 @@ class QEnsemble(nn.Module):
         if k > num_q:
             k = num_q
         idx = torch.randperm(num_q, device=latent.device)[:k]
-        q_logits_list = [self.q_functions[i](latent, action) for i in idx]
+        idx_list = idx.cpu().tolist()
+        q_logits_list = [self.q_functions[i](latent, action) for i in idx_list]
         q_values = torch.cat(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
@@ -104,7 +105,8 @@ class QEnsemble(nn.Module):
         if k > num_q:
             k = num_q
         idx = torch.randperm(num_q, device=latent.device)[:k]
-        q_logits_list = [self.q_functions[i](latent, action) for i in idx]
+        idx_list = idx.cpu().tolist()
+        q_logits_list = [self.q_functions[i](latent, action) for i in idx_list]
         q_values = torch.cat(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
@@ -130,7 +132,8 @@ class QEnsemble(nn.Module):
         if k > num_q:
             k = num_q
         idx = torch.randperm(num_q, device=latent.device)[:k]
-        q_logits_list = [self.q_functions[i](latent.detach(), action) for i in idx]
+        idx_list = idx.cpu().tolist()
+        q_logits_list = [self.q_functions[i](latent.detach(), action) for i in idx_list]
         q_values = torch.cat(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)

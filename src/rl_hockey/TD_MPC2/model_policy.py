@@ -64,17 +64,13 @@ class Policy(nn.Module):
         gaussian_log_prob = -0.5 * eps.pow(2) - log_std - 0.9189385175704956
         gaussian_log_prob = gaussian_log_prob.sum(dim=-1, keepdim=True)
         
-        action_dim = action.shape[-1]
-        scaled_log_prob = gaussian_log_prob * action_dim
-        
         squash_correction = torch.log(torch.relu(1 - action.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
         log_prob = gaussian_log_prob - squash_correction
         
-        entropy_scale = scaled_log_prob / (log_prob + 1e-8)
-        scaled_entropy = -log_prob * entropy_scale
-        scaled_entropy = torch.clamp(scaled_entropy, min=-100.0, max=100.0)
+        # TD-MPC2 uses Gaussian entropy (ignoring tanh transformation)
+        entropy = -gaussian_log_prob
         
-        return action, log_prob, torch.tanh(mean), scaled_entropy
+        return action, log_prob, torch.tanh(mean), entropy
 
     def forward(self, latent):
         return self.mean_action(latent)
