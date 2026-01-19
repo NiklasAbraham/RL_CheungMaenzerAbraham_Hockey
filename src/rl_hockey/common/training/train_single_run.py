@@ -96,3 +96,5 @@ if __name__ == "__main__":
         device=device,
         num_envs=num_envs,
     )
+
+    # nohup python -u src/rl_hockey/common/training/train_single_run.py > results/tdmpc2_runs/train_single_run.log 2>&1 &

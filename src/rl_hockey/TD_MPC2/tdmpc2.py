@@ -53,8 +53,8 @@ class TDMPC2(Agent):
         batch_size=256,
         device="cuda",
         num_bins=101,
-        vmin=-100.0,
-        vmax=100.0,
+        vmin=-10.0,
+        vmax=10.0,
         tau=0.01,
         grad_clip_norm=20.0,
         consistency_coef=20.0,
@@ -239,13 +239,14 @@ class TDMPC2(Agent):
         self.planner.to(self.device)
 
     @torch.no_grad()
-    def act(self, obs, deterministic=False):
+    def act(self, obs, deterministic=False, t0=False):
         """
         Select action using MPC planning.
 
         Args:
             obs: (obs_dim,) observation
             deterministic: if True, return mean action
+            t0: if True, this is the first step of the episode
 
         Returns:
             action: (action_dim,) planned action
@@ -254,7 +255,7 @@ class TDMPC2(Agent):
 
         z = self.encoder(obs.unsqueeze(0)).squeeze(0)
 
-        action = self.planner.plan(z, return_mean=deterministic)
+        action = self.planner.plan(z, return_mean=deterministic, t0=t0)
 
         return action.cpu().numpy()
 
@@ -266,6 +267,7 @@ class TDMPC2(Agent):
         prev_action=None,
         prev_latent=None,
         prev_predicted_next_latent=None,
+        t0=False,
     ):
         """
         Select action using MPC planning and collect statistics from forward pass.
@@ -277,6 +279,7 @@ class TDMPC2(Agent):
             prev_latent: (latent_dim,) previous latent state for smoothness metrics (optional)
             prev_predicted_next_latent: (latent_dim,) predicted next latent from previous step (optional)
                                        Used to compute dynamics prediction error
+            t0: if True, this is the first step of the episode
 
         Returns:
             action: (action_dim,) planned action
@@ -288,7 +291,7 @@ class TDMPC2(Agent):
         z = self.encoder(obs_batch).squeeze(0)
         z = z.clone()
 
-        plan_result = self.planner.plan(z, return_mean=deterministic, return_stats=True)
+        plan_result = self.planner.plan(z, return_mean=deterministic, return_stats=True, t0=t0)
         if isinstance(plan_result, tuple):
             action, planning_stats = plan_result
         else:
@@ -569,88 +572,11 @@ class TDMPC2(Agent):
                     used_sequences = True
 
             if not used_sequences:
-                obs, actions, rewards, next_obs, dones = self.buffer.sample(batch_size)
-                if (
-                    isinstance(obs, torch.Tensor)
-                    and obs.device.type == self.device.type
-                    and (
-                        self.device.index is None
-                        or obs.device.index == self.device.index
-                    )
-                ):
-                    if rewards.dim() == 1:
-                        rewards = rewards.unsqueeze(-1)
-                    if dones.dim() == 1:
-                        dones = dones.unsqueeze(-1)
-                else:
-                    if isinstance(obs, torch.Tensor):
-                        obs = obs.to(self.device, non_blocking=True)
-                        actions = actions.to(self.device, non_blocking=True)
-                        rewards = rewards.view(-1, 1).to(self.device, non_blocking=True)
-                        next_obs = next_obs.to(self.device, non_blocking=True)
-                        dones = dones.view(-1, 1).to(self.device, non_blocking=True)
-                    else:
-                        obs = (
-                            torch.from_numpy(obs)
-                            .float()
-                            .to(self.device, non_blocking=True)
-                        )
-                        actions = (
-                            torch.from_numpy(actions)
-                            .float()
-                            .to(self.device, non_blocking=True)
-                        )
-                        rewards = (
-                            torch.from_numpy(rewards)
-                            .float()
-                            .reshape(-1, 1)
-                            .to(self.device, non_blocking=True)
-                        )
-                        next_obs = (
-                            torch.from_numpy(next_obs)
-                            .float()
-                            .to(self.device, non_blocking=True)
-                        )
-                        dones = (
-                            torch.from_numpy(dones)
-                            .float()
-                            .reshape(-1, 1)
-                            .to(self.device, non_blocking=True)
-                        )
-
-                z = self.encoder(obs)
-                with torch.no_grad():
-                    z_next_enc = self.encoder(next_obs)
-
-                zs = torch.empty(2, batch_size, self.latent_dim, device=self.device)
-                zs[0] = z
-
-                z_next_pred = self.dynamics(z, actions)
-                zs[1] = z_next_pred
-                consistency_loss = F.mse_loss(z_next_pred, z_next_enc.detach())
-
-                r_pred_logits = self.reward(z, actions)
-                reward_loss = soft_ce(
-                    r_pred_logits, rewards, self.num_bins, self.vmin, self.vmax
-                ).mean()
-
-                q_preds_logits = self.q_ensemble(z, actions)
-                with torch.no_grad():
-                    next_actions, _, _, _ = self.policy.sample(z_next_enc)
-                    target_q = self.target_q_ensemble.min_subsample(
-                        z_next_enc, next_actions, k=2
-                    )
-                    q_target = rewards + self.gamma * (1 - dones) * target_q
-
-                value_loss = 0.0
-                for q_pred_logits in q_preds_logits:
-                    value_loss = (
-                        value_loss
-                        + soft_ce(
-                            q_pred_logits, q_target, self.num_bins, self.vmin, self.vmax
-                        ).mean()
-                    )
-                value_loss = value_loss / self.num_q
+                raise RuntimeError(
+                    "TD-MPC2 requires sequence sampling! "
+                    "ReplayBuffer.sample_sequences returned None or is missing. "
+                    "The agent cannot learn a consistent world model without sequences."
+                )
 
             total_loss = (
                 self.consistency_coef * consistency_loss
@@ -744,7 +670,8 @@ class TDMPC2(Agent):
         q_logits_all = self._q_ensemble_detached(zs_flat, actions)
         num_q = len(q_logits_all)
         idx = torch.randperm(num_q, device=zs.device)[:2]
-        q_logits_list = [q_logits_all[i] for i in idx]
+        idx_list = idx.cpu().tolist()
+        q_logits_list = [q_logits_all[i] for i in idx_list]
 
         q_values = torch.stack(
             [

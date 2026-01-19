@@ -57,25 +57,6 @@ class MPPIPlannerSimplePaper(nn.Module):
         # Will be initialized on first call when action_dim is known
         self.register_buffer("_prev_mean", None)
 
-    def sample_trajectories(self, mean, std, num_samples, horizon, action_dim):
-        """
-        Sample action trajectories from Gaussian distribution.
-
-        Args:
-            mean: (horizon, action_dim) mean actions
-            std: scalar or (horizon, action_dim) standard deviation
-            num_samples: number of trajectories to sample
-            horizon: planning horizon
-            action_dim: action dimension
-
-        Returns:
-            actions: (num_samples, horizon, action_dim)
-        """
-        noise = torch.randn(num_samples, horizon, action_dim, device=mean.device) * std
-        actions = mean.unsqueeze(0) + noise
-        actions = torch.clamp(actions, -1, 1)
-        return actions
-
     def rollout_trajectories(
         self, z_init, actions, dynamics, reward_predictor, gamma=0.99
     ):

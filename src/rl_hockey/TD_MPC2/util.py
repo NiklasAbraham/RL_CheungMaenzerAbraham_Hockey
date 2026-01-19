@@ -85,16 +85,16 @@ def two_hot(x, num_bins, vmin, vmax):
     x_symlog = torch.clamp(symlog(x), vmin, vmax).squeeze(1)
     
     # Compute bin index and offset (matches reference implementation)
-    bin_size = (vmax - vmin) / num_bins
+    bin_size = (vmax - vmin) / (num_bins - 1)
     bin_idx = torch.floor((x_symlog - vmin) / bin_size)
     bin_offset = ((x_symlog - vmin) / bin_size - bin_idx).unsqueeze(-1)
     
-    bin_idx = torch.clamp(bin_idx, 0, num_bins - 2).long()
+    bin_idx = bin_idx.long()
     
     soft_two_hot = torch.zeros(x.shape[0], num_bins, device=x.device, dtype=x.dtype)
     soft_two_hot = soft_two_hot.scatter(1, bin_idx.unsqueeze(1), 1 - bin_offset)
     soft_two_hot = soft_two_hot.scatter(
-        1, (bin_idx.unsqueeze(1) + 1), bin_offset
+        1, (bin_idx.unsqueeze(1) + 1) % num_bins, bin_offset
     )
     
     return soft_two_hot

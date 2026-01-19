@@ -274,7 +274,7 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    folder_path = "results/tdmpc2_runs/2026-01-18_22-36-48"
+    folder_path = "results/tdmpc2_runs/2026-01-19_12-35-33"
     window_size = 10
 
     plot_episode_logs(folder_path, window_size=window_size)
