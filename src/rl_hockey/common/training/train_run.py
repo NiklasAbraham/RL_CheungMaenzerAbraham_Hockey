@@ -320,7 +320,7 @@ def train_run(
                         discrete_action
                     )
             else:
-                action_p1 = agent.act(state)
+                action_p1 = agent.act(state, t0=(t == 0))
 
             obs_agent2 = current_env.obs_agent_two()
             deterministic_opponent = (
@@ -874,13 +874,15 @@ def _train_run_vectorized(
     if states.dtype != np.float32:
         states = states.astype(np.float32, copy=False)
 
+    t0s = np.ones(num_envs, dtype=bool)
+
     agent.on_episode_start(0)
     reward_weights = get_reward_weights(0, phase_config)
 
     while completed_episodes < total_episodes:
         # Get actions for all environments (batched!)
         if is_agent_discrete:
-            discrete_actions = agent.act_batch(states)
+            discrete_actions = agent.act_batch(states, t0s=t0s)
             if action_fineness is not None:
                 actions_p1 = np.array(
                     [
@@ -903,7 +905,7 @@ def _train_run_vectorized(
                     ]
                 )
         else:
-            actions_p1 = agent.act_batch(states)
+            actions_p1 = agent.act_batch(states, t0s=t0s)
 
         # Get opponent actions for each environment
         obs_agent2 = current_vec_env.obs_agent_two()
@@ -941,6 +943,7 @@ def _train_run_vectorized(
         next_states, env_rewards, dones, truncs, infos = current_vec_env.step(
             full_actions
         )
+        t0s = dones | truncs
         if next_states.dtype != np.float32:
             next_states = next_states.astype(np.float32, copy=False)
 
@@ -1165,9 +1168,12 @@ def _train_run_vectorized(
                         current_phase_idx = new_phase_idx
                         current_phase_start = steps
                         phase_config = new_phase_config
-                        reward_weights = get_reward_weights(
-                            new_phase_local_episode, phase_config
-                        )
+                    
+                    # Update reward weights for the next episode (must be done for every episode,
+                    # not just phase transitions, since reward shaping depends on phase_local_episode)
+                    reward_weights = get_reward_weights(
+                        new_phase_local_episode, new_phase_config
+                    )
 
                 # Note: individual environment resets are handled automatically by vectorized env
 

@@ -17,6 +17,7 @@ from rl_hockey.TD_MPC2.model_init import weight_init, zero_init_output_layer
 from rl_hockey.TD_MPC2.model_policy import Policy
 from rl_hockey.TD_MPC2.model_q_ensemble import QEnsemble
 from rl_hockey.TD_MPC2.model_reward import Reward
+from rl_hockey.TD_MPC2.model_termination import Termination
 from rl_hockey.TD_MPC2.mppi_planner_simple import MPPIPlannerSimplePaper
 from rl_hockey.TD_MPC2.util import RunningScale, soft_ce, two_hot_inv
 
@@ -58,6 +59,7 @@ class TDMPC2(Agent):
         consistency_coef=20.0,
         reward_coef=0.1,
         value_coef=0.1,
+        termination_coef=1.0,
     ):
         super().__init__()
         self.obs_dim = obs_dim
@@ -89,6 +91,7 @@ class TDMPC2(Agent):
         self.consistency_coef = consistency_coef
         self.reward_coef = reward_coef
         self.value_coef = value_coef
+        self.termination_coef = termination_coef
 
         self.config = {
             "batch_size": batch_size,
@@ -109,6 +112,7 @@ class TDMPC2(Agent):
             "consistency_coef": consistency_coef,
             "reward_coef": reward_coef,
             "value_coef": value_coef,
+            "termination_coef": termination_coef,
             "tau": tau,
             "grad_clip_norm": grad_clip_norm,
         }
@@ -128,6 +132,9 @@ class TDMPC2(Agent):
         self.reward = Reward(
             latent_dim, action_dim, hidden_dim, num_bins, vmin=vmin, vmax=vmax
         ).to(self.device)
+        self.termination = Termination(latent_dim, action_dim, hidden_dim).to(
+            self.device
+        )
         self.q_ensemble = QEnsemble(
             num_q, latent_dim, action_dim, hidden_dim, num_bins, vmin, vmax
         ).to(self.device)
@@ -148,6 +155,7 @@ class TDMPC2(Agent):
         self.encoder.apply(weight_init)
         self.dynamics.apply(weight_init)
         self.reward.apply(weight_init)
+        self.termination.apply(weight_init)
         self.q_ensemble.apply(weight_init)
         self.policy.apply(weight_init)
 
@@ -163,6 +171,7 @@ class TDMPC2(Agent):
                 },
                 {"params": self.dynamics.parameters()},
                 {"params": self.reward.parameters()},
+                {"params": self.termination.parameters()},
                 {"params": self.q_ensemble.parameters()},
             ],
             lr=self.lr,
@@ -176,6 +185,7 @@ class TDMPC2(Agent):
         self.planner = MPPIPlannerSimplePaper(
             self.dynamics,
             self.reward,
+            self.termination,
             self.target_q_ensemble,
             self.policy,
             horizon,
@@ -191,11 +201,13 @@ class TDMPC2(Agent):
             num_pi_trajs=num_pi_trajs,
             num_elites=num_elites,
         )
+        self.planners = None
 
         self._model_params = (
             list(self.encoder.parameters())
             + list(self.dynamics.parameters())
             + list(self.reward.parameters())
+            + list(self.termination.parameters())
             + list(self.q_ensemble.parameters())
         )
 
@@ -389,14 +401,23 @@ class TDMPC2(Agent):
         return action.cpu().numpy(), stats
 
     @torch.no_grad()
-    def act_batch(self, obs_batch, deterministic=False):
+    def act_batch(self, obs_batch, deterministic=False, t0s=None):
         """Select actions for batch of observations."""
         obs_batch = torch.FloatTensor(obs_batch).to(self.device)
+        num_envs = obs_batch.shape[0]
+
+        if self.planners is None or len(self.planners) != num_envs:
+            self.planners = [
+                copy.deepcopy(self.planner) for _ in range(num_envs)
+            ]
 
         z_batch = self.encoder(obs_batch)
         actions = []
-        for z in z_batch:
-            action = self.planner.plan(z, return_mean=deterministic)
+        if t0s is None:
+            t0s = [False] * num_envs
+            
+        for i, (z, t0) in enumerate(zip(z_batch, t0s)):
+            action = self.planners[i].plan(z, return_mean=deterministic, t0=t0)
             actions.append(action)
 
         return torch.stack(actions).cpu().numpy()
@@ -416,6 +437,7 @@ class TDMPC2(Agent):
             "consistency_loss": [],
             "reward_loss": [],
             "value_loss": [],
+            "termination_loss": [],
             "policy_loss": [],
             "total_loss": [],
             "loss": [],
@@ -466,6 +488,7 @@ class TDMPC2(Agent):
                     consistency_loss = 0.0
                     reward_loss = 0.0
                     value_loss = 0.0
+                    termination_loss = 0.0
 
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
@@ -490,11 +513,16 @@ class TDMPC2(Agent):
                             ).mean()
                         )
 
+                        termination_pred_logits = self.termination(z_pred, a_t)
+                        termination_loss = termination_loss + weight * F.binary_cross_entropy_with_logits(
+                            termination_pred_logits, d_t
+                        )
+
                         q_preds_logits = self.q_ensemble(z_pred, a_t)
                         with torch.no_grad():
                             next_action, _, _, _ = self.policy.sample(z_target)
-                            target_q = self.target_q_ensemble.min_subsample(
-                                z_target, next_action, k=2
+                            target_q = self.target_q_ensemble.min(
+                                z_target, next_action
                             )
                             q_target = r_t + self.gamma * (1 - d_t) * target_q
 
@@ -517,6 +545,7 @@ class TDMPC2(Agent):
                     consistency_loss = consistency_loss / horizon
                     reward_loss = reward_loss / horizon
                     value_loss = value_loss / (horizon * self.num_q)
+                    termination_loss = termination_loss / horizon
 
                     used_sequences = True
 
@@ -531,6 +560,7 @@ class TDMPC2(Agent):
                 self.consistency_coef * consistency_loss
                 + self.reward_coef * reward_loss
                 + self.value_coef * value_loss
+                + self.termination_coef * termination_loss
             )
 
             self.optimizer.zero_grad()
@@ -547,6 +577,7 @@ class TDMPC2(Agent):
                 all_losses["consistency_loss"].append(consistency_loss.item())
                 all_losses["reward_loss"].append(reward_loss.item())
                 all_losses["value_loss"].append(value_loss.item())
+                all_losses["termination_loss"].append(termination_loss.item())
                 all_losses["policy_loss"].append(policy_loss.item())
                 all_losses["total_loss"].append(total_loss.item())
                 all_losses["loss"].append(total_loss.item())
@@ -554,6 +585,7 @@ class TDMPC2(Agent):
                 all_losses["consistency_loss"].append(consistency_loss)
                 all_losses["reward_loss"].append(reward_loss)
                 all_losses["value_loss"].append(value_loss)
+                all_losses["termination_loss"].append(termination_loss)
                 all_losses["policy_loss"].append(policy_loss)
                 all_losses["total_loss"].append(total_loss)
                 all_losses["loss"].append(total_loss)
@@ -568,6 +600,9 @@ class TDMPC2(Agent):
                 ]
                 all_losses["value_loss"] = [
                     loss.item() for loss in all_losses["value_loss"]
+                ]
+                all_losses["termination_loss"] = [
+                    loss.item() for loss in all_losses["termination_loss"]
                 ]
                 all_losses["policy_loss"] = [
                     loss.item() for loss in all_losses["policy_loss"]
@@ -605,15 +640,11 @@ class TDMPC2(Agent):
         zs_flat = zs.reshape(-1, zs.shape[-1])
         actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
         q_logits_all = self._q_ensemble_detached(zs_flat, actions)
-        num_q = len(q_logits_all)
-        idx = torch.randperm(num_q, device=zs.device)[:2]
-        idx_list = idx.cpu().tolist()
-        q_logits_list = [q_logits_all[i] for i in idx_list]
-
+        
         q_values = torch.stack(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
-                for q_logits in q_logits_list
+                for q_logits in q_logits_all
             ],
             dim=0,
         )
@@ -659,6 +690,7 @@ class TDMPC2(Agent):
                 "encoder": self.encoder.state_dict(),
                 "dynamics": self.dynamics.state_dict(),
                 "reward": self.reward.state_dict(),
+                "termination": self.termination.state_dict(),
                 "q_ensemble": self.q_ensemble.state_dict(),
                 "policy": self.policy.state_dict(),
                 "optimizer": self.optimizer.state_dict(),
@@ -728,6 +760,11 @@ class TDMPC2(Agent):
             )
         else:
             self.reward.load_state_dict(checkpoint["reward"])
+
+        if "termination" in checkpoint:
+            self.termination.load_state_dict(checkpoint["termination"])
+        else:
+            logger.warning("Termination model not found in checkpoint, initializing from scratch.")
 
         if checkpoint_num_bins is not None and checkpoint_num_bins != self.num_bins:
             missing_keys, unexpected_keys = self.q_ensemble.load_state_dict(
@@ -817,6 +854,12 @@ class TDMPC2(Agent):
         lines.append(f"   Trainable Parameters: {count_parameters(self.reward):,}")
         lines.append("")
 
+        lines.append("3a. TERMINATION MODEL:")
+        lines.append("   Predicts termination probability given latent state and action")
+        lines.append(str(self.termination))
+        lines.append(f"   Trainable Parameters: {count_parameters(self.termination):,}")
+        lines.append("")
+
         lines.append("4. Q ENSEMBLE:")
         lines.append(f"   {self.num_q} Q-networks for value estimation")
         lines.append(str(self.q_ensemble))
@@ -841,6 +884,7 @@ class TDMPC2(Agent):
             count_parameters(self.encoder)
             + count_parameters(self.dynamics)
             + count_parameters(self.reward)
+            + count_parameters(self.termination)
             + count_parameters(self.q_ensemble)
         )
         total_params = (
@@ -851,7 +895,7 @@ class TDMPC2(Agent):
 
         lines.append("PARAMETER SUMMARY:")
         lines.append(
-            f"  World Model (Encoder + Dynamics + Reward + Q): {model_params:,}"
+            f"  World Model (Encoder + Dynamics + Reward + Termination + Q): {model_params:,}"
         )
         lines.append(f"  Policy Network: {count_parameters(self.policy):,}")
         lines.append(

@@ -87,7 +87,7 @@ if __name__ == "__main__":
     import os
 
     num_envs = int(
-        os.environ.get("NUM_ENVS", "4")
+        os.environ.get("NUM_ENVS", "1")
     )  # Default to 4 for parallel environments
 
     train_single_run(

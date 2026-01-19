@@ -112,15 +112,14 @@ def plot_episode_logs(
     first_file = episode_log_files[0]
     filename = first_file.stem  # Get filename without extension
 
-    # Remove checkpoint suffix if present (e.g., _ep001500)
-    if "_ep" in filename:
-        # Check if it's a checkpoint file (has _ep followed by digits)
-        match = re.search(r"_ep\d+$", filename)
-        if match:
-            run_name = filename[: match.start()]
-        else:
-            run_name = filename.replace("_episode_logs", "")
+    # Remove checkpoint suffix if present (e.g., _ep001500_episode_logs)
+    # Pattern: _ep followed by digits, then _episode_logs
+    match = re.search(r"_ep\d+_episode_logs$", filename)
+    if match:
+        # Remove _epXXXXX_episode_logs suffix
+        run_name = filename[: match.start()]
     else:
+        # Just remove _episode_logs suffix
         run_name = filename.replace("_episode_logs", "")
 
     # Find all episode log files for this run
@@ -159,20 +158,67 @@ def plot_episode_logs(
                 loss_data[loss_key].append(log["losses"][loss_key])
                 loss_episodes[loss_key].append(log["episode"])
 
+    # Find the first episode where all losses are present (warm-up period ends)
+    first_complete_episode = None
+    if sorted_loss_keys:
+        # Find episodes that have all loss types present
+        all_episodes_sets = [set(loss_episodes[key]) for key in sorted_loss_keys if loss_episodes[key]]
+        if all_episodes_sets and len(all_episodes_sets) == len(sorted_loss_keys):
+            # Find intersection of all episodes (episodes where all losses are present)
+            episodes_with_all_losses = set.intersection(*all_episodes_sets)
+            if episodes_with_all_losses:
+                first_complete_episode = min(episodes_with_all_losses)
+        
+        # Filter ALL data (rewards, shaped rewards, and losses) to start from first_complete_episode
+        if first_complete_episode is not None:
+            # Filter rewards and shaped rewards
+            filtered_episodes = []
+            filtered_rewards = []
+            filtered_shaped_rewards = []
+            for ep, rew, sh_rew in zip(episodes, rewards, shaped_rewards):
+                if ep >= first_complete_episode:
+                    filtered_episodes.append(ep)
+                    filtered_rewards.append(rew)
+                    filtered_shaped_rewards.append(sh_rew)
+            episodes = filtered_episodes
+            rewards = filtered_rewards
+            shaped_rewards = filtered_shaped_rewards
+            
+            # Filter loss data to only include episodes >= first_complete_episode
+            filtered_loss_data = {}
+            filtered_loss_episodes = {}
+            for key in sorted_loss_keys:
+                filtered_values = []
+                filtered_eps = []
+                for ep, val in zip(loss_episodes[key], loss_data[key]):
+                    if ep >= first_complete_episode:
+                        filtered_values.append(val)
+                        filtered_eps.append(ep)
+                # Only use filtered data if there are still values after filtering
+                if filtered_values:
+                    filtered_loss_data[key] = filtered_values
+                    filtered_loss_episodes[key] = filtered_eps
+                else:
+                    # Keep original data if filtering removed everything
+                    filtered_loss_data[key] = loss_data[key]
+                    filtered_loss_episodes[key] = loss_episodes[key]
+            loss_data = filtered_loss_data
+            loss_episodes = filtered_loss_episodes
+
     # Create figure with subplots
     num_losses = len(sorted_loss_keys)
     if num_losses == 0:
         # Only rewards, no losses
         fig, axes = plt.subplots(2, 1, figsize=(12, 10))
-        axes = [axes]
-        plot_rewards_only = True
+        axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
+        plot_rewards_only = False
     else:
         # Calculate grid size for subplots: rewards + shaped rewards + all losses
         n_plots = 2 + num_losses  # rewards, shaped_rewards, and all loss types
         n_cols = 2
         n_rows = (n_plots + n_cols - 1) // n_cols
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
-        axes = axes.flatten() if n_plots > 1 else [axes]
+        axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
         plot_rewards_only = False
 
     # Set main title for the entire figure
@@ -215,7 +261,7 @@ def plot_episode_logs(
         axes[ax_idx].legend()
         axes[ax_idx].grid(True, alpha=0.3)
 
-    # Plot each loss type
+    # Plot each loss type with reward overlay
     colors = plt.cm.tab10(np.linspace(0, 1, len(sorted_loss_keys)))
     for i, loss_key in enumerate(sorted_loss_keys):
         if not plot_rewards_only:
@@ -227,6 +273,7 @@ def plot_episode_logs(
         loss_eps = loss_episodes[loss_key]
 
         if loss_values:
+            # Plot losses on primary y-axis
             moving_avg_losses = _moving_average(loss_values, window_size)
             axes[ax_idx].plot(
                 loss_eps, loss_values, alpha=0.3, label="Raw", color=colors[i]
@@ -274,7 +321,7 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    folder_path = "results/tdmpc2_runs/2026-01-19_12-35-33"
+    folder_path = "results/tdmpc2_runs/2026-01-19_16-45-53"
     window_size = 10
 
     plot_episode_logs(folder_path, window_size=window_size)
