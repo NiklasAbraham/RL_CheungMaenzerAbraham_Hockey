@@ -36,6 +36,7 @@ REQUIREMENTS_EMBEDDED
     pip install pink-noise-rl
     pip install matplotlib
     pip install psutil
+    pip install imageio imageio-ffmpeg
 
     # Install hockey environment (must be done separately as it's from git)
     pip install "hockey @ git+https://git@github.com/martius-lab/hockey-env.git"

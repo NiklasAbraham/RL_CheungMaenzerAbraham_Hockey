@@ -1,24 +1,55 @@
-# Weight initialization utilities
+# TD-MPC2 weight initialization.
+# tdmpc2 calls init_encoder, init_dynamics, ... after building each module.
 
 import torch.nn as nn
 
 
-def weight_init(m):
-    """Weight initialization for Linear layers."""
-    if isinstance(m, nn.Linear):
-        nn.init.trunc_normal_(m.weight, std=0.02)
-        if m.bias is not None:
-            nn.init.constant_(m.bias, 0)
-
-
-def zero_init_output_layer(module):
-    """Zero-initialize the output layer of a network."""
-    last_linear = None
+def init_encoder(module):
     for m in module.modules():
         if isinstance(m, nn.Linear):
-            last_linear = m
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
 
-    if last_linear is not None:
-        nn.init.constant_(last_linear.weight, 0)
-        if last_linear.bias is not None:
-            nn.init.constant_(last_linear.bias, 0)
+
+def init_dynamics(module):
+    for m in module.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
+def init_reward(module):
+    for m in module.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    module.net[-1].weight.data.fill_(0)
+
+
+def init_termination(module):
+    for m in module.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+
+
+def init_q_ensemble(module):
+    for m in module.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+    for q in module.q_functions:
+        q.net[-1].weight.data.fill_(0)
+
+
+def init_policy(module):
+    for m in module.modules():
+        if isinstance(m, nn.Linear):
+            nn.init.trunc_normal_(m.weight, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0)

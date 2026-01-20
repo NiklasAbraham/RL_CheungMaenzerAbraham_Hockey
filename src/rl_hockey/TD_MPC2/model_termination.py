@@ -1,7 +1,5 @@
-import torch.nn as nn
 import torch
-
-from rl_hockey.TD_MPC2.model_init import weight_init
+import torch.nn as nn
 
 
 class Termination(nn.Module):
@@ -14,7 +12,6 @@ class Termination(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim[1], 1),
         )
-        self.apply(weight_init)
 
     def forward(self, z, a):
         x = torch.cat([z, a], dim=-1)

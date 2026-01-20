@@ -6,7 +6,7 @@
 #SBATCH --partition=week
 # Partition: day, week, or month
 
-#SBATCH --gres=gpu:A4000:1
+#SBATCH --gres=gpu:2080ti:1
 # Request 1 2080ti GPU (CUDA capability 7.5, supports torch.compile)
 # Alternative options: gpu:A4000:1 (CUDA 8.6) or gpu:1080ti:1 (CUDA 6.1, no torch.compile)
 
@@ -36,7 +36,7 @@ PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 cd "$PROJECT_DIR"
 
 # Set number of parallel environments to match CPU cores
-export NUM_ENVS=16
+export NUM_ENVS=1
 
 # Disable Python output buffering for immediate logging in batch jobs
 export PYTHONUNBUFFERED=1
