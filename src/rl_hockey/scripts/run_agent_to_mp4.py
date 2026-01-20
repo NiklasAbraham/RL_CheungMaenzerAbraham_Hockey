@@ -242,11 +242,13 @@ def log_stats_summary(game_stats, game_num, step_count):
         agg_stats["reward_pred"].append(step_stat.get("reward_pred", 0))
         # Track terminal reward separately
         if "terminal_reward_actual" in step_stat:
-            agg_stats["reward_pred_terminal"].append({
-                "predicted": step_stat.get("reward_pred", 0),
-                "actual": step_stat.get("terminal_reward_actual", 0),
-                "winner": step_stat.get("winner_info", 0)
-            })
+            agg_stats["reward_pred_terminal"].append(
+                {
+                    "predicted": step_stat.get("reward_pred", 0),
+                    "actual": step_stat.get("terminal_reward_actual", 0),
+                    "winner": step_stat.get("winner_info", 0),
+                }
+            )
         agg_stats["encoder_latent_norm"].append(step_stat.get("encoder_latent_norm", 0))
         agg_stats["action_norm"].append(step_stat.get("action_norm", 0))
         agg_stats["action_policy_diff_norm"].append(
@@ -311,18 +313,49 @@ def log_stats_summary(game_stats, game_num, step_count):
             f"max={max(agg_stats['dynamics_prediction_error_mse']):.4f}, "
             f"mean={np.mean(agg_stats['dynamics_prediction_error_mse']):.4f}"
         )
+
+    # Collect and log multi-step dynamics prediction errors (1-, 5-, 10-step ahead)
+    multi_step_errors_by_horizon = {}
+    for step_stat in game_stats:
+        if "multi_step_errors" in step_stat:
+            for horizon, error_info in step_stat["multi_step_errors"].items():
+                if horizon not in multi_step_errors_by_horizon:
+                    multi_step_errors_by_horizon[horizon] = {
+                        "error_norm": [],
+                        "error_mse": [],
+                        "error_mean": [],
+                        "error_std": [],
+                    }
+                multi_step_errors_by_horizon[horizon]["error_norm"].append(
+                    error_info["error_norm"]
+                )
+                multi_step_errors_by_horizon[horizon]["error_mse"].append(
+                    error_info["error_mse"]
+                )
+                multi_step_errors_by_horizon[horizon]["error_mean"].append(
+                    error_info["error_mean"]
+                )
+                multi_step_errors_by_horizon[horizon]["error_std"].append(
+                    error_info["error_std"]
+                )
+
+    if multi_step_errors_by_horizon:
+        logger.info(
+            "  DYNAMICS MODEL ACCURACY BY HORIZON (latent L2 error, lower=better):"
+        )
+        for horizon in sorted(multi_step_errors_by_horizon.keys()):
+            errors = multi_step_errors_by_horizon[horizon]
+            mean_norm = np.mean(errors["error_norm"])
+            mean_mse = np.mean(errors["error_mse"])
+            n = len(errors["error_norm"])
+            logger.info(
+                f"    {horizon}-step: mean_norm={mean_norm:.4f}, mean_mse={mean_mse:.4f} (n={n})"
+            )
+
     logger.info(
         f"    Reward prediction: min={min(agg_stats['reward_pred']):.4f}, "
         f"max={max(agg_stats['reward_pred']):.4f}, mean={np.mean(agg_stats['reward_pred']):.4f}"
     )
-    # Log terminal reward predictions separately
-    if agg_stats["reward_pred_terminal"]:
-        logger.info("\n  TERMINAL REWARD DIAGNOSTICS (Win/Loss Prediction):")
-        for i, term_reward in enumerate(agg_stats["reward_pred_terminal"]):
-            logger.info(
-                f"    Episode {i}: Predicted={term_reward['predicted']:+.4f}, "
-                f"Actual={term_reward['actual']:+.2f}, Winner={term_reward['winner']:+d}"
-            )
     logger.info(
         f"    Encoder (latent norm): min={min(agg_stats['encoder_latent_norm']):.4f}, "
         f"max={max(agg_stats['encoder_latent_norm']):.4f}, "
@@ -422,6 +455,10 @@ def run_game(
     prev_predicted_next_latent = None
     episode_reward = 0  # Track actual episode reward
 
+    # Multi-step prediction tracking: retrospectively evaluate dynamics model
+    # Store (latent_state, action) pairs for retrospective evaluation
+    latent_action_history = []  # List of (latent_state, action) tuples
+
     for step in range(max_steps):
         frame = env.render(mode="rgb_array")
         frames.append(frame)
@@ -447,6 +484,15 @@ def run_game(
                     prev_latent = step_stats["_latent_state"]
                 if step_stats and "_predicted_next_latent" in step_stats:
                     prev_predicted_next_latent = step_stats["_predicted_next_latent"]
+
+                # Store latent and action for retrospective multi-step evaluation
+                if collect_stats:
+                    current_latent = step_stats.get("_latent_state")
+                    if current_latent is not None:
+                        latent_action_history.append(
+                            (current_latent.copy(), action_p1.copy())
+                        )
+
                 prev_action_p1 = (
                     action_p1.copy()
                     if hasattr(action_p1, "copy")
@@ -491,12 +537,66 @@ def run_game(
         total_reward += reward
         episode_reward += reward
         step_count += 1
-        
+
+        # Retrospective multi-step evaluation: look back and evaluate predictions
+        if (
+            algorithm == "TDMPC2"
+            and collect_stats
+            and hasattr(agent, "rollout_dynamics_multi_step")
+        ):
+            # Encode current observation to get actual latent state
+            import torch
+
+            obs_tensor = torch.FloatTensor(obs.astype(np.float32)).to(agent.device)
+            actual_latent = (
+                agent.encoder(obs_tensor.unsqueeze(0)).squeeze(0).cpu().numpy()
+            )
+
+            # Look back at past states and evaluate multi-step predictions
+            # Check horizons: 1, 5, 10 steps back
+            evaluation_horizons = [1, 5, 10]
+            for horizon in evaluation_horizons:
+                if step >= horizon and len(latent_action_history) >= horizon:
+                    # Get the state and actions from 'horizon' steps ago
+                    past_idx = len(latent_action_history) - horizon
+                    past_latent, past_action = latent_action_history[past_idx]
+
+                    # Get the sequence of actions that were actually taken
+                    action_sequence = [
+                        latent_action_history[i][1]
+                        for i in range(past_idx, len(latent_action_history))
+                    ]
+
+                    # Roll out dynamics model from past state using actual actions
+                    if len(action_sequence) >= horizon:
+                        predictions = agent.rollout_dynamics_multi_step(
+                            past_latent, action_sequence[:horizon], max_horizon=horizon
+                        )
+
+                        if horizon in predictions:
+                            predicted_latent = predictions[horizon]
+                            error = actual_latent - predicted_latent
+
+                            # Store error in the stats from when the prediction was made
+                            prediction_step = step - horizon
+                            if prediction_step >= 0 and prediction_step < len(
+                                game_stats
+                            ):
+                                pred_stats = game_stats[prediction_step]
+                                if "multi_step_errors" not in pred_stats:
+                                    pred_stats["multi_step_errors"] = {}
+                                pred_stats["multi_step_errors"][horizon] = {
+                                    "error_norm": np.linalg.norm(error),
+                                    "error_mse": np.mean(error**2),
+                                    "error_mean": np.mean(error),
+                                    "error_std": np.std(error),
+                                }
+
         # Track terminal reward prediction if this is the final step
         if (done or truncated) and step_stats is not None:
-            step_stats['terminal_reward_actual'] = episode_reward
-            step_stats['winner_info'] = info.get('winner', 0)
-        
+            step_stats["terminal_reward_actual"] = episode_reward
+            step_stats["winner_info"] = info.get("winner", 0)
+
         if done or truncated:
             break
 

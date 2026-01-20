@@ -162,13 +162,15 @@ def plot_episode_logs(
     first_complete_episode = None
     if sorted_loss_keys:
         # Find episodes that have all loss types present
-        all_episodes_sets = [set(loss_episodes[key]) for key in sorted_loss_keys if loss_episodes[key]]
+        all_episodes_sets = [
+            set(loss_episodes[key]) for key in sorted_loss_keys if loss_episodes[key]
+        ]
         if all_episodes_sets and len(all_episodes_sets) == len(sorted_loss_keys):
             # Find intersection of all episodes (episodes where all losses are present)
             episodes_with_all_losses = set.intersection(*all_episodes_sets)
             if episodes_with_all_losses:
                 first_complete_episode = min(episodes_with_all_losses)
-        
+
         # Filter ALL data (rewards, shaped rewards, and losses) to start from first_complete_episode
         if first_complete_episode is not None:
             # Filter rewards and shaped rewards
@@ -183,7 +185,7 @@ def plot_episode_logs(
             episodes = filtered_episodes
             rewards = filtered_rewards
             shaped_rewards = filtered_shaped_rewards
-            
+
             # Filter loss data to only include episodes >= first_complete_episode
             filtered_loss_data = {}
             filtered_loss_episodes = {}
@@ -321,7 +323,11 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    folder_path = "results/tdmpc2_runs/2026-01-19_16-45-53"
-    window_size = 10
+    # folder_path = "results/tdmpc2_runs/2026-01-19_22-19-45"
+    # first one with right buffer
+    folder_path_1 = "results/tdmpc2_runs/2026-01-20_16-45-11"
+    folder_path_2 = "results/tdmpc2_runs/2026-01-20_17-48-56"  # first with right buffer and init moldes
+    window_size = 20
 
-    plot_episode_logs(folder_path, window_size=window_size)
+    plot_episode_logs(folder_path_1, window_size=window_size)
+    plot_episode_logs(folder_path_2, window_size=window_size)

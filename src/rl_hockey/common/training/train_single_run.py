@@ -30,7 +30,7 @@ def train_single_run(
     run_name: str = None,
     verbose: bool = True,
     eval_freq_steps: int = 100_000,
-    eval_num_games: int = 200,
+    eval_num_games: int = 100,
     eval_weak_opponent: bool = True,
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,

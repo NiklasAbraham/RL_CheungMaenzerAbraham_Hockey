@@ -272,10 +272,18 @@ def _validate_agent(agent: Dict[str, Any]) -> List[str]:
         
         if 'hidden_dim' in hyperparams:
             hidden_dim = hyperparams['hidden_dim']
-            if not isinstance(hidden_dim, list) or len(hidden_dim) == 0:
-                errors.append("agent.hyperparameters.hidden_dim must be a non-empty list")
-            elif not all(isinstance(x, int) and x > 0 for x in hidden_dim):
-                errors.append("agent.hyperparameters.hidden_dim must contain positive integers")
+            if not isinstance(hidden_dim, dict):
+                errors.append("agent.hyperparameters.hidden_dim must be a dict with network-specific hidden dimensions")
+            else:
+                # Dict format (per-network hidden dimensions)
+                valid_network_types = ["encoder", "dynamics", "reward", "termination", "q_function", "policy"]
+                for network_type, network_hidden_dim in hidden_dim.items():
+                    if network_type not in valid_network_types:
+                        errors.append(f"agent.hyperparameters.hidden_dim has unknown network type: {network_type}. Valid types: {valid_network_types}")
+                    elif not isinstance(network_hidden_dim, list) or len(network_hidden_dim) == 0:
+                        errors.append(f"agent.hyperparameters.hidden_dim.{network_type} must be a non-empty list")
+                    elif not all(isinstance(x, int) and x > 0 for x in network_hidden_dim):
+                        errors.append(f"agent.hyperparameters.hidden_dim.{network_type} must contain positive integers")
         
         if 'num_q' in hyperparams:
             num_q = hyperparams['num_q']
@@ -306,6 +314,11 @@ def _validate_agent(agent: Dict[str, Any]) -> List[str]:
             gamma = hyperparams['gamma']
             if not isinstance(gamma, (int, float)) or gamma <= 0 or gamma > 1:
                 errors.append("agent.hyperparameters.gamma must be a number between 0 and 1")
+
+        if 'n_step' in hyperparams:
+            n_step = hyperparams['n_step']
+            if not isinstance(n_step, int) or n_step <= 0:
+                errors.append("agent.hyperparameters.n_step must be a positive integer")
 
         if 'simnorm_temperature' in hyperparams:
             simnorm_temperature = hyperparams['simnorm_temperature']

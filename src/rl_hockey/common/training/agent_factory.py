@@ -73,7 +73,7 @@ def create_agent(
     elif agent_config.type == "TDMPC2":
         # TD-MPC2 specific parameters
         latent_dim = agent_hyperparams.pop("latent_dim", 512)
-        hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256, 256])
+        hidden_dim = agent_hyperparams.pop("hidden_dim", None)
         num_q = agent_hyperparams.pop("num_q", 5)
         horizon = agent_hyperparams.pop("horizon", 5)
         num_samples = agent_hyperparams.pop("num_samples", 512)
@@ -85,6 +85,9 @@ def create_agent(
         log_std_min = agent_hyperparams.pop("log_std_min", -10.0)
         log_std_max = agent_hyperparams.pop("log_std_max", 2.0)
         lambda_coef = agent_hyperparams.pop("lambda_coef", 0.95)
+        vmin = agent_hyperparams.pop("vmin", -10.0)
+        vmax = agent_hyperparams.pop("vmax", 10.0)
+        n_step = agent_hyperparams.pop("n_step", 1)
 
         # Use provided device or default to CPU/CUDA
         if device is None:
@@ -111,6 +114,9 @@ def create_agent(
             log_std_min=log_std_min,
             log_std_max=log_std_max,
             lambda_coef=lambda_coef,
+            vmin=vmin,
+            vmax=vmax,
+            n_step=n_step,
         )
     elif agent_config.type == "TD3":
         raise NotImplementedError("TD3 is not yet implemented")

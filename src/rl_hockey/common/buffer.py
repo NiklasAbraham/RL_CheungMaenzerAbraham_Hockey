@@ -228,6 +228,352 @@ class ReplayBuffer:
         # Keep arrays allocated but mark as empty
 
 
+class TDMPC2ReplayBuffer:
+    """Episode-based replay buffer for TD-MPC2.
+
+    Stores full episodes and samples contiguous subsequences of length horizon+1
+    for world model training. Functionally similar to the torchrl-based Buffer
+    in tdmpc2_repo, but implemented in the same style as ReplayBuffer (no
+    torchrl/tensordict, optional numpy/torch, explicit device/pin_memory).
+
+    Supports:
+    - add_episode: add one episode (obs, action, reward, terminated, task)
+    - add_episodes: add multiple episodes (batch load)
+    - store: append transitions; when done=True, the current trajectory is
+      closed and added as an episode (for compatibility with transition-based
+      env loops)
+    - sample: returns (obs, action, reward, terminated, task) with shapes
+      (B, H+1, obs_dim), (B, H, action_dim), (B, H, 1), (B, H, 1), (B, task_dim) or None
+    - sample_sequences: same as sample but returns (obs, action, reward, terminated)
+      for drop-in use with rl_hockey TD-MPC2 train (no task in the 4-tuple)
+    """
+
+    def __init__(
+        self,
+        max_size=1_000_000,
+        horizon=5,
+        batch_size=256,
+        use_torch_tensors=False,
+        pin_memory=False,
+        device="cpu",
+        multitask=False,
+    ):
+        """
+        Initialize TD-MPC2 replay buffer.
+
+        Args:
+            max_size: Maximum number of transitions across all episodes.
+                Oldest episodes are evicted when exceeded.
+            horizon: Length of sampled subsequences (number of transitions in
+                the chunk; obs will have horizon+1 steps).
+            batch_size: Number of subsequences returned per sample.
+            use_torch_tensors: If True, use torch tensors; else numpy.
+            pin_memory: If True, pin memory for faster CPU to GPU transfer
+                (only when use_torch_tensors=True and device="cpu").
+            device: Device to place sampled batches on ("cpu" or "cuda").
+            multitask: If True, expect and return task in add_episode and sample.
+        """
+        self.max_size = max_size
+        self.horizon = horizon
+        self.batch_size = batch_size
+        self.use_torch_tensors = use_torch_tensors or (device != "cpu")
+        self.device = (
+            device
+            if isinstance(device, str)
+            else (device.type if hasattr(device, "type") else "cpu")
+        )
+        self.pin_memory = (
+            pin_memory
+            and self.device == "cpu"
+            and self.use_torch_tensors
+            and torch.cuda.is_available()
+        )
+        self.multitask = multitask
+
+        self._episodes = []
+        self._total_transitions = 0
+
+        # For store(transition): accumulate into current episode until done
+        self._current_obs = []
+        self._current_actions = []
+        self._current_rewards = []
+        self._current_dones = []
+
+    @property
+    def capacity(self):
+        """Maximum number of transitions the buffer can hold."""
+        return self.max_size
+
+    @property
+    def num_eps(self):
+        """Number of episodes in the buffer."""
+        return len(self._episodes)
+
+    @property
+    def size(self):
+        """Current number of transitions in the buffer."""
+        return self._total_transitions
+
+    def _evict_if_needed(self, extra):
+        """Evict oldest episodes until _total_transitions + extra <= max_size."""
+        while self._episodes and self._total_transitions + extra > self.max_size:
+            ep = self._episodes.pop(0)
+            T = ep["action"].shape[0]
+            self._total_transitions -= T
+
+    def _add_episode_internal(self, obs, action, reward, terminated, task=None):
+        """Append one episode to _episodes and update _total_transitions."""
+        T = action.shape[0]
+        self._evict_if_needed(T)
+        ep = {
+            "obs": obs,
+            "action": action,
+            "reward": reward,
+            "terminated": terminated,
+            "task": task,
+        }
+        self._episodes.append(ep)
+        self._total_transitions += T
+
+    def _to_buffer_dtype(self, x, is_numpy=None):
+        """Convert to torch or numpy to match buffer config."""
+        if is_numpy is None:
+            is_numpy = not self.use_torch_tensors
+        if is_numpy:
+            if hasattr(x, "cpu") and callable(getattr(x, "cpu", None)):
+                return np.asarray(x.detach().cpu().numpy(), dtype=np.float32)
+            return np.asarray(x, dtype=np.float32)
+        t = torch.as_tensor(x, dtype=torch.float32)
+        if self.device != "cpu":
+            t = t.to(self.device, non_blocking=True)
+        elif self.pin_memory and t.is_cpu and torch.cuda.is_available():
+            t = t.pin_memory()
+        return t
+
+    def store(self, transition):
+        """Store a transition. When done is True, the current trajectory is
+        closed and added as an episode.
+
+        Args:
+            transition: (state, action, reward, next_state, done).
+        """
+        state, action, reward, next_state, done = transition
+
+        if len(self._current_obs) == 0:
+            self._current_obs.append(
+                self._to_buffer_dtype(state)
+                if self.use_torch_tensors
+                else np.asarray(state, dtype=np.float32)
+            )
+        self._current_obs.append(
+            self._to_buffer_dtype(next_state)
+            if self.use_torch_tensors
+            else np.asarray(next_state, dtype=np.float32)
+        )
+        a = (
+            self._to_buffer_dtype(action)
+            if self.use_torch_tensors
+            else np.asarray(action, dtype=np.float32)
+        )
+        r = np.float32(reward)
+        d = np.float32(done)
+        if self.use_torch_tensors:
+            r = torch.as_tensor(r, dtype=torch.float32)
+            d = torch.as_tensor(d, dtype=torch.float32)
+        self._current_actions.append(a)
+        self._current_rewards.append(r)
+        self._current_dones.append(d)
+
+        if done:
+            self._flush_episode()
+
+    def _flush_episode(self):
+        """Build one episode from _current_* and add it; clear _current_*."""
+        if len(self._current_actions) == 0:
+            self._current_obs = []
+            self._current_dones = []
+            return
+
+        if self.use_torch_tensors:
+            obs = torch.stack(self._current_obs, dim=0)
+            action = torch.stack(self._current_actions, dim=0)
+            reward = torch.stack(self._current_rewards, dim=0)
+            terminated = torch.stack(self._current_dones, dim=0)
+        else:
+            obs = np.stack(self._current_obs, axis=0)
+            action = np.stack(self._current_actions, axis=0)
+            reward = np.stack(self._current_rewards, axis=0)
+            terminated = np.stack(self._current_dones, axis=0)
+
+        if reward.ndim == 1:
+            reward = reward.reshape(-1, 1)
+        if terminated.ndim == 1:
+            terminated = terminated.reshape(-1, 1)
+
+        self._add_episode_internal(obs, action, reward, terminated, task=None)
+        self._current_obs = []
+        self._current_actions = []
+        self._current_rewards = []
+        self._current_dones = []
+
+    def add_episode(self, obs, action, reward, terminated, task=None):
+        """Add one episode to the buffer.
+
+        Args:
+            obs: (T+1, obs_dim) observations for steps 0..T.
+            action: (T, action_dim) actions for transitions 0..T-1.
+            reward: (T,) or (T, 1) rewards.
+            terminated: (T,) or (T, 1) done flags.
+            task: Optional (T, task_dim) or (task_dim,) for multitask; ignored if multitask=False.
+        """
+        obs = self._to_buffer_dtype(obs)
+        action = self._to_buffer_dtype(action)
+        reward = self._to_buffer_dtype(reward)
+        terminated = self._to_buffer_dtype(terminated)
+        if reward.ndim == 1:
+            reward = reward.reshape(-1, 1)
+        if terminated.ndim == 1:
+            terminated = terminated.reshape(-1, 1)
+        t = task
+        if t is not None and self.multitask:
+            t = self._to_buffer_dtype(t)
+            if t.ndim == 1:
+                t = t.reshape(1, -1).expand(action.shape[0], -1)
+        else:
+            t = None
+        self._add_episode_internal(obs, action, reward, terminated, task=t)
+
+    def add_episodes(self, episodes):
+        """Add multiple episodes (batch load).
+
+        Args:
+            episodes: List of dicts with keys obs, action, reward, terminated, task (optional).
+        """
+        for ep in episodes:
+            self.add_episode(
+                ep["obs"],
+                ep["action"],
+                ep["reward"],
+                ep["terminated"],
+                ep.get("task"),
+            )
+
+    def _episodes_with_length_at_least(self, H):
+        """Return list of (ep, start) for episodes that have at least H transitions
+        and a valid start index; for each, start is in [0, T-H].
+        """
+        out = []
+        for ep in self._episodes:
+            T = ep["action"].shape[0]
+            if T >= H:
+                for start in range(0, T - H + 1):
+                    out.append((ep, start))
+        return out
+
+    def sample(self, batch_size=None, horizon=None):
+        """Sample a batch of subsequences.
+
+        Returns
+        -------
+        tuple
+            (obs, action, reward, terminated, task) with shapes
+            (B, H+1, obs_dim), (B, H, action_dim), (B, H, 1), (B, H, 1),
+            and (B, task_dim) or None if not multitask.
+
+        Raises
+        ------
+        RuntimeError
+            If no episode has length >= horizon or buffer is empty.
+        """
+        B = batch_size if batch_size is not None else self.batch_size
+        H = horizon if horizon is not None else self.horizon
+
+        candidates = self._episodes_with_length_at_least(H)
+        if len(candidates) == 0:
+            raise RuntimeError(
+                "TDMPC2ReplayBuffer.sample: no episode has length >= horizon. "
+                "Add episodes or reduce horizon."
+            )
+
+        # Sample B (ep, start) with replacement
+        inds = random.choices(range(len(candidates)), k=B)
+        chunks = [candidates[i] for i in inds]
+
+        obs_list = []
+        action_list = []
+        reward_list = []
+        terminated_list = []
+        task_list = []
+
+        for ep, start in chunks:
+            obs_list.append(ep["obs"][start : start + H + 1])
+            action_list.append(ep["action"][start : start + H])
+            reward_list.append(ep["reward"][start : start + H])
+            terminated_list.append(ep["terminated"][start : start + H])
+            if self.multitask and ep.get("task") is not None:
+                task_list.append(ep["task"][start])
+
+        if self.use_torch_tensors:
+            obs = torch.stack(obs_list, dim=0)
+            action = torch.stack(action_list, dim=0)
+            reward = torch.stack(reward_list, dim=0)
+            terminated = torch.stack(terminated_list, dim=0)
+            if reward.dim() == 2:
+                reward = reward.unsqueeze(-1)
+            if terminated.dim() == 2:
+                terminated = terminated.unsqueeze(-1)
+            obs = obs.to(self.device, non_blocking=True)
+            action = action.to(self.device, non_blocking=True)
+            reward = reward.to(self.device, non_blocking=True)
+            terminated = terminated.to(self.device, non_blocking=True)
+            if task_list:
+                task = torch.stack(task_list, dim=0).to(self.device, non_blocking=True)
+            else:
+                task = None
+        else:
+            obs = np.stack(obs_list, axis=0)
+            action = np.stack(action_list, axis=0)
+            reward = np.stack(reward_list, axis=0)
+            terminated = np.stack(terminated_list, axis=0)
+            if reward.ndim == 2:
+                reward = reward.reshape(*reward.shape, 1)
+            if terminated.ndim == 2:
+                terminated = terminated.reshape(*terminated.shape, 1)
+            task = np.stack(task_list, axis=0) if task_list else None
+
+        return obs, action, reward, terminated, task
+
+    def sample_sequences(self, batch_size, horizon):
+        """Sample contiguous sequences for TD-MPC2 train. Same as sample but
+        returns a 4-tuple (obs, action, reward, terminated) so it can replace
+        ReplayBuffer.sample_sequences in the train loop.
+
+        Returns
+        -------
+        tuple or None
+            (obs_seq, action_seq, reward_seq, done_seq) with shapes
+            (batch, horizon+1, obs_dim), (batch, horizon, action_dim),
+            (batch, horizon, 1), (batch, horizon, 1). Returns None if no
+            episode has length >= horizon.
+        """
+        candidates = self._episodes_with_length_at_least(horizon)
+        if len(candidates) == 0:
+            return None
+        obs, action, reward, terminated, _ = self.sample(
+            batch_size=batch_size, horizon=horizon
+        )
+        return obs, action, reward, terminated
+
+    def clear(self):
+        """Clear the buffer and any in-progress episode from store()."""
+        self._episodes = []
+        self._total_transitions = 0
+        self._current_obs = []
+        self._current_actions = []
+        self._current_rewards = []
+        self._current_dones = []
+
+
 class PrioritizedReplayBuffer(ReplayBuffer):
     """Prioritized Experience Replay buffer.
 

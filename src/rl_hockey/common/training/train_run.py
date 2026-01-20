@@ -448,9 +448,12 @@ def train_run(
                 stats = agent.train(updates_per_step)
                 gradient_steps += updates_per_step
                 if isinstance(stats, dict):
-                    # Track all loss types from stats
+                    # Track all loss types and gradient norms from stats
                     for loss_key, loss_value in stats.items():
-                        if loss_value is not None and "loss" in loss_key.lower():
+                        if loss_value is not None and (
+                            "loss" in loss_key.lower()
+                            or "grad_norm" in loss_key.lower()
+                        ):
                             if loss_key not in all_losses_dict:
                                 all_losses_dict[loss_key] = []
                             if loss_key not in episode_losses:
@@ -613,11 +616,11 @@ def train_run(
             phase_local_episode
         )
         opponent_type = phase_config.opponent.type
-        
+
         loss_info_parts = [
             f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}",
             f"env={sampled_mode_str}",
-            f"opponent={opponent_type}"
+            f"opponent={opponent_type}",
         ]
         if avg_losses:
             for loss_key in sorted(avg_losses.keys()):
@@ -1092,18 +1095,20 @@ def _train_run_vectorized(
                 # Log episode information (always log, even if no losses)
                 # Get environment mode and opponent type for logging
                 # Compute phase_local_episode for current episode
-                _, current_phase_local_episode, current_phase_config = get_phase_for_episode(
-                    curriculum, completed_episodes
+                _, current_phase_local_episode, current_phase_config = (
+                    get_phase_for_episode(curriculum, completed_episodes)
                 )
-                sampled_mode_str = current_phase_config.environment.get_mode_for_episode(
-                    current_phase_local_episode
+                sampled_mode_str = (
+                    current_phase_config.environment.get_mode_for_episode(
+                        current_phase_local_episode
+                    )
                 )
                 opponent_type = current_phase_config.opponent.type
-                
+
                 loss_info_parts = [
                     f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}",
                     f"env={sampled_mode_str}",
-                    f"opponent={opponent_type}"
+                    f"opponent={opponent_type}",
                 ]
                 if avg_losses:
                     for loss_key in sorted(avg_losses.keys()):
@@ -1168,7 +1173,7 @@ def _train_run_vectorized(
                         current_phase_idx = new_phase_idx
                         current_phase_start = steps
                         phase_config = new_phase_config
-                    
+
                     # Update reward weights for the next episode (must be done for every episode,
                     # not just phase transitions, since reward shaping depends on phase_local_episode)
                     reward_weights = get_reward_weights(
@@ -1208,9 +1213,11 @@ def _train_run_vectorized(
             stats = agent.train(updates_per_step)
             gradient_steps += updates_per_step
             if isinstance(stats, dict):
-                # Track all loss types from stats
+                # Track all loss types and gradient norms from stats
                 for loss_key, loss_value in stats.items():
-                    if loss_value is not None and "loss" in loss_key.lower():
+                    if loss_value is not None and (
+                        "loss" in loss_key.lower() or "grad_norm" in loss_key.lower()
+                    ):
                         if loss_key not in all_losses_dict:
                             all_losses_dict[loss_key] = []
                         if loss_key not in current_episode_losses:

@@ -3,6 +3,7 @@
 import copy
 import logging
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.func import functional_call
@@ -11,9 +12,17 @@ if torch.cuda.is_available():
     torch.set_float32_matmul_precision("high")
 
 from rl_hockey.common.agent import Agent
+from rl_hockey.common.buffer import TDMPC2ReplayBuffer
 from rl_hockey.TD_MPC2.model_dynamics_simple import DynamicsSimple
 from rl_hockey.TD_MPC2.model_encoder import Encoder
-from rl_hockey.TD_MPC2.model_init import weight_init, zero_init_output_layer
+from rl_hockey.TD_MPC2.model_init import (
+    init_dynamics,
+    init_encoder,
+    init_policy,
+    init_q_ensemble,
+    init_reward,
+    init_termination,
+)
 from rl_hockey.TD_MPC2.model_policy import Policy
 from rl_hockey.TD_MPC2.model_q_ensemble import QEnsemble
 from rl_hockey.TD_MPC2.model_reward import Reward
@@ -32,7 +41,7 @@ class TDMPC2(Agent):
         obs_dim=18,
         action_dim=8,
         latent_dim=512,
-        hidden_dim=[256, 256, 256],
+        hidden_dim=None,
         num_q=5,
         simnorm_temperature=1.0,
         log_std_min=-10.0,
@@ -52,20 +61,49 @@ class TDMPC2(Agent):
         batch_size=256,
         device="cuda",
         num_bins=101,
-        vmin=-5.0,
-        vmax=5.0,
+        vmin=-10.0,
+        vmax=10.0,
         tau=0.01,
         grad_clip_norm=20.0,
         consistency_coef=20.0,
         reward_coef=0.1,
         value_coef=0.1,
         termination_coef=1.0,
+        n_step=5,
     ):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.latent_dim = latent_dim
+
+        # Handle hidden_dim dict, filling in missing network types with defaults
+        if hidden_dim is None:
+            default_hidden_dim = [256, 256, 256]
+            hidden_dim = {
+                "encoder": default_hidden_dim,
+                "dynamics": default_hidden_dim,
+                "reward": default_hidden_dim,
+                "termination": default_hidden_dim,
+                "q_function": default_hidden_dim,
+                "policy": default_hidden_dim,
+            }
+
+        if not isinstance(hidden_dim, dict):
+            raise ValueError(
+                f"hidden_dim must be a dict with network-specific hidden dimensions, got {type(hidden_dim)}"
+            )
+
+        default_hidden_dim = [256, 256, 256]
         self.hidden_dim = hidden_dim
+        self.hidden_dim_dict = {
+            "encoder": hidden_dim.get("encoder", default_hidden_dim),
+            "dynamics": hidden_dim.get("dynamics", default_hidden_dim),
+            "reward": hidden_dim.get("reward", default_hidden_dim),
+            "termination": hidden_dim.get("termination", default_hidden_dim),
+            "q_function": hidden_dim.get("q_function", default_hidden_dim),
+            "policy": hidden_dim.get("policy", default_hidden_dim),
+        }
+
         self.num_q = num_q
         self.simnorm_temperature = simnorm_temperature
         self.log_std_min = log_std_min
@@ -92,6 +130,7 @@ class TDMPC2(Agent):
         self.reward_coef = reward_coef
         self.value_coef = value_coef
         self.termination_coef = termination_coef
+        self.n_step = n_step
 
         self.config = {
             "batch_size": batch_size,
@@ -115,28 +154,40 @@ class TDMPC2(Agent):
             "termination_coef": termination_coef,
             "tau": tau,
             "grad_clip_norm": grad_clip_norm,
+            "n_step": n_step,
         }
 
         self.encoder = Encoder(
             obs_dim,
             latent_dim,
-            hidden_dim,
+            self.hidden_dim_dict["encoder"],
             simnorm_temperature=simnorm_temperature,
         ).to(self.device)
         self.dynamics = DynamicsSimple(
             latent_dim,
             action_dim,
-            hidden_dim,
+            self.hidden_dim_dict["dynamics"],
             simnorm_temperature=simnorm_temperature,
         ).to(self.device)
         self.reward = Reward(
-            latent_dim, action_dim, hidden_dim, num_bins, vmin=vmin, vmax=vmax
+            latent_dim,
+            action_dim,
+            self.hidden_dim_dict["reward"],
+            num_bins,
+            vmin=vmin,
+            vmax=vmax,
         ).to(self.device)
-        self.termination = Termination(latent_dim, action_dim, hidden_dim).to(
-            self.device
-        )
+        self.termination = Termination(
+            latent_dim, action_dim, self.hidden_dim_dict["termination"]
+        ).to(self.device)
         self.q_ensemble = QEnsemble(
-            num_q, latent_dim, action_dim, hidden_dim, num_bins, vmin, vmax
+            num_q,
+            latent_dim,
+            action_dim,
+            self.hidden_dim_dict["q_function"],
+            num_bins,
+            vmin,
+            vmax,
         ).to(self.device)
 
         self._init_detached_q_ensemble()
@@ -147,21 +198,17 @@ class TDMPC2(Agent):
         self.policy = Policy(
             latent_dim,
             action_dim,
-            hidden_dim,
+            self.hidden_dim_dict["policy"],
             log_std_min=log_std_min,
             log_std_max=log_std_max,
         ).to(self.device)
 
-        self.encoder.apply(weight_init)
-        self.dynamics.apply(weight_init)
-        self.reward.apply(weight_init)
-        self.termination.apply(weight_init)
-        self.q_ensemble.apply(weight_init)
-        self.policy.apply(weight_init)
-
-        zero_init_output_layer(self.reward)
-        for q_func in self.q_ensemble.q_functions:
-            zero_init_output_layer(q_func)
+        init_encoder(self.encoder)
+        init_dynamics(self.dynamics)
+        init_reward(self.reward)
+        init_termination(self.termination)
+        init_q_ensemble(self.q_ensemble)
+        init_policy(self.policy)
 
         self.optimizer = torch.optim.Adam(
             [
@@ -211,13 +258,14 @@ class TDMPC2(Agent):
             + list(self.q_ensemble.parameters())
         )
 
-        from rl_hockey.common.buffer import ReplayBuffer
-
-        self.buffer = ReplayBuffer(
-            max_size=capacity, use_torch_tensors=True, device=self.device
-        )
-
         batch_size = self.config.get("batch_size", 256)
+        self.buffer = TDMPC2ReplayBuffer(
+            max_size=capacity,
+            horizon=self.horizon,
+            batch_size=batch_size,
+            use_torch_tensors=True,
+            device=self.device,
+        )
         self._obs_buffer = torch.empty(
             (batch_size, obs_dim), device=self.device, dtype=torch.float32
         )
@@ -247,6 +295,42 @@ class TDMPC2(Agent):
 
         self.planner.to(self.device)
 
+    def store_transition(self, transition):
+        """Store a transition in the replay buffer."""
+        self.buffer.store(transition)
+
+    @torch.no_grad()
+    def rollout_dynamics_multi_step(self, z0, action_sequence, max_horizon):
+        """
+        Roll out the dynamics model from z0 using the given action sequence.
+        Returns predicted latent states at 1, 2, ..., max_horizon steps ahead.
+
+        z0: (latent_dim,) numpy or tensor
+        action_sequence: list of (action_dim,) arrays, length >= max_horizon
+        max_horizon: int
+
+        Returns:
+            dict[int, np.ndarray]: {1: z_1, 2: z_2, ..., max_horizon: z_h}
+        """
+        if isinstance(z0, np.ndarray):
+            z = torch.FloatTensor(z0).to(self.device).unsqueeze(0)
+        else:
+            z = z0.to(self.device)
+            if z.dim() == 1:
+                z = z.unsqueeze(0)
+        out = {}
+        for h in range(1, max_horizon + 1):
+            a = action_sequence[h - 1]
+            if isinstance(a, np.ndarray):
+                a = torch.FloatTensor(a).to(self.device).unsqueeze(0)
+            else:
+                a = a.to(self.device)
+                if a.dim() == 1:
+                    a = a.unsqueeze(0)
+            z = self.dynamics(z, a)
+            out[h] = z.squeeze(0).cpu().numpy()
+        return out
+
     @torch.no_grad()
     def act(self, obs, deterministic=False, t0=False):
         """Select action using MPC planning."""
@@ -275,7 +359,9 @@ class TDMPC2(Agent):
         z = self.encoder(obs_batch).squeeze(0)
         z = z.clone()
 
-        plan_result = self.planner.plan(z, return_mean=deterministic, return_stats=True, t0=t0)
+        plan_result = self.planner.plan(
+            z, return_mean=deterministic, return_stats=True, t0=t0
+        )
         if isinstance(plan_result, tuple):
             action, planning_stats = plan_result
         else:
@@ -407,15 +493,13 @@ class TDMPC2(Agent):
         num_envs = obs_batch.shape[0]
 
         if self.planners is None or len(self.planners) != num_envs:
-            self.planners = [
-                copy.deepcopy(self.planner) for _ in range(num_envs)
-            ]
+            self.planners = [copy.deepcopy(self.planner) for _ in range(num_envs)]
 
         z_batch = self.encoder(obs_batch)
         actions = []
         if t0s is None:
             t0s = [False] * num_envs
-            
+
         for i, (z, t0) in enumerate(zip(z_batch, t0s)):
             action = self.planners[i].plan(z, return_mean=deterministic, t0=t0)
             actions.append(action)
@@ -441,6 +525,12 @@ class TDMPC2(Agent):
             "policy_loss": [],
             "total_loss": [],
             "loss": [],
+            "grad_norm_encoder": [],
+            "grad_norm_dynamics": [],
+            "grad_norm_reward": [],
+            "grad_norm_termination": [],
+            "grad_norm_q_ensemble": [],
+            "grad_norm_policy": [],
         }
 
         for _ in range(steps):
@@ -514,17 +604,36 @@ class TDMPC2(Agent):
                         )
 
                         termination_pred_logits = self.termination(z_pred, a_t)
-                        termination_loss = termination_loss + weight * F.binary_cross_entropy_with_logits(
-                            termination_pred_logits, d_t
+                        termination_loss = (
+                            termination_loss
+                            + weight
+                            * F.binary_cross_entropy_with_logits(
+                                termination_pred_logits, d_t
+                            )
                         )
 
                         q_preds_logits = self.q_ensemble(z_pred, a_t)
                         with torch.no_grad():
-                            next_action, _, _, _ = self.policy.sample(z_target)
-                            target_q = self.target_q_ensemble.min(
-                                z_target, next_action
+                            n = min(self.n_step, horizon - t)
+                            gamma_powers = (
+                                self.gamma
+                                ** torch.arange(
+                                    n,
+                                    device=rewards_seq.device,
+                                    dtype=rewards_seq.dtype,
+                                )
+                            ).view(1, n, 1)
+                            reward_sum = (rewards_seq[:, t : t + n] * gamma_powers).sum(
+                                dim=1
                             )
-                            q_target = r_t + self.gamma * (1 - d_t) * target_q
+                            z_bootstrap = z_seq[:, t + n].detach()
+                            next_action, _, _, _ = self.policy.sample(z_bootstrap)
+                            target_q = self.target_q_ensemble.min(
+                                z_bootstrap, next_action
+                            )
+                            d_n = dones_seq[:, t + n - 1]
+                            bootstrap = (self.gamma**n) * (1.0 - d_n) * target_q
+                            q_target = reward_sum + bootstrap
 
                         step_value_loss = 0.0
                         for q_pred_logits in q_preds_logits:
@@ -565,13 +674,31 @@ class TDMPC2(Agent):
 
             self.optimizer.zero_grad()
             total_loss.backward()
+
+            # Compute gradient norms before clipping
+            grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
+                self.encoder.parameters(), max_norm=float("inf")
+            )
+            grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
+                self.dynamics.parameters(), max_norm=float("inf")
+            )
+            grad_norm_reward = torch.nn.utils.clip_grad_norm_(
+                self.reward.parameters(), max_norm=float("inf")
+            )
+            grad_norm_termination = torch.nn.utils.clip_grad_norm_(
+                self.termination.parameters(), max_norm=float("inf")
+            )
+            grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
+                self.q_ensemble.parameters(), max_norm=float("inf")
+            )
+
             torch.nn.utils.clip_grad_norm_(
                 self._model_params, max_norm=self.grad_clip_norm
             )
             self.optimizer.step()
             self.optimizer.zero_grad(set_to_none=True)
 
-            policy_loss = self._update_policy(zs.detach())
+            policy_loss, grad_norm_policy = self._update_policy(zs.detach())
             self._update_target_network(tau=self.tau)
             if steps == 1:
                 all_losses["consistency_loss"].append(consistency_loss.item())
@@ -581,6 +708,12 @@ class TDMPC2(Agent):
                 all_losses["policy_loss"].append(policy_loss.item())
                 all_losses["total_loss"].append(total_loss.item())
                 all_losses["loss"].append(total_loss.item())
+                all_losses["grad_norm_encoder"].append(grad_norm_encoder.item())
+                all_losses["grad_norm_dynamics"].append(grad_norm_dynamics.item())
+                all_losses["grad_norm_reward"].append(grad_norm_reward.item())
+                all_losses["grad_norm_termination"].append(grad_norm_termination.item())
+                all_losses["grad_norm_q_ensemble"].append(grad_norm_q_ensemble.item())
+                all_losses["grad_norm_policy"].append(grad_norm_policy.item())
             else:
                 all_losses["consistency_loss"].append(consistency_loss)
                 all_losses["reward_loss"].append(reward_loss)
@@ -589,6 +722,12 @@ class TDMPC2(Agent):
                 all_losses["policy_loss"].append(policy_loss)
                 all_losses["total_loss"].append(total_loss)
                 all_losses["loss"].append(total_loss)
+                all_losses["grad_norm_encoder"].append(grad_norm_encoder)
+                all_losses["grad_norm_dynamics"].append(grad_norm_dynamics)
+                all_losses["grad_norm_reward"].append(grad_norm_reward)
+                all_losses["grad_norm_termination"].append(grad_norm_termination)
+                all_losses["grad_norm_q_ensemble"].append(grad_norm_q_ensemble)
+                all_losses["grad_norm_policy"].append(grad_norm_policy)
 
         if steps > 1 and len(all_losses["consistency_loss"]) > 0:
             if isinstance(all_losses["consistency_loss"][0], torch.Tensor):
@@ -611,6 +750,24 @@ class TDMPC2(Agent):
                     loss.item() for loss in all_losses["total_loss"]
                 ]
                 all_losses["loss"] = [loss.item() for loss in all_losses["loss"]]
+                all_losses["grad_norm_encoder"] = [
+                    grad.item() for grad in all_losses["grad_norm_encoder"]
+                ]
+                all_losses["grad_norm_dynamics"] = [
+                    grad.item() for grad in all_losses["grad_norm_dynamics"]
+                ]
+                all_losses["grad_norm_reward"] = [
+                    grad.item() for grad in all_losses["grad_norm_reward"]
+                ]
+                all_losses["grad_norm_termination"] = [
+                    grad.item() for grad in all_losses["grad_norm_termination"]
+                ]
+                all_losses["grad_norm_q_ensemble"] = [
+                    grad.item() for grad in all_losses["grad_norm_q_ensemble"]
+                ]
+                all_losses["grad_norm_policy"] = [
+                    grad.item() for grad in all_losses["grad_norm_policy"]
+                ]
 
         return all_losses
 
@@ -640,7 +797,7 @@ class TDMPC2(Agent):
         zs_flat = zs.reshape(-1, zs.shape[-1])
         actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
         q_logits_all = self._q_ensemble_detached(zs_flat, actions)
-        
+
         q_values = torch.stack(
             [
                 two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
@@ -668,13 +825,18 @@ class TDMPC2(Agent):
 
         pi_loss.backward()
 
+        # Compute gradient norm before clipping
+        grad_norm_policy = torch.nn.utils.clip_grad_norm_(
+            self.policy.parameters(), max_norm=float("inf")
+        )
+
         torch.nn.utils.clip_grad_norm_(
             self.policy.parameters(), max_norm=self.grad_clip_norm
         )
         self.pi_optimizer.step()
         self.pi_optimizer.zero_grad(set_to_none=True)
 
-        return pi_loss.detach()
+        return pi_loss.detach(), grad_norm_policy
 
     def _update_target_network(self, tau=0.01):
         with torch.no_grad():
@@ -764,7 +926,9 @@ class TDMPC2(Agent):
         if "termination" in checkpoint:
             self.termination.load_state_dict(checkpoint["termination"])
         else:
-            logger.warning("Termination model not found in checkpoint, initializing from scratch.")
+            logger.warning(
+                "Termination model not found in checkpoint, initializing from scratch."
+            )
 
         if checkpoint_num_bins is not None and checkpoint_num_bins != self.num_bins:
             missing_keys, unexpected_keys = self.q_ensemble.load_state_dict(
@@ -824,7 +988,9 @@ class TDMPC2(Agent):
         lines.append(f"Observation Dimension: {self.obs_dim}")
         lines.append(f"Action Dimension: {self.action_dim}")
         lines.append(f"Latent Dimension: {self.latent_dim}")
-        lines.append(f"Hidden Dimensions: {self.hidden_dim}")
+        lines.append("Hidden Dimensions (per network):")
+        for network_type, hidden_dims in self.hidden_dim_dict.items():
+            lines.append(f"  {network_type}: {hidden_dims}")
         lines.append(f"Device: {self.device}")
         lines.append("")
 
@@ -855,7 +1021,9 @@ class TDMPC2(Agent):
         lines.append("")
 
         lines.append("3a. TERMINATION MODEL:")
-        lines.append("   Predicts termination probability given latent state and action")
+        lines.append(
+            "   Predicts termination probability given latent state and action"
+        )
         lines.append(str(self.termination))
         lines.append(f"   Trainable Parameters: {count_parameters(self.termination):,}")
         lines.append("")

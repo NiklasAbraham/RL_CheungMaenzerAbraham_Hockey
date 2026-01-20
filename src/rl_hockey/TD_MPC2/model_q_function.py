@@ -9,12 +9,16 @@ class QFunction(nn.Module):
     Q-function for value estimation.
     """
 
-    def __init__(self, latent_dim=512, action_dim=8, hidden_dim=[256, 256, 256], num_bins=101):
+    def __init__(
+        self, latent_dim=512, action_dim=8, hidden_dim=[256, 256, 256], num_bins=101
+    ):
         super().__init__()
 
         layers = []
         layers.append(nn.Linear(latent_dim + action_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
+        # Add Dropout after first layer (after LayerNorm)
+        layers.append(nn.Dropout(p=0.01))
         layers.append(nn.Mish())
 
         for i in range(1, len(hidden_dim)):
