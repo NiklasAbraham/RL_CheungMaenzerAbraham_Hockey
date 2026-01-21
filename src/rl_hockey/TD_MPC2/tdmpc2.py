@@ -69,7 +69,7 @@ class TDMPC2(Agent):
         reward_coef=0.1,
         value_coef=0.1,
         termination_coef=1.0,
-        n_step=5,
+        n_step=1,
     ):
         super().__init__()
         self.obs_dim = obs_dim
