@@ -327,7 +327,9 @@ if __name__ == "__main__":
     # first one with right buffer
     folder_path_1 = "results/tdmpc2_runs/2026-01-20_16-45-11"
     folder_path_2 = "results/tdmpc2_runs/2026-01-20_17-48-56"  # first with right buffer and init moldes
+    folder_path_3 = "results/tdmpc2_runs/2026-01-20_19-33-15"
     window_size = 20
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
+    plot_episode_logs(folder_path_3, window_size=window_size)
