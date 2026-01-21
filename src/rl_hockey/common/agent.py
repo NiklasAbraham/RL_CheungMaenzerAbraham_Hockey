@@ -43,3 +43,11 @@ class Agent(ABC):
     def on_episode_end(self, episode):
         """Hook that is called at the end of each episode."""
         pass
+
+    def log_architecture(self):
+        """
+        Logs the network architecture for the agent.
+        Override this method in subclasses to provide agent-specific architecture details.
+        Returns a formatted string describing the architecture.
+        """
+        return "Network architecture logging not implemented for this agent type."

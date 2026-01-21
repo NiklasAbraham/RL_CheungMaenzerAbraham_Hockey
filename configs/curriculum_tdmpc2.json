@@ -1,0 +1,57 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "integration_phase",
+        "episodes": 3000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.55},
+            {"type": "basic_strong", "weight": 0.45}
+          ]
+        }
+      },
+      {
+        "name": "full_competency",
+        "episodes": 10000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {"type": "basic_strong", "weight": 1.0}
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "batch_size": 512
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 5000,
+    "reward_scale": 0.5,
+    "checkpoint_save_freq": 100
+  },
+  "agent": {
+    "type": "TDMPC2",
+    "hyperparameters": {
+      "latent_dim": 512,
+      "hidden_dim": {
+        "encoder": [512, 512, 512],
+        "dynamics": [512, 512, 512],
+        "reward": [512, 512, 512],
+        "termination": [256, 256],
+        "q_function": [512, 512, 512],
+        "policy": [512, 512, 512]
+      },
+      "num_q": 5,
+      "gamma": 0.99,
+      "horizon": 5,
+      "num_samples": 512,
+      "num_iterations": 6,
+      "temperature": 0.5,
+      "vmin": -10.0,
+      "vmax": 10.0
+    }
+  }
+}
