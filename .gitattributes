@@ -1,0 +1,6 @@
+# Force LF (Linux style) for bash and sbatch scripts
+*.sh      text eol=lf
+*.sbatch  text eol=lf
+
+# Optional: Keep everything else as "auto" (Git decides based on OS)
+* text=auto
