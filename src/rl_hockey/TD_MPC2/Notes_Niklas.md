@@ -3,6 +3,18 @@
 ## Notes Niklas
 
 
+#### Jobs
+
+
+##### 1969941 - 2026-01-22_22-05-49
+- simple fucking run of the current repo state nothing exiting
+- no backprop reward shaping calssic boring things
+
+##### 1970116 - 2026-01-22_22-35-14
+- run with minimla reward shaping
+- curretn state of repo and then with simple reward prop
+
+
 #### Architecture of TDMPC-2 
 
 ```

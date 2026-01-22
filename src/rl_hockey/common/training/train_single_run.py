@@ -90,25 +90,34 @@ def train_single_run(
 
 
 if __name__ == "__main__":
+    import os
+
     import torch
+
+    # Device diagnostics (help debug "skipping cudagraphs due to cpu device" etc.)
+    cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "not set")
+    print(f"[Device] CUDA_VISIBLE_DEVICES={cuda_vis}")
+    print(f"[Device] torch.cuda.is_available()={torch.cuda.is_available()}")
+    if torch.cuda.is_available():
+        print(f"[Device] torch.cuda.device_count()={torch.cuda.device_count()}")
 
     # Enable TF32 for better performance on Ampere+ GPUs
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_tdmpc2_repo.json"
+    path_to_config = "configs/curriculum_tdmpc2.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
         device = "cuda:0"
-        print(f"CUDA available: Using GPU {device} ({torch.cuda.get_device_name(0)})")
+        print(f"[Device] Using GPU {device} ({torch.cuda.get_device_name(0)})")
     else:
         device = "cpu"
-        print("CUDA not available: Using CPU")
+        print(
+            "[Device] Using CPU (no GPU). TD-MPC2 repo expects GPU; use sbatch on a GPU partition."
+        )
 
     # Get num_envs from environment variable if set, otherwise use default
-    import os
-
     num_envs = int(
         os.environ.get("NUM_ENVS", "1")
     )  # Default to 4 for parallel environments

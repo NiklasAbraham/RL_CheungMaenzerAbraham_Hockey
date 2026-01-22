@@ -67,7 +67,7 @@ class DDDQN(Agent):
 
             return action
 
-    def act_batch(self, states, deterministic=False):
+    def act_batch(self, states, deterministic=False, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             state_tensor = torch.from_numpy(states).float().to(DEVICE)

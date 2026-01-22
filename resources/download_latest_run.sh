@@ -16,8 +16,8 @@ echo "Local runs directory: ${LOCAL_RUNS_DIR}"
 
 # Find the latest 5 timestamped directories on the remote server
 echo ""
-echo "Finding latest 5 tdmpc2 run directories..."
-LATEST_DIRS=$(ssh "${SERVER}" "cd ${REMOTE_RUNS_DIR} && ls -td */ 2>/dev/null | head -5 | sed 's|/$||'")
+echo "Finding latest 30 tdmpc2 run directories..."
+LATEST_DIRS=$(ssh "${SERVER}" "cd ${REMOTE_RUNS_DIR} && ls -td */ 2>/dev/null | head -30 | sed 's|/$||'")
 
 if [ -z "${LATEST_DIRS}" ]; then
     echo "Error: No tdmpc2 run directories found on remote server."

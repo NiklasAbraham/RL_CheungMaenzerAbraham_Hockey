@@ -155,6 +155,12 @@ def create_agent(
         episode_length = agent_hyperparams.pop("episode_length", 500)
         enc_lr_scale = agent_hyperparams.pop("enc_lr_scale", 0.3)
         seed = agent_hyperparams.pop("seed", 1)
+        win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
+        win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
+        
+        # Extract batch_size and learning_rate before passing **agent_hyperparams
+        batch_size = agent_hyperparams.pop("batch_size", 256)
+        learning_rate = agent_hyperparams.pop("learning_rate", 3e-4)
 
         # Use provided device or default to CPU/CUDA
         if device is None:
@@ -168,7 +174,7 @@ def create_agent(
             latent_dim=latent_dim,
             hidden_dim=hidden_dim,
             num_q=num_q,
-            lr=agent_hyperparams.get("learning_rate", 3e-4),
+            lr=learning_rate,
             enc_lr_scale=enc_lr_scale,
             gamma=gamma,
             horizon=horizon,
@@ -178,7 +184,7 @@ def create_agent(
             num_pi_trajs=num_pi_trajs,
             temperature=temperature,
             capacity=capacity,
-            batch_size=agent_hyperparams.get("batch_size", 256),
+            batch_size=batch_size,
             device=device,
             num_bins=101,
             vmin=vmin,
@@ -203,6 +209,8 @@ def create_agent(
             compile=compile_model,
             episode_length=episode_length,
             seed=seed,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
             **agent_hyperparams,
         )
     elif agent_config.type == "TD3":
