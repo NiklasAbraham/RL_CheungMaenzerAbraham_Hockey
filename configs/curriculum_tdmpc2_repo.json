@@ -94,9 +94,11 @@
       "discount_max": 0.995,
       "episodic": true,
       "mpc": true,
-      "compile": true,
+      "compile": false,
       "episode_length": 500,
-      "enc_lr_scale": 0.3
+      "enc_lr_scale": 0.3,
+      "win_reward_bonus": 0.0,
+      "win_reward_discount": 1.0
     }
   }
 }

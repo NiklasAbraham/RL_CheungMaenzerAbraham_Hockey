@@ -72,7 +72,9 @@
       "num_iterations": 6,
       "temperature": 0.5,
       "vmin": -10.0,
-      "vmax": 10.0
+      "vmax": 10.0,
+      "win_reward_bonus": 10.0,
+      "win_reward_discount": 0.92
     }
   }
 }

@@ -35,6 +35,7 @@ REQUIREMENTS_EMBEDDED
     pip install tensordict
     pip install pink-noise-rl
     pip install matplotlib
+    pip install omegaconf
     pip install psutil
     pip install imageio imageio-ffmpeg
 

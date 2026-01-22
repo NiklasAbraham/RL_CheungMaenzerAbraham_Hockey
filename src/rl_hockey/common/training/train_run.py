@@ -347,7 +347,12 @@ def train_run(
         print("\n" + agent.log_architecture() + "\n")
 
     # Log backprop parameters if available
-    if verbose and hasattr(agent, "buffer") and hasattr(agent.buffer, "win_reward_bonus") and hasattr(agent.buffer, "win_reward_discount"):
+    if (
+        verbose
+        and hasattr(agent, "buffer")
+        and hasattr(agent.buffer, "win_reward_bonus")
+        and hasattr(agent.buffer, "win_reward_discount")
+    ):
         print("REWARD BACKPROPAGATION PARAMETERS:")
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
@@ -497,7 +502,8 @@ def train_run(
 
         for t in range(max_episode_steps):
             if is_agent_discrete:
-                discrete_action = agent.act(state)
+                discrete_actions = agent.act_batch(state[None, :])
+                discrete_action = discrete_actions[0]
                 if action_fineness is not None:
                     action_p1 = discrete_to_continuous_action_with_fineness(
                         discrete_action,
@@ -509,7 +515,9 @@ def train_run(
                         discrete_action
                     )
             else:
-                action_p1 = agent.act(state, t0=(t == 0))
+                t0s = np.array([t == 0], dtype=bool)
+                actions_p1 = agent.act_batch(state[None, :], t0s=t0s)
+                action_p1 = actions_p1[0]
 
             obs_agent2 = current_env.obs_agent_two()
             deterministic_opponent = (
@@ -843,6 +851,7 @@ def train_run(
                 "reward": total_reward,  # Original reward
                 "shaped_reward": total_shaped_reward,  # Shaped reward (before backprop)
                 "backprop_reward": total_backprop_reward,  # Reward after backprop
+                "total_gradient_steps": gradient_steps,
                 "losses": avg_losses,
             }
         )
@@ -1002,7 +1011,12 @@ def _train_run_vectorized(
         print("\n" + agent.log_architecture() + "\n")
 
     # Log backprop parameters if available
-    if verbose and hasattr(agent, "buffer") and hasattr(agent.buffer, "win_reward_bonus") and hasattr(agent.buffer, "win_reward_discount"):
+    if (
+        verbose
+        and hasattr(agent, "buffer")
+        and hasattr(agent.buffer, "win_reward_bonus")
+        and hasattr(agent.buffer, "win_reward_discount")
+    ):
         print("REWARD BACKPROPAGATION PARAMETERS:")
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
@@ -1392,6 +1406,7 @@ def _train_run_vectorized(
                         "reward": final_episode_reward,  # Original reward
                         "shaped_reward": final_episode_shaped_reward,  # Shaped reward (before backprop)
                         "backprop_reward": final_episode_backprop_reward,  # Reward after backprop
+                        "total_gradient_steps": gradient_steps,
                         "losses": avg_losses,
                     }
                 )

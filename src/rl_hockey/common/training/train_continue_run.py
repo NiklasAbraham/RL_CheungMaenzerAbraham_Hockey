@@ -58,7 +58,14 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
             # Extract all loss columns
             for key, value in row.items():
                 if (
-                    key not in ["episode", "reward", "shaped_reward", "backprop_reward"]
+                    key
+                    not in [
+                        "episode",
+                        "reward",
+                        "shaped_reward",
+                        "backprop_reward",
+                        "total_gradient_steps",
+                    ]
                     and value
                 ):
                     try:

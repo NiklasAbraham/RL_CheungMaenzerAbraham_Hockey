@@ -40,7 +40,14 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
             # Extract all loss columns
             for key, value in row.items():
                 if (
-                    key not in ["episode", "reward", "shaped_reward", "backprop_reward"]
+                    key
+                    not in [
+                        "episode",
+                        "reward",
+                        "shaped_reward",
+                        "backprop_reward",
+                        "total_gradient_steps",
+                    ]
                     and value
                 ):
                     try:
@@ -336,9 +343,11 @@ if __name__ == "__main__":
 
     folder_path_1 = "results/tdmpc2_runs/2026-01-22_09-49-22"
     folder_path_2 = "results/tdmpc2_runs/2026-01-22_08-43-04"
+    folder_path_3 = "results/tdmpc2_runs/2026-01-22_08-42-36"
+    folder_path_4 = "results/tdmpc2_runs/2026-01-22_20-09-19"
     window_size = 20
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
-    # plot_episode_logs(folder_path_3, window_size=window_size)
-    # plot_episode_logs(folder_path_4, window_size=window_size)
+    plot_episode_logs(folder_path_3, window_size=window_size)
+    plot_episode_logs(folder_path_4, window_size=window_size)
