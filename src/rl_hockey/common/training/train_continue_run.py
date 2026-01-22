@@ -3,12 +3,14 @@ Continue training from an existing run directory.
 Loads the latest checkpoint and continues training with the original configuration.
 """
 
+import csv
 import json
 import logging
 import os
+import shutil
 import sys
 from pathlib import Path
-from typing import Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 # Configure logging (ensure it's configured before importing train_run)
 # Unbuffer stdout for immediate output in batch jobs
@@ -29,6 +31,77 @@ from rl_hockey.common.training.curriculum_manager import load_curriculum
 from rl_hockey.common.training.run_manager import RunManager
 from rl_hockey.common.training.train_run import _curriculum_to_dict, train_run
 from rl_hockey.common.utils import set_cuda_device
+
+
+def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
+    """Load episode logs from a CSV file."""
+    episode_logs = []
+
+    if not csv_path.exists():
+        return episode_logs
+
+    with open(csv_path, "r", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            episode_log = {
+                "episode": int(row["episode"]),
+                "reward": float(row["reward"]) if row["reward"] else 0.0,
+                "shaped_reward": float(row["shaped_reward"])
+                if row["shaped_reward"]
+                else 0.0,
+                "backprop_reward": float(row["backprop_reward"])
+                if row.get("backprop_reward")
+                else 0.0,
+                "losses": {},
+            }
+
+            # Extract all loss columns
+            for key, value in row.items():
+                if (
+                    key not in ["episode", "reward", "shaped_reward", "backprop_reward"]
+                    and value
+                ):
+                    try:
+                        episode_log["losses"][key] = float(value)
+                    except ValueError:
+                        pass
+
+            episode_logs.append(episode_log)
+
+    return episode_logs
+
+
+def find_all_episode_log_files(csvs_dir: Path, run_name: str) -> List[Path]:
+    """Find all episode log CSV files for a run (including checkpoints)."""
+    log_files = []
+
+    # Main episode logs file
+    main_file = csvs_dir / f"{run_name}_episode_logs.csv"
+    if main_file.exists():
+        log_files.append(main_file)
+
+    # Checkpoint episode logs files (pattern: {run_name}_ep{episode}_episode_logs.csv)
+    pattern = f"{run_name}_ep*_episode_logs.csv"
+    checkpoint_files = sorted(csvs_dir.glob(pattern))
+    log_files.extend(checkpoint_files)
+
+    return sorted(log_files, key=lambda x: x.name)
+
+
+def combine_episode_logs(log_files: List[Path]) -> List[Dict[str, Any]]:
+    """Combine episode logs from multiple CSV files, removing duplicates."""
+    all_logs = {}
+
+    for log_file in log_files:
+        logs = load_episode_logs_from_csv(log_file)
+        for log in logs:
+            episode_num = log["episode"]
+            # Keep the latest entry if there are duplicates
+            all_logs[episode_num] = log
+
+    # Sort by episode number
+    sorted_logs = [all_logs[ep] for ep in sorted(all_logs.keys())]
+    return sorted_logs
 
 
 def find_latest_checkpoint(models_dir: Path) -> Optional[Path]:
@@ -152,9 +225,38 @@ def train_continue_run(
         logging.info(f"Saving config file for resumed run: {run_name}")
     run_manager.save_config(run_name, config_dict)
 
+    # Load old episode logs from CSV files
+    old_csvs_dir = base_path / "csvs"
+    old_episode_logs = []
+    if old_csvs_dir.exists():
+        log_files = find_all_episode_log_files(old_csvs_dir, run_name)
+        if log_files:
+            old_episode_logs = combine_episode_logs(log_files)
+            # Filter to only include episodes up to start_episode
+            old_episode_logs = [
+                log for log in old_episode_logs if log["episode"] <= start_episode
+            ]
+            if verbose:
+                logging.info(
+                    f"Loaded {len(old_episode_logs)} old episode logs (up to episode {start_episode})"
+                )
+
+            # Copy old CSV files to new run directory
+            new_csvs_dir = run_manager.csvs_dir
+            for log_file in log_files:
+                try:
+                    shutil.copy2(log_file, new_csvs_dir / log_file.name)
+                    if verbose:
+                        logging.info(f"Copied {log_file.name} to new run directory")
+                except Exception as e:
+                    if verbose:
+                        logging.warning(f"Could not copy {log_file.name}: {e}")
+
     # Resume training with the checkpoint
     if verbose:
         logging.info(f"Resuming training from checkpoint: {checkpoint_path}")
+        if old_episode_logs:
+            logging.info(f"Loaded {len(old_episode_logs)} old episode logs into memory")
         logging.info(
             "Note: Buffer will be empty and will fill up as training continues"
         )
@@ -172,6 +274,7 @@ def train_continue_run(
         num_envs=num_envs,
         run_manager=run_manager,
         start_episode=start_episode,
+        initial_episode_logs=old_episode_logs if old_episode_logs else None,
     )
 
 
