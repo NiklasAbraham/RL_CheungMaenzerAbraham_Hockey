@@ -1,5 +1,7 @@
+import csv
 import logging
 import os
+import random
 import sys
 from functools import partial
 from typing import Optional, Union
@@ -7,17 +9,9 @@ from typing import Optional, Union
 import hockey.hockey_env as h_env
 import numpy as np
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    handlers=[logging.StreamHandler(sys.stdout)],
-)
-logger = logging.getLogger(__name__)
-
 from rl_hockey.common import utils
 from rl_hockey.common.evaluation.agent_evaluator import evaluate_agent
+from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.training.agent_factory import create_agent, get_action_space_info
 from rl_hockey.common.training.config_validator import validate_config
 from rl_hockey.common.training.curriculum_manager import (
@@ -41,6 +35,181 @@ from rl_hockey.common.vectorized_env import (
     VectorizedHockeyEnvOptimized,
 )
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+logger = logging.getLogger(__name__)
+
+
+def _save_random_episodes_to_csv(
+    agent, run_manager, run_name, num_episodes=10, save_episode=None
+):
+    """Save random episodes from the buffer to a CSV file.
+
+    Args:
+        agent: The agent with a buffer attribute
+        run_manager: RunManager instance for getting output directory
+        run_name: Name of the current run
+        num_episodes: Number of random episodes to sample (default: 10)
+        save_episode: Episode number when this save occurred (for tracking)
+    """
+    try:
+        buffer = agent.buffer
+
+        # Check if buffer has episodes
+        if not hasattr(buffer, "num_eps") or buffer.num_eps == 0:
+            logger.warning("Buffer is empty, cannot save episodes to CSV")
+            return
+
+        # Check if buffer has enough episodes
+        available_episodes = buffer.num_eps
+        if available_episodes < num_episodes:
+            logger.warning(
+                f"Buffer only has {available_episodes} episodes, "
+                f"but requested {num_episodes}. Saving {available_episodes} episodes instead."
+            )
+            num_episodes = available_episodes
+
+        # Get access to episodes - check buffer type
+        if hasattr(buffer, "_episodes"):
+            # TDMPC2ReplayBuffer
+            all_episodes = buffer._episodes
+        elif hasattr(buffer, "buffer") and hasattr(buffer.buffer, "_storage"):
+            # Regular ReplayBuffer - we need to handle differently
+            logger.warning(
+                "Regular ReplayBuffer detected, episode sampling may not work as expected"
+            )
+            return
+        else:
+            logger.warning(f"Unknown buffer type: {type(buffer)}, cannot save episodes")
+            return
+
+        # Sample random episodes
+        selected_indices = random.sample(range(len(all_episodes)), num_episodes)
+        selected_episodes = [all_episodes[i] for i in selected_indices]
+
+        # Prepare CSV data
+        csv_data = []
+
+        for ep_idx, episode in enumerate(selected_episodes):
+            # Convert tensors to numpy if needed
+            obs = episode["obs"]
+            action = episode["action"]
+            reward = episode["reward"]
+            terminated = episode["terminated"]
+            winner = episode.get("winner", None)
+
+            # Handle torch tensors
+            if hasattr(obs, "cpu"):
+                obs = obs.cpu().numpy()
+            if hasattr(action, "cpu"):
+                action = action.cpu().numpy()
+            if hasattr(reward, "cpu"):
+                reward = reward.cpu().numpy()
+            if hasattr(terminated, "cpu"):
+                terminated = terminated.cpu().numpy()
+
+            # Ensure arrays are numpy
+            obs = np.asarray(obs)
+            action = np.asarray(action)
+            reward = np.asarray(reward).flatten()
+            terminated = np.asarray(terminated).flatten()
+
+            # Convert winner to int if it's a tensor
+            if winner is not None:
+                if hasattr(winner, "cpu"):
+                    winner = winner.cpu().item()
+                elif hasattr(winner, "item"):
+                    winner = winner.item()
+                winner = int(winner) if winner is not None else None
+
+            # Get original reward if available
+            reward_original = episode.get("reward_original", reward)
+            if hasattr(reward_original, "cpu"):
+                reward_original = reward_original.cpu().numpy()
+            reward_original = np.asarray(reward_original).flatten()
+
+            # obs shape: (T+1, obs_dim), action/reward/terminated: (T, ...)
+            T = len(action)
+
+            for step in range(T):
+                row = {
+                    "save_episode": save_episode if save_episode is not None else 0,
+                    "episode_id": ep_idx,
+                    "step": step,
+                }
+
+                # Add observation features (current state)
+                obs_flat = obs[step].flatten()
+                for i, val in enumerate(obs_flat):
+                    row[f"obs_{i}"] = val
+
+                # Add action features
+                action_flat = action[step].flatten()
+                for i, val in enumerate(action_flat):
+                    row[f"action_{i}"] = val
+
+                # Add both original and backprop rewards
+                row["reward_original"] = (
+                    reward_original[step]
+                    if reward_original.ndim == 1
+                    else reward_original[step, 0]
+                )
+                row["reward_backprop"] = (
+                    reward[step] if reward.ndim == 1 else reward[step, 0]
+                )
+
+                # Add terminated/done flag
+                row["terminated"] = (
+                    terminated[step] if terminated.ndim == 1 else terminated[step, 0]
+                )
+
+                # Add winner (same for all steps in the episode)
+                row["winner"] = winner if winner is not None else ""
+
+                csv_data.append(row)
+
+        # Write to CSV - save to a new file each time (not append)
+        # Include save_episode in filename to make each file unique
+        save_episode_str = f"ep{save_episode}" if save_episode is not None else "ep0"
+        csv_path = (
+            run_manager.csvs_dir
+            / f"{run_name}_buffer_episodes_sample_{save_episode_str}.csv"
+        )
+
+        if csv_data:
+            fieldnames = [
+                "save_episode",
+                "episode_id",
+                "step",
+                "reward_original",
+                "reward_backprop",
+                "terminated",
+                "winner",
+            ]
+            # Add obs and action fieldnames
+            first_row = csv_data[0]
+            for key in first_row.keys():
+                if key not in fieldnames:
+                    fieldnames.append(key)
+
+            # Always write new file (not append)
+            with open(csv_path, "w", newline="") as csvfile:
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(csv_data)
+
+            logger.info(
+                f"Saved {num_episodes} random episodes to {csv_path} (save_episode={save_episode})"
+            )
+
+    except Exception as e:
+        logger.warning(f"Failed to save episodes to CSV: {e}")
+
 
 def _make_hockey_env(mode, keep_mode):
     """Module-level factory function for creating HockeyEnv instances.
@@ -61,6 +230,8 @@ def train_run(
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,
     num_envs: int = 1,
+    run_manager: Optional[RunManager] = None,
+    start_episode: int = 0,
 ):
     """
     Train an agent with curriculum learning.
@@ -76,6 +247,8 @@ def train_run(
         device: CUDA device to use (None = auto-detect, 'cpu' = CPU, 'cuda' = cuda:0, 'cuda:0' = first GPU, 'cuda:1' = second GPU, etc.). Can also be an integer (0, 1, etc.) for device ID.
         checkpoint_path: Optional path to a checkpoint file to load and continue training from
         num_envs: Number of parallel environments (1 = single env, 4-8 recommended for speedup)
+        run_manager: Optional RunManager instance to reuse (if None, creates a new one)
+        start_episode: Episode number to start training from (for resuming from checkpoint, default 0)
     """
     # Route to vectorized training if num_envs > 1
     # Check if we're in a multiprocessing Pool worker to decide which implementation to use
@@ -110,6 +283,8 @@ def train_run(
                 checkpoint_path,
                 num_envs,
                 use_threading=is_pool_worker,
+                run_manager=run_manager,
+                start_episode=start_episode,
             )
     # Set CUDA device if specified
     set_cuda_device(device)
@@ -122,7 +297,8 @@ def train_run(
 
     curriculum = load_curriculum(config_path)
 
-    run_manager = RunManager(base_output_dir=base_output_dir)
+    if run_manager is None:
+        run_manager = RunManager(base_output_dir=base_output_dir)
     if run_name is None:
         config_dict = _curriculum_to_dict(curriculum)
         run_name = run_manager.generate_run_name(config_dict)
@@ -166,6 +342,13 @@ def train_run(
     # Log the agent network architecture
     if verbose:
         print("\n" + agent.log_architecture() + "\n")
+
+    # Log backprop parameters if available
+    if verbose and hasattr(agent, "buffer") and hasattr(agent.buffer, "win_reward_bonus") and hasattr(agent.buffer, "win_reward_discount"):
+        print("REWARD BACKPROPAGATION PARAMETERS:")
+        print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
+        print("")
 
     if checkpoint_path is not None:
         if verbose:
@@ -229,7 +412,7 @@ def train_run(
                 "direction": DIRECTION_FINAL,
             }
 
-    for global_episode in range(total_episodes):
+    for global_episode in range(start_episode, total_episodes):
         phase_idx, phase_local_episode, phase_config = get_phase_for_episode(
             curriculum, global_episode
         )
@@ -286,6 +469,9 @@ def train_run(
         agent.on_episode_start(global_episode)
         total_reward = 0
         total_shaped_reward = 0
+        # Track scaled rewards for backprop calculation
+        episode_scaled_rewards = []
+        episode_winner = None
         # Reset episode resource tracking
         current_episode_cpu_samples = []
         current_episode_gpu_samples = []
@@ -366,11 +552,18 @@ def train_run(
 
             scaled_reward = shaped_reward * reward_scale
 
+            # Get winner information if episode is done (only pass when done=True, not trunc)
+            # Winner is 1 for agent win, -1 for agent loss
+            winner = None
+            if done:
+                winner = info.get("winner", 0)
+
             if is_agent_discrete:
                 # Pre-allocate array once and reuse (optimization)
                 discrete_action_array = np.array([discrete_action], dtype=np.float32)
                 agent.store_transition(
-                    (state, discrete_action_array, scaled_reward, next_state, done)
+                    (state, discrete_action_array, scaled_reward, next_state, done),
+                    winner=winner,
                 )
 
                 if current_opponent is None or phase_config.opponent.type == "none":
@@ -392,7 +585,8 @@ def train_run(
                             scaled_reward,
                             utils.mirror_state(next_state),
                             done,
-                        )
+                        ),
+                        winner=winner,
                     )
             else:
                 # Ensure action is float32, avoid copy if already correct type
@@ -401,7 +595,8 @@ def train_run(
                 else:
                     action_array = action_p1
                 agent.store_transition(
-                    (state, action_array, scaled_reward, next_state, done)
+                    (state, action_array, scaled_reward, next_state, done),
+                    winner=winner,
                 )
 
                 if current_opponent is None or phase_config.opponent.type == "none":
@@ -413,7 +608,8 @@ def train_run(
                             scaled_reward,
                             utils.mirror_state(next_state),
                             done,
-                        )
+                        ),
+                        winner=winner,
                     )
 
             state = next_state
@@ -499,8 +695,10 @@ def train_run(
                 }
 
                 try:
+                    # Convert to absolute path to ensure it works even after cwd changes
+                    abs_checkpoint_path = os.path.abspath(str(temp_checkpoint_path))
                     eval_results = evaluate_agent(
-                        agent_path=str(temp_checkpoint_path),
+                        agent_path=abs_checkpoint_path,
                         agent_config_dict=agent_config_dict,
                         num_games=eval_num_games,
                         weak_opponent=eval_weak_opponent,
@@ -541,6 +739,19 @@ def train_run(
                 break
 
         agent.on_episode_end(global_episode)
+
+        # Save 10 random episodes from buffer to CSV every 10 episodes
+        if steps >= warmup_steps and (global_episode + 1) % 10 == 0:
+            if hasattr(agent, "buffer") and hasattr(agent.buffer, "num_eps"):
+                if agent.buffer.num_eps >= 10:
+                    _save_random_episodes_to_csv(
+                        agent,
+                        run_manager,
+                        run_name,
+                        num_episodes=10,
+                        save_episode=global_episode + 1,
+                    )
+
         rewards.append(total_reward)
         phases.append(phase_config.name)
 
@@ -600,12 +811,35 @@ def train_run(
                 if loss_values:
                     avg_losses[loss_key] = sum(loss_values) / len(loss_values)
 
+        # Calculate backprop reward sum if buffer supports it
+        total_backprop_reward = (
+            total_shaped_reward  # Default to shaped reward if no backprop
+        )
+        if (
+            hasattr(agent, "buffer")
+            and hasattr(agent.buffer, "win_reward_bonus")
+            and hasattr(agent.buffer, "win_reward_discount")
+            and episode_winner is not None
+            and len(episode_scaled_rewards) > 0
+        ):
+            # Apply backprop to calculate the backprop reward sum
+            scaled_rewards_array = np.array(episode_scaled_rewards, dtype=np.float32)
+            backprop_rewards, _, _ = apply_win_reward_backprop(
+                scaled_rewards_array,
+                winner=episode_winner,
+                win_reward_bonus=agent.buffer.win_reward_bonus,
+                win_reward_discount=agent.buffer.win_reward_discount,
+                use_torch=False,
+            )
+            total_backprop_reward = float(np.sum(backprop_rewards))
+
         # Store episode log (always, even if no losses)
         episode_logs.append(
             {
                 "episode": global_episode + 1,
-                "reward": total_reward,
-                "shaped_reward": total_shaped_reward,
+                "reward": total_reward,  # Original reward
+                "shaped_reward": total_shaped_reward,  # Shaped reward (before backprop)
+                "backprop_reward": total_backprop_reward,  # Reward after backprop
                 "losses": avg_losses,
             }
         )
@@ -618,7 +852,7 @@ def train_run(
         opponent_type = phase_config.opponent.type
 
         loss_info_parts = [
-            f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}",
+            f"Episode {global_episode + 1}: reward={total_reward:.2f}, shaped_reward={total_shaped_reward:.2f}, backprop_reward={total_backprop_reward:.2f}",
             f"env={sampled_mode_str}",
             f"opponent={opponent_type}",
         ]
@@ -692,6 +926,8 @@ def _train_run_vectorized(
     checkpoint_path: Optional[str] = None,
     num_envs: int = 4,
     use_threading: bool = False,
+    run_manager: Optional[RunManager] = None,
+    start_episode: int = 0,
 ):
     """
     Train with vectorized environments (multiple environments in parallel).
@@ -700,6 +936,8 @@ def _train_run_vectorized(
     Args:
         use_threading: If True, use threaded vectorized env (for Pool workers).
                       If False, use multiprocess vectorized env (better performance).
+        run_manager: Optional RunManager instance to reuse (if None, creates a new one)
+        start_episode: Episode number to start training from (for resuming from checkpoint, default 0)
     """
     set_cuda_device(device)
 
@@ -711,7 +949,8 @@ def _train_run_vectorized(
 
     curriculum = load_curriculum(config_path)
 
-    run_manager = RunManager(base_output_dir=base_output_dir)
+    if run_manager is None:
+        run_manager = RunManager(base_output_dir=base_output_dir)
     if run_name is None:
         config_dict = _curriculum_to_dict(curriculum)
         run_name = run_manager.generate_run_name(config_dict) + f"_vec{num_envs}"
@@ -758,6 +997,13 @@ def _train_run_vectorized(
     if verbose:
         print("\n" + agent.log_architecture() + "\n")
 
+    # Log backprop parameters if available
+    if verbose and hasattr(agent, "buffer") and hasattr(agent.buffer, "win_reward_bonus") and hasattr(agent.buffer, "win_reward_discount"):
+        print("REWARD BACKPROPAGATION PARAMETERS:")
+        print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
+        print("")
+
     # Enable fast mode for TDMPC2 if specified in training config
     if hasattr(agent, "set_fast_mode") and training_params.get("use_fast_mode", False):
         agent.set_fast_mode(True)
@@ -797,8 +1043,12 @@ def _train_run_vectorized(
     # Track episode state for each parallel environment
     episode_rewards = [0.0] * num_envs
     episode_shaped_rewards = [0.0] * num_envs
+    episode_scaled_rewards = [
+        [] for _ in range(num_envs)
+    ]  # Track scaled rewards per step for backprop
+    episode_winners = [None] * num_envs  # Track winner for each environment
     episode_steps = [0] * num_envs
-    completed_episodes = 0
+    completed_episodes = start_episode
     # Track losses for current episode (across all training steps)
     current_episode_losses = {}
 
@@ -978,6 +1228,16 @@ def _train_run_vectorized(
 
             scaled_reward = shaped_reward * reward_scale
 
+            # Track scaled rewards for backprop calculation
+            episode_scaled_rewards[i].append(scaled_reward)
+
+            # Get winner information if episode is done (only pass when done=True, not trunc)
+            # Winner is 1 for agent win, -1 for agent loss
+            winner = None
+            if done:
+                winner = info.get("winner", 0)
+                episode_winners[i] = winner
+
             # Store transition
             if is_agent_discrete:
                 discrete_action_array = np.array(
@@ -990,7 +1250,8 @@ def _train_run_vectorized(
                         scaled_reward,
                         next_states[i],
                         done,
-                    )
+                    ),
+                    winner=winner,
                 )
             else:
                 action_array = (
@@ -999,7 +1260,8 @@ def _train_run_vectorized(
                     else actions_p1[i]
                 )
                 agent.store_transition(
-                    (states[i], action_array, scaled_reward, next_states[i], done)
+                    (states[i], action_array, scaled_reward, next_states[i], done),
+                    winner=winner,
                 )
 
             # Track episode stats
@@ -1064,15 +1326,51 @@ def _train_run_vectorized(
                 final_episode_reward = episode_rewards[i]
                 final_episode_shaped_reward = episode_shaped_rewards[i]
 
+                # Calculate backprop reward sum if buffer supports it
+                final_episode_backprop_reward = final_episode_shaped_reward  # Default to shaped reward if no backprop
+                if (
+                    hasattr(agent, "buffer")
+                    and hasattr(agent.buffer, "win_reward_bonus")
+                    and hasattr(agent.buffer, "win_reward_discount")
+                    and episode_winners[i] is not None
+                    and len(episode_scaled_rewards[i]) > 0
+                ):
+                    # Apply backprop to calculate the backprop reward sum
+                    scaled_rewards_array = np.array(
+                        episode_scaled_rewards[i], dtype=np.float32
+                    )
+                    backprop_rewards, _, _ = apply_win_reward_backprop(
+                        scaled_rewards_array,
+                        winner=episode_winners[i],
+                        win_reward_bonus=agent.buffer.win_reward_bonus,
+                        win_reward_discount=agent.buffer.win_reward_discount,
+                        use_torch=False,
+                    )
+                    final_episode_backprop_reward = float(np.sum(backprop_rewards))
+
                 # Reset episode tracking for this environment
                 episode_rewards[i] = 0.0
                 episode_shaped_rewards[i] = 0.0
+                episode_scaled_rewards[i] = []
+                episode_winners[i] = None
                 episode_steps[i] = 0
 
                 # IMPORTANT: We need to manually reset this environment!
                 # The next_states[i] is already the reset state from the vectorized env
                 # But we need to initialize the next episode
                 agent.on_episode_start(completed_episodes)
+
+                # Save 10 random episodes from buffer to CSV every 10 episodes
+                if steps >= warmup_steps and completed_episodes % 10 == 0:
+                    if hasattr(agent, "buffer") and hasattr(agent.buffer, "num_eps"):
+                        if agent.buffer.num_eps >= 10:
+                            _save_random_episodes_to_csv(
+                                agent,
+                                run_manager,
+                                run_name,
+                                num_episodes=10,
+                                save_episode=completed_episodes,
+                            )
 
                 # Log all losses at end of episode
                 # Calculate average losses for this episode
@@ -1086,8 +1384,9 @@ def _train_run_vectorized(
                 episode_logs.append(
                     {
                         "episode": completed_episodes,
-                        "reward": final_episode_reward,
-                        "shaped_reward": final_episode_shaped_reward,
+                        "reward": final_episode_reward,  # Original reward
+                        "shaped_reward": final_episode_shaped_reward,  # Shaped reward (before backprop)
+                        "backprop_reward": final_episode_backprop_reward,  # Reward after backprop
                         "losses": avg_losses,
                     }
                 )
@@ -1106,7 +1405,7 @@ def _train_run_vectorized(
                 opponent_type = current_phase_config.opponent.type
 
                 loss_info_parts = [
-                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}",
+                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}, backprop_reward={final_episode_backprop_reward:.2f}",
                     f"env={sampled_mode_str}",
                     f"opponent={opponent_type}",
                 ]
@@ -1259,8 +1558,10 @@ def _train_run_vectorized(
             }
 
             try:
+                # Convert to absolute path to ensure it works even after cwd changes
+                abs_checkpoint_path = os.path.abspath(str(temp_checkpoint_path))
                 eval_results = evaluate_agent(
-                    agent_path=str(temp_checkpoint_path),
+                    agent_path=abs_checkpoint_path,
                     agent_config_dict=agent_config_dict,
                     num_games=eval_num_games,
                     weak_opponent=eval_weak_opponent,

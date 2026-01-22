@@ -31,12 +31,18 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
                 "shaped_reward": float(row["shaped_reward"])
                 if row["shaped_reward"]
                 else 0.0,
+                "backprop_reward": float(row["backprop_reward"])
+                if row.get("backprop_reward")
+                else 0.0,
                 "losses": {},
             }
 
             # Extract all loss columns
             for key, value in row.items():
-                if key not in ["episode", "reward", "shaped_reward"] and value:
+                if (
+                    key not in ["episode", "reward", "shaped_reward", "backprop_reward"]
+                    and value
+                ):
                     try:
                         episode_log["losses"][key] = float(value)
                     except ValueError:
@@ -323,13 +329,13 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    # folder_path = "results/tdmpc2_runs/2026-01-19_22-19-45"
-    # first one with right buffer
-    folder_path_1 = "results/tdmpc2_runs/2026-01-20_16-45-11"
-    folder_path_2 = "results/tdmpc2_runs/2026-01-20_17-48-56"  # first with right buffer and init moldes
-    folder_path_3 = "results/tdmpc2_runs/2026-01-20_19-33-15"
+    folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
+    folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
+    folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
+    folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
     window_size = 20
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
     plot_episode_logs(folder_path_3, window_size=window_size)
+    plot_episode_logs(folder_path_4, window_size=window_size)

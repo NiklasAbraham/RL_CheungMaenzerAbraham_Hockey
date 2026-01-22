@@ -21,7 +21,9 @@ logging.basicConfig(
     force=True,  # Force reconfiguration if already configured
 )
 
-from rl_hockey.common.training.train_run import train_run
+from rl_hockey.common.training.curriculum_manager import load_curriculum
+from rl_hockey.common.training.run_manager import RunManager
+from rl_hockey.common.training.train_run import _curriculum_to_dict, train_run
 
 
 def train_single_run(
@@ -52,6 +54,26 @@ def train_single_run(
         num_envs: Number of parallel environments (1 = no vectorization, 4-8 recommended)
                     4 cores: use 2, 8 cores: use 4, 12+ cores: use 8 (max recommended)
     """
+    # Load curriculum to generate run_name and save config
+    curriculum = load_curriculum(config_path)
+    config_dict = _curriculum_to_dict(curriculum)
+
+    # Create RunManager to set up directory structure
+    run_manager = RunManager(base_output_dir=base_output_dir)
+
+    # Generate run_name if not provided
+    if run_name is None:
+        run_name = run_manager.generate_run_name(config_dict)
+
+    # Save config file before starting training
+    if verbose:
+        logging.info(f"Saving config file for run: {run_name}")
+    run_manager.save_config(run_name, config_dict)
+    if verbose:
+        logging.info(
+            f"Config saved to: {run_manager.get_run_directories(run_name)['config']}"
+        )
+
     return train_run(
         config_path,
         base_output_dir,
@@ -63,6 +85,7 @@ def train_single_run(
         device=device,
         checkpoint_path=checkpoint_path,
         num_envs=num_envs,
+        run_manager=run_manager,
     )
 
 

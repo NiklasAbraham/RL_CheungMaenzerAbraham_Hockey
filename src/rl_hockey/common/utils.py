@@ -324,3 +324,24 @@ def get_resource_usage() -> Dict[str, Any]:
     
     return metrics
 
+
+def compute_grad_norm(parameters, max_norm=float("inf")):
+    """
+    Compute the gradient norm for a set of parameters.
+    
+    This is a generic utility function that can be used by any agent to compute
+    gradient norms for logging purposes. The gradient norm is computed before
+    any clipping is applied.
+    
+    Args:
+        parameters: Iterable of parameters (e.g., model.parameters()) or a single model
+        max_norm: Maximum norm for clipping (default: inf, meaning no clipping, just compute norm)
+    
+    Returns:
+        Gradient norm as a torch.Tensor (scalar)
+    """
+    if isinstance(parameters, torch.nn.Module):
+        parameters = parameters.parameters()
+    
+    return torch.nn.utils.clip_grad_norm_(list(parameters), max_norm=max_norm)
+

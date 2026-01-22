@@ -77,14 +77,14 @@ class MPPIPlannerSimplePaper(nn.Module):
             a = actions[:, h, :]
             r_logits = reward_predictor(z, a)
             r = two_hot_inv(r_logits, self.num_bins, self.vmin, self.vmax).squeeze(-1)
-            
-            t_logits = termination_predictor(z, a)
-            t_prob = torch.sigmoid(t_logits).squeeze(-1)
-            
             returns += gamma_powers[h] * r * (1 - termination_probs)
-            termination_probs = torch.clip(termination_probs + t_prob, 0, 1)
 
             z = dynamics(z, a).clone()
+
+            t_logits = termination_predictor(z)
+            t_prob = torch.sigmoid(t_logits).squeeze(-1)
+
+            termination_probs = torch.clip(termination_probs + t_prob, 0, 1)
 
         return returns, z, termination_probs
 

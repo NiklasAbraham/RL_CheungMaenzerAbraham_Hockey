@@ -1,252 +1,211 @@
 """
 Continue training from an existing run directory.
-Loads the latest checkpoint and continues training with a simple configuration.
+Loads the latest checkpoint and continues training with the original configuration.
 """
+
 import json
+import logging
 import os
+import sys
 from pathlib import Path
 from typing import Optional, Union
-from rl_hockey.common.training.train_run import train_run
+
+# Configure logging (ensure it's configured before importing train_run)
+# Unbuffer stdout for immediate output in batch jobs
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,  # Force reconfiguration if already configured
+)
+
+# Imports after logging configuration to ensure logging is set up before modules use it
+# ruff: noqa: E402
+from rl_hockey.common.training.curriculum_manager import load_curriculum
+from rl_hockey.common.training.run_manager import RunManager
+from rl_hockey.common.training.train_run import _curriculum_to_dict, train_run
 from rl_hockey.common.utils import set_cuda_device
-import tempfile
 
 
 def find_latest_checkpoint(models_dir: Path) -> Optional[Path]:
-    """Find the latest checkpoint in the models directory."""
+    """Find the latest checkpoint in the models directory, excluding temp evaluation checkpoints."""
     if not models_dir.exists():
         return None
-    
+
     checkpoints = list(models_dir.glob("*.pt"))
     if not checkpoints:
         return None
-    
+
     # Filter out temp evaluation checkpoints
     checkpoints = [c for c in checkpoints if "temp_eval" not in c.name]
-    
+
+    if not checkpoints:
+        return None
+
     # Sort by modification time, most recent first
     checkpoints.sort(key=lambda p: p.stat().st_mtime, reverse=True)
     return checkpoints[0]
 
 
-def get_run_name_from_dir(run_dir: Path) -> Optional[str]:
-    """Extract the run name from the directory structure."""
-    configs_dir = run_dir / "configs"
-    if not configs_dir.exists():
-        return None
-    
-    # Find config files (should be only one per run directory)
-    config_files = list(configs_dir.glob("*.json"))
-    if not config_files:
-        return None
-    
-    # Get run name from config file (remove .json extension)
-    config_file = config_files[0]
-    run_name = config_file.stem
-    return run_name
-
-
-def create_continuation_config(
-    episodes: int = 12000,
-    mixture_weights: dict = None,
-    opponent_type: str = "basic_weak",
-    learning_rate: float = 0.0001,
-    batch_size: int = 256,
-    max_episode_steps: int = 500,
-    updates_per_step: int = 1,
-    warmup_steps: int = 20000,
-    reward_scale: float = 0.5,
-    checkpoint_save_freq: int = 100,
-    agent_type: str = "DDDQN",
-    agent_hyperparameters: dict = None
-) -> dict:
-    """Create a simple continuation config with one mixed training phase."""
-    if mixture_weights is None:
-        mixture_weights = {
-            "TRAIN_SHOOTING": 0.1,
-            "TRAIN_DEFENSE": 0.1,
-            "NORMAL": 0.8
-        }
-    
-    if agent_hyperparameters is None:
-        agent_hyperparameters = {}
-    
-    mixture_list = [
-        {"mode": mode, "weight": weight}
-        for mode, weight in mixture_weights.items()
-    ]
-    
-    config = {
-        "curriculum": {
-            "phases": [
-                {
-                    "name": "continuation_mixed_training",
-                    "episodes": episodes,
-                    "environment": {
-                        "mixture": mixture_list,
-                        "keep_mode": True
-                    },
-                    "opponent": {
-                        "type": opponent_type,
-                        "weight": 1.0
-                    },
-                    "reward_shaping": None
-                }
-            ]
-        },
-        "hyperparameters": {
-            "learning_rate": learning_rate,
-            "batch_size": batch_size
-        },
-        "training": {
-            "max_episode_steps": max_episode_steps,
-            "updates_per_step": updates_per_step,
-            "warmup_steps": warmup_steps,
-            "reward_scale": reward_scale,
-            "checkpoint_save_freq": checkpoint_save_freq
-        },
-        "agent": {
-            "type": agent_type,
-            "hyperparameters": agent_hyperparameters
-        }
-    }
-    
-    return config
-
-
 def train_continue_run(
-    existing_run_dir: str,
-    continuation_config_path: Optional[str] = None,
-    base_output_dir: str = "results/runs",
+    base_path: str,
+    base_output_dir: str = None,
     run_name: str = None,
     verbose: bool = True,
-    eval_freq_steps: int = 100000,
-    eval_num_games: int = 200,
+    eval_freq_steps: int = 100_000,
+    eval_num_games: int = 100,
     eval_weak_opponent: bool = True,
     device: Optional[Union[str, int]] = None,
-    continuation_episodes: int = 12000,
     checkpoint_episode: Optional[int] = None,
-    num_envs: int = 1
+    num_envs: int = 4,
 ):
     """
-    Continue training from an existing run directory.
-    
+    Resume training from the last saved checkpoint in a run directory.
+    Uses the original config from the run directory and continues training.
+
     Args:
-        existing_run_dir: Path to the existing run directory (e.g., "results/hyperparameter_runs/2026-01-03_09-43-53")
-        continuation_config_path: Optional path to a JSON config file for continuation.
-                                  If None, uses default simple continuation config.
-        base_output_dir: Base directory for saving continuation results
-        run_name: Name for the continuation run (if None, generated automatically)
-        verbose: Whether to print progress information
-        eval_freq_steps: Frequency of evaluation in steps
-        eval_num_games: Number of games to run for evaluation
-        eval_weak_opponent: Whether to use weak (True) or strong (False) BasicOpponent for evaluation
-        device: CUDA device to use
-        continuation_episodes: Number of episodes for continuation (used if continuation_config_path is None)
+        base_path: Path to the existing run directory (e.g., "results/tdmpc2_runs/2026-01-21_19-12-44")
+        base_output_dir: Directory for saving results (if None, uses parent of base_path)
+        run_name: Name for this run (if None, extracted from config file)
+        verbose: Print progress
+        eval_freq_steps: Evaluation frequency
+        eval_num_games: Number of evaluation games
+        eval_weak_opponent: Use weak opponent for eval
+        device: CUDA device
         checkpoint_episode: Specific checkpoint episode to load (if None, loads latest)
-        num_envs: Number of parallel environments (1 = single env, 4-8 recommended for speedup)
+        num_envs: Number of parallel environments (1 = no vectorization, 4-8 recommended)
     """
     set_cuda_device(device)
-    
-    existing_run_dir = Path(existing_run_dir)
-    if not existing_run_dir.exists():
-        raise ValueError(f"Existing run directory does not exist: {existing_run_dir}")
-    
-    # Get run name from existing directory
-    run_name_old = get_run_name_from_dir(existing_run_dir)
-    if run_name_old is None:
-        raise ValueError(f"Could not find config file in {existing_run_dir}")
-    
+
+    base_path = Path(base_path)
+    if not base_path.exists():
+        raise ValueError(f"Base path does not exist: {base_path}")
+
+    # Find config file
+    configs_dir = base_path / "configs"
+    if not configs_dir.exists():
+        raise ValueError(f"Configs directory not found: {configs_dir}")
+
+    config_files = list(configs_dir.glob("*.json"))
+    if not config_files:
+        raise ValueError(f"No config file found in {configs_dir}")
+
+    # Use the first config file (should be only one per run)
+    config_file = config_files[0]
     if verbose:
-        print(f"Found existing run: {run_name_old}")
-    
-    # Load existing config to get agent parameters
-    configs_dir = existing_run_dir / "configs"
-    config_file = configs_dir / f"{run_name_old}.json"
-    if not config_file.exists():
-        raise ValueError(f"Config file not found: {config_file}")
-    
-    with open(config_file, 'r') as f:
-        existing_config = json.load(f)
-    
-    # Find latest checkpoint
-    models_dir = existing_run_dir / "models"
+        logging.info(f"Found config file: {config_file}")
+
+    # Extract run_name from config filename if not provided
+    if run_name is None:
+        run_name = config_file.stem
+        if verbose:
+            logging.info(f"Extracted run name: {run_name}")
+
+    # Find checkpoint
+    models_dir = base_path / "models"
     if checkpoint_episode is not None:
-        checkpoint_path = models_dir / f"{run_name_old}_ep{checkpoint_episode:06d}.pt"
+        checkpoint_path = models_dir / f"{run_name}_ep{checkpoint_episode:06d}.pt"
         if not checkpoint_path.exists():
             raise ValueError(f"Specified checkpoint not found: {checkpoint_path}")
     else:
         checkpoint_path = find_latest_checkpoint(models_dir)
         if checkpoint_path is None:
             raise ValueError(f"No checkpoint found in {models_dir}")
-    
+
     if verbose:
-        print(f"Loading checkpoint: {checkpoint_path}")
-    
-    # Create continuation config
-    if continuation_config_path is not None:
-        if not os.path.exists(continuation_config_path):
-            raise ValueError(f"Continuation config file not found: {continuation_config_path}")
-        
-        from rl_hockey.common.training.config_validator import validate_config
-        errors = validate_config(continuation_config_path)
-        if errors:
-            raise ValueError(f"Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors))
-        
-        temp_config_path = continuation_config_path
-        use_temp = False
-    else:
-        # Use default continuation config with parameters from existing config
-        agent_hyperparams = existing_config.get('agent', {}).get('hyperparameters', {})
-        common_hyperparams = existing_config.get('hyperparameters', {})
-        training_params = existing_config.get('training', {})
-        
-        continuation_config_dict = create_continuation_config(
-            episodes=continuation_episodes,
-            learning_rate=common_hyperparams.get('learning_rate', 0.0001),
-            batch_size=common_hyperparams.get('batch_size', 256),
-            max_episode_steps=training_params.get('max_episode_steps', 500),
-            updates_per_step=training_params.get('updates_per_step', 1),
-            warmup_steps=training_params.get('warmup_steps', 20000),
-            reward_scale=training_params.get('reward_scale', 0.5),
-            checkpoint_save_freq=training_params.get('checkpoint_save_freq', 100),
-            agent_type=existing_config.get('agent', {}).get('type', 'DDDQN'),
-            agent_hyperparameters=agent_hyperparams
+        logging.info(f"Found checkpoint: {checkpoint_path}")
+
+    # Load metadata if available
+    start_episode = 0
+    metadata_path = checkpoint_path.parent / f"{checkpoint_path.stem}_metadata.json"
+    if metadata_path.exists():
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        start_episode = metadata.get("episode", 0)
+        if verbose:
+            logging.info(
+                f"Checkpoint metadata: episode={start_episode}, "
+                f"phase_index={metadata.get('phase_index')}, "
+                f"phase_episode={metadata.get('phase_episode')}"
+            )
+            logging.info(f"Resuming training from episode {start_episode}")
+
+    # Determine base_output_dir
+    if base_output_dir is None:
+        # Use parent directory of base_path (e.g., if base_path is results/tdmpc2_runs/2026-01-21_19-12-44,
+        # base_output_dir should be results/tdmpc2_runs)
+        base_output_dir = str(base_path.parent)
+
+    # Load curriculum to verify it's valid
+    curriculum = load_curriculum(str(config_file))
+    config_dict = _curriculum_to_dict(curriculum)
+
+    # Create RunManager to set up directory structure
+    run_manager = RunManager(base_output_dir=base_output_dir)
+
+    # Save config file (this will create a new run directory, but that's okay for resuming)
+    if verbose:
+        logging.info(f"Saving config file for resumed run: {run_name}")
+    run_manager.save_config(run_name, config_dict)
+
+    # Resume training with the checkpoint
+    if verbose:
+        logging.info(f"Resuming training from checkpoint: {checkpoint_path}")
+        logging.info(
+            "Note: Buffer will be empty and will fill up as training continues"
         )
-        
-        # Create temporary config file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(continuation_config_dict, f, indent=2)
-            temp_config_path = f.name
-            use_temp = True
-    
-    try:
-        # Call train_run with the checkpoint path
-        return train_run(
-            config_path=temp_config_path,
-            base_output_dir=base_output_dir,
-            run_name=run_name,
-            verbose=verbose,
-            eval_freq_steps=eval_freq_steps,
-            eval_num_games=eval_num_games,
-            eval_weak_opponent=eval_weak_opponent,
-            device=device,
-            checkpoint_path=str(checkpoint_path),
-            num_envs=num_envs
-        )
-    finally:
-        if use_temp and os.path.exists(temp_config_path):
-            os.remove(temp_config_path)
+
+    return train_run(
+        str(config_file),
+        base_output_dir,
+        run_name,
+        verbose,
+        eval_freq_steps=eval_freq_steps,
+        eval_num_games=eval_num_games,
+        eval_weak_opponent=eval_weak_opponent,
+        device=device,
+        checkpoint_path=str(checkpoint_path),
+        num_envs=num_envs,
+        run_manager=run_manager,
+        start_episode=start_episode,
+    )
 
 
 if __name__ == "__main__":
-    existing_run_dir = "results/hyperparameter_runs/2026-01-03_13-13-37"
-    
+    import torch
+
+    # Enable TF32 for better performance on Ampere+ GPUs
+    if torch.cuda.is_available():
+        torch.set_float32_matmul_precision("high")
+
+    # Auto-detect device
+    if torch.cuda.is_available():
+        device = "cuda:0"
+        print(f"CUDA available: Using GPU {device} ({torch.cuda.get_device_name(0)})")
+    else:
+        device = "cpu"
+        print("CUDA not available: Using CPU")
+
+    # Get num_envs from environment variable if set, otherwise use default
+    num_envs = int(os.environ.get("NUM_ENVS", "4"))
+
+    # Get base_path from environment variable or use default
+    base_path = os.environ.get("RESUME_PATH", "results/tdmpc2_runs/2026-01-21_16-15-43")
+
+    print(f"Resuming training from: {base_path}")
     train_continue_run(
-        existing_run_dir,
-        continuation_config_path=None,  # Uses default continuation config
-        base_output_dir="results/runs",
-        device="cuda:1",
-        continuation_episodes=12000,
+        base_path=base_path,
+        base_output_dir="results/tdmpc2_runs",
+        device=device,
+        num_envs=num_envs,
         verbose=True,
-        num_envs=60  # Use 60 parallel environments for speedup
     )
+
+    # Usage examples:
+    # python -u src/rl_hockey/common/training/train_continue_run.py
+    # RESUME_PATH=results/tdmpc2_runs/2026-01-21_19-12-44 python -u src/rl_hockey/common/training/train_continue_run.py
+    # nohup python -u src/rl_hockey/common/training/train_continue_run.py > results/tdmpc2_runs/train_continue_run.log 2>&1 &
