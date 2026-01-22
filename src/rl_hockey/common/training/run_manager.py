@@ -291,8 +291,8 @@ class RunManager:
         # Sort loss keys for consistent column order
         sorted_loss_keys = sorted(all_loss_keys)
         
-        # Define column order: episode, reward, shaped_reward first, then all loss types
-        csv_keys = ['episode', 'reward', 'shaped_reward'] + sorted_loss_keys
+        # Define column order: episode, reward, shaped_reward, backprop_reward first, then all loss types
+        csv_keys = ['episode', 'reward', 'shaped_reward', 'backprop_reward'] + sorted_loss_keys
         
         with open(csv_path, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -303,6 +303,7 @@ class RunManager:
                     log.get('episode', ''),
                     log.get('reward', ''),
                     log.get('shaped_reward', ''),
+                    log.get('backprop_reward', ''),
                 ]
                 # Add loss values in sorted order
                 losses_dict = log.get('losses', {})

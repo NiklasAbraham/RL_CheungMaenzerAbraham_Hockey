@@ -7,8 +7,14 @@ class Agent(ABC):
     def __init__(self):
         self.buffer = ReplayBuffer()
 
-    def store_transition(self, transition):
-        """Stores a transition in the replay buffer."""
+    def store_transition(self, transition, winner=None):
+        """Stores a transition in the replay buffer.
+
+        Args:
+            transition: (state, action, reward, next_state, done)
+            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
+                Only used by buffers that support reward shaping for wins.
+        """
         self.buffer.store(transition)
 
     @abstractmethod

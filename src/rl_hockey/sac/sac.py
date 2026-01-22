@@ -86,7 +86,7 @@ class SAC(Agent):
             action, _ = self.actor.sample(state, noise=noise, calc_log_prob=False)
 
             return action.squeeze(0).cpu().numpy()
-    
+
     def act_batch(self, states, deterministic=False):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
@@ -97,7 +97,9 @@ class SAC(Agent):
                 noise = torch.zeros((batch_size, self.action_dim), device=DEVICE)
             else:
                 # Sample noise for each state in batch
-                noise = torch.stack([self.noise_dist.sample().to(DEVICE) for _ in range(batch_size)])
+                noise = torch.stack(
+                    [self.noise_dist.sample().to(DEVICE) for _ in range(batch_size)]
+                )
 
             actions, _ = self.actor.sample(states, noise=noise, calc_log_prob=False)
 
@@ -118,6 +120,8 @@ class SAC(Agent):
     def train(self, steps=1):
         critic_losses = []
         actor_losses = []
+        grad_norm_critic = []
+        grad_norm_actor = []
 
         for i in range(steps):
             state, action, reward, next_state, done = self.buffer.sample(
@@ -147,9 +151,16 @@ class SAC(Agent):
 
             self.critic_optimizer.zero_grad()
             critic_loss.backward(retain_graph=True)
+
+            # Compute gradient norm before step
+            grad_norm_critic_val = compute_grad_norm(
+                list(self.critic1.parameters()) + list(self.critic2.parameters())
+            )
+
             self.critic_optimizer.step()
 
             critic_losses.append(critic_loss.item())
+            grad_norm_critic.append(grad_norm_critic_val.item())
 
             # update actor parameters
             current_action, log_prob = self.actor.sample(state)
@@ -161,9 +172,14 @@ class SAC(Agent):
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
+
+            # Compute gradient norm before step
+            grad_norm_actor_val = compute_grad_norm(self.actor.parameters())
+
             self.actor_optimizer.step()
 
             actor_losses.append(actor_loss.item())
+            grad_norm_actor.append(grad_norm_actor_val.item())
 
             # update temperature
             if self.config["learn_alpha"]:
@@ -187,7 +203,12 @@ class SAC(Agent):
             ):
                 pt.data.copy_(self.tau * p.data + (1 - self.tau) * pt.data)
 
-        return {"critic_loss": critic_losses, "actor_loss": actor_losses}
+        return {
+            "critic_loss": critic_losses,
+            "actor_loss": actor_losses,
+            "grad_norm_critic": grad_norm_critic,
+            "grad_norm_actor": grad_norm_actor,
+        }
 
     def save(self, filepath):
         if not os.path.exists(os.path.dirname(filepath)):
@@ -217,7 +238,7 @@ class SAC(Agent):
 
     def load(self, filepath):
         checkpoint = torch.load(filepath, map_location=DEVICE)
-        
+
         # Load state_dim, action_dim, and config if available (for compatibility)
         if "state_dim" in checkpoint:
             self.state_dim = checkpoint["state_dim"]
@@ -243,7 +264,9 @@ class SAC(Agent):
             else:
                 # Old checkpoint without log_alpha, initialize it
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=DEVICE)
-                self.alpha_optimizer = optim.Adam([self.log_alpha], lr=self.learning_rate)
+                self.alpha_optimizer = optim.Adam(
+                    [self.log_alpha], lr=self.learning_rate
+                )
                 self.alpha = self.log_alpha.exp()
 
     def on_episode_start(self, episode):
