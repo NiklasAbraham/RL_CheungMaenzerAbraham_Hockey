@@ -329,13 +329,16 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
-    folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
-    folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
-    folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
+    # folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
+    # folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
+    # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
+    # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
+
+    folder_path_1 = "results/tdmpc2_runs/2026-01-22_09-49-22"
+    folder_path_2 = "results/tdmpc2_runs/2026-01-22_08-43-04"
     window_size = 20
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
-    plot_episode_logs(folder_path_3, window_size=window_size)
-    plot_episode_logs(folder_path_4, window_size=window_size)
+    # plot_episode_logs(folder_path_3, window_size=window_size)
+    # plot_episode_logs(folder_path_4, window_size=window_size)

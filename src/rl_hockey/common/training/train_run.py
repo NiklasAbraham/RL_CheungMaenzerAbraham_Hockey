@@ -4,7 +4,7 @@ import os
 import random
 import sys
 from functools import partial
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 import hockey.hockey_env as h_env
 import numpy as np
@@ -232,6 +232,7 @@ def train_run(
     num_envs: int = 1,
     run_manager: Optional[RunManager] = None,
     start_episode: int = 0,
+    initial_episode_logs: Optional[List[Dict]] = None,
 ):
     """
     Train an agent with curriculum learning.
@@ -249,6 +250,7 @@ def train_run(
         num_envs: Number of parallel environments (1 = single env, 4-8 recommended for speedup)
         run_manager: Optional RunManager instance to reuse (if None, creates a new one)
         start_episode: Episode number to start training from (for resuming from checkpoint, default 0)
+        initial_episode_logs: Optional list of episode logs to preload (for resuming from checkpoint)
     """
     # Route to vectorized training if num_envs > 1
     # Check if we're in a multiprocessing Pool worker to decide which implementation to use
@@ -285,6 +287,7 @@ def train_run(
                 use_threading=is_pool_worker,
                 run_manager=run_manager,
                 start_episode=start_episode,
+                initial_episode_logs=initial_episode_logs,
             )
     # Set CUDA device if specified
     set_cuda_device(device)
@@ -928,6 +931,7 @@ def _train_run_vectorized(
     use_threading: bool = False,
     run_manager: Optional[RunManager] = None,
     start_episode: int = 0,
+    initial_episode_logs: Optional[List[Dict]] = None,
 ):
     """
     Train with vectorized environments (multiple environments in parallel).
@@ -1023,7 +1027,8 @@ def _train_run_vectorized(
     all_losses_dict = {}  # Dictionary to store all loss types: {loss_type: [values]}
     rewards = []
     phases = []
-    episode_logs = []  # List to store episode logs with all loss types
+    # Initialize with old episode logs if resuming
+    episode_logs = initial_episode_logs.copy() if initial_episode_logs else []
     steps = 0
     gradient_steps = 0
     evaluation_results = []
