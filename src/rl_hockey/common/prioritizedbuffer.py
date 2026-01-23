@@ -7,15 +7,15 @@ from rl_hockey.common.sumtree import SumTree
 class PERMemory(ReplayBuffer):  # stored as ( s, a, r, s_, done ) in SumTree
     def __init__(
         self,
-        capacity,
         eps=0.01,
         alpha=0.6,
         beta=0.4,
         beta_increment_per_sampling=0.0001,
+        **kwargs,
     ):
-        super().__init__(max_size=capacity)
-        self.tree = SumTree(capacity)
-        self.capacity = capacity
+        super().__init__(**kwargs)
+        self.tree = SumTree(self.max_size)
+        self.max_size = self.max_size
         self.eps = eps
         self.alpha = alpha
         self.beta = beta
