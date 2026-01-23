@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from rl_hockey.common import *
+import os
 
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -113,6 +114,21 @@ class TD3(Agent):
                 ).clip(-self.max_action, self.max_action)
 
             return action
+        
+
+    def act_batch(self, states, deterministic=False):
+        """Process a batch of states at once (for vectorized environments)"""
+        with torch.no_grad():
+            states = torch.from_numpy(states).to(DEVICE)
+            batch_size = states.shape[0]
+            action = self.actor(states).squeeze(0).cpu().numpy()
+
+            if not deterministic:
+                action += np.random.normal(
+                    0, self.max_action * self.expl_noise, size=(batch_size, self.action_dim)
+                ).clip(-self.max_action, self.max_action)
+
+            return action
 
 
     def evaluate(self, state):
@@ -132,6 +148,9 @@ class TD3(Agent):
 
     def train(self, steps):
         self.total_it += 1
+
+        critic_losses = []
+        actor_losses = []
 
         # Sample replay buffer
         state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
@@ -160,6 +179,8 @@ class TD3(Agent):
             current_Q2, target_Q
         )
 
+        critic_losses.append(critic_loss.item())
+
         # Optimize the critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
@@ -170,6 +191,8 @@ class TD3(Agent):
 
             # Compute actor losse
             actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
+
+            actor_losses.append(actor_loss.item())
 
             # Optimize the actor
             self.actor_optimizer.zero_grad()
@@ -191,20 +214,35 @@ class TD3(Agent):
                     self.tau * param.data + (1 - self.tau) * target_param.data
                 )
 
-    def save(self, filename):
-        torch.save(self.critic.state_dict(), filename + "_critic")
-        torch.save(self.critic_optimizer.state_dict(), filename + "_critic_optimizer")
+        return {"critic_loss": critic_losses, "actor_loss": actor_losses}
 
-        torch.save(self.actor.state_dict(), filename + "_actor")
-        torch.save(self.actor_optimizer.state_dict(), filename + "_actor_optimizer")
+    def save(self, filepath):
+        if not os.path.exists(os.path.dirname(filepath)):
+            os.makedirs(os.path.dirname(filepath))
 
-    def load(self, filename):
-        self.critic.load_state_dict(torch.load(filename + "_critic"))
-        self.critic_optimizer.load_state_dict(
-            torch.load(filename + "_critic_optimizer")
-        )
-        self.critic_target = copy.deepcopy(self.critic)
+        if not filepath.endswith(".pt"):
+            filepath += ".pt"
 
-        self.actor.load_state_dict(torch.load(filename + "_actor"))
-        self.actor_optimizer.load_state_dict(torch.load(filename + "_actor_optimizer"))
-        self.actor_target = copy.deepcopy(self.actor)
+        checkpoint = {
+            "actor": self.actor.state_dict(),
+            "actor_target": self.actor_target.state_dict(),
+            "critic": self.critic.state_dict(),
+            "critic_target": self.critic_target.state_dict(),
+            "actor_optimizer": self.actor_optimizer.state_dict(),
+            "critic_optimizer": self.critic_optimizer.state_dict(),
+        }
+
+        torch.save(checkpoint, filepath)
+
+    def load(self, filepath):
+        checkpoint = torch.load(filepath, map_location=DEVICE)
+
+        self.actor.load_state_dict(checkpoint["actor"])
+        self.actor_target.load_state_dict(checkpoint["actor_target"])
+        self.critic.load_state_dict(checkpoint["critic"])
+        self.critic_target.load_state_dict(checkpoint["critic_target"])
+        self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer"])
+        self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer"])
+
+    def on_episode_start(self, episode):
+        pass
