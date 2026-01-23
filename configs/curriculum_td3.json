@@ -2,37 +2,19 @@
   "curriculum": {
     "phases": [
       {
-        "name": "shooting_basics",
-        "episodes": 8000,
-        "environment": {"mode": "TRAIN_SHOOTING", "keep_mode": true},
-        "opponent": {"type": "none", "weight": 1.0},
-        "reward_shaping": null
-      },
-      {
-        "name": "defense_basics",
-        "episodes": 8000,
-        "environment": {"mode": "TRAIN_DEFENSE", "keep_mode": true},
-        "opponent": {"type": "basic_weak", "weight": 1.0},
-        "reward_shaping": null
-      },
-      {
         "name": "integration_phase",
-        "episodes": 20000,
+        "episodes": 100000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
+          "weight": 1.0,
+          "checkpoint": null,
+          "deterministic": true,
           "opponents": [
-            {"type": "basic_weak", "weight": 0.55},
-            {"type": "basic_strong", "weight": 0.45}
+            {"type": "basic_weak", "weight": 0.5},
+            {"type": "basic_strong", "weight": 0.5}
           ]
         },
-        "reward_shaping": null
-      },
-      {
-        "name": "full_competency",
-        "episodes": 40000,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {"type": "basic_strong", "weight": 1.0},
         "reward_shaping": null
       }
     ]
@@ -45,21 +27,23 @@
     "max_episode_steps": 500,
     "updates_per_step": 1,
     "warmup_steps": 80000,
-    "reward_scale": 0.5,
+    "reward_scale": 1,
     "checkpoint_save_freq": 5000
   },
     "agent": {
       "type": "TD3",
       "hyperparameters": {
-            "learning_rate": 3e-4,
+            "learning_rate": 5e-4,
             "max_action": 1.0,
-            "discount": 0.99,
+            "discount": 0.99999,
             "tau": 0.005,
             "expl_noise": 0.1,
             "policy_noise": 0.2,
             "noise_clip": 0.5,
             "policy_freq": 2,
-            "batch_size": 1024
+            "batch_size": 1024,
+            "priority_replay": true,
+            "normalize_obs": true
       }
     }
   }
