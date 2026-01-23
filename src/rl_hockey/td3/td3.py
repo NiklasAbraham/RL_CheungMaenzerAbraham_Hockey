@@ -11,57 +11,6 @@ import os
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# class Actor(nn.Module):
-#     def __init__(self, state_dim, action_dim, max_action):
-#         super(Actor, self).__init__()
-
-#         self.l1 = nn.Linear(state_dim, 256)
-#         self.l2 = nn.Linear(256, 256)
-#         self.l3 = nn.Linear(256, action_dim)
-
-#         self.max_action = max_action
-
-#     def forward(self, state):
-#         a = F.relu(self.l1(state))
-#         a = F.relu(self.l2(a))
-#         return self.max_action * torch.tanh(self.l3(a))
-
-
-# class Critic(nn.Module):
-#     def __init__(self, state_dim, action_dim):
-#         super(Critic, self).__init__()
-
-#         # Q1 architecture
-#         self.l1 = nn.Linear(state_dim + action_dim, 256)
-#         self.l2 = nn.Linear(256, 256)
-#         self.l3 = nn.Linear(256, 1)
-
-#         # Q2 architecture
-#         self.l4 = nn.Linear(state_dim + action_dim, 256)
-#         self.l5 = nn.Linear(256, 256)
-#         self.l6 = nn.Linear(256, 1)
-
-#     def forward(self, state, action):
-#         sa = torch.cat([state, action], 1)
-
-#         q1 = F.relu(self.l1(sa))
-#         q1 = F.relu(self.l2(q1))
-#         q1 = self.l3(q1)
-
-#         q2 = F.relu(self.l4(sa))
-#         q2 = F.relu(self.l5(q2))
-#         q2 = self.l6(q2)
-#         return q1, q2
-
-#     def Q1(self, state, action):
-#         sa = torch.cat([state, action], 1)
-
-#         q1 = F.relu(self.l1(sa))
-#         q1 = F.relu(self.l2(q1))
-#         q1 = self.l3(q1)
-#         return q1
-
-
 class TD3(Agent):
     def __init__(
         self,
@@ -69,7 +18,6 @@ class TD3(Agent):
         action_dim,
         **user_config
     ):
-        super().__init__()
 
         self.config = {
             "learning_rate": 3e-4,
@@ -83,8 +31,11 @@ class TD3(Agent):
             "batch_size": 256,
             "latent_dim": [256, 256],
             "activation": nn.ReLU,
+            "priority_replay": False,
+            "normalize_obs": False
         }
         self.config.update(user_config)
+        super().__init__(priority_replay=self.config["priority_replay"], normalize_obs=self.config["normalize_obs"])
 
         self.actor = Actor(state_dim, action_dim, self.config["latent_dim"], self.config["activation"], self.config["max_action"]).to(DEVICE)
         self.actor_target = copy.deepcopy(self.actor)
@@ -104,6 +55,7 @@ class TD3(Agent):
         self.noise_clip = self.config["noise_clip"]
         self.policy_freq = self.config["policy_freq"]
         self.batch_size = self.config["batch_size"]
+        self.priority_replay = self.config["priority_replay"]
 
         self.total_it = 0
 
@@ -155,7 +107,11 @@ class TD3(Agent):
         self.total_it += 1
 
         # Sample replay buffer
-        state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
+        if self.priority_replay:
+            (state, action, reward, next_state, done), tree_indices, importance_weights = self.buffer.sample(self.batch_size)
+            importance_weights = torch.from_numpy(importance_weights).to(dtype=torch.float32, device=DEVICE).unsqueeze(-1)
+        else:
+            state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
 
         state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
         action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
@@ -176,10 +132,24 @@ class TD3(Agent):
         # Get current Q estimates
         current_Q1, current_Q2 = self.critic(state, action)
 
-        # Compute critic loss
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-            current_Q2, target_Q
-        )
+        if self.priority_replay:
+            td_errors_q1 = torch.abs(current_Q1 - target_Q).detach().cpu().numpy()
+            td_errors_q2 = torch.abs(current_Q2 - target_Q).detach().cpu().numpy()
+            td_errors = td_errors_q1 + td_errors_q2
+
+            for i in range(self.batch_size):
+                idx = tree_indices[i]
+                self.buffer.update(idx, td_errors[i])
+
+            critic_loss = F.mse_loss(current_Q1, target_Q, reduction='none') + \
+                          F.mse_loss(current_Q2, target_Q, reduction='none')
+            critic_loss = (importance_weights * critic_loss).mean()
+
+        else:
+            # Compute critic loss
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+                current_Q2, target_Q
+            )
     
         critic_losses.append(critic_loss.item())
 
@@ -191,7 +161,7 @@ class TD3(Agent):
         # Delayed policy updates
         if self.total_it % self.policy_freq == 0:
 
-            # Compute actor losse
+            # Compute actor loss
             actor_loss = -self.critic.Q1(state, self.actor(state)).mean()
             actor_losses.append(actor_loss.item())
 
@@ -236,7 +206,7 @@ class TD3(Agent):
         torch.save(checkpoint, filepath)
 
     def load(self, filepath):
-        checkpoint = torch.load(filepath)
+        checkpoint = torch.load(filepath, map_location=DEVICE)
 
         self.actor.load_state_dict(checkpoint["actor"])
         self.actor_target.load_state_dict(checkpoint["actor_target"])

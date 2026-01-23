@@ -6,7 +6,7 @@ from rl_hockey.common.segment_tree import MinSegmentTree, SumSegmentTree
 
 
 class ReplayBuffer:
-    def __init__(self, max_size=1_000_000):
+    def __init__(self, max_size=1_000_000, normalize_obs = False):
         self.max_size = max_size
         self.current_idx = 0
         self.size = 0
@@ -16,6 +16,22 @@ class ReplayBuffer:
         self.next_state = None
         self.reward = None
         self.done = None
+        self.normalize_obs = normalize_obs
+
+        self.obs_mean = None
+        self.obs_M2 = None
+
+    def normalize(self, state: np.ndarray):
+        normalized_state = (state - self.obs_mean) / (np.sqrt(self.obs_M2 / self.size) + 1e-8)
+        return normalized_state
+
+
+    def update_obs_stats(self, state: np.ndarray):
+        delta = state - self.obs_mean
+        self.obs_mean += delta / self.size
+        delta2 = state - self.obs_mean
+        self.obs_M2 += delta * delta2
+
 
     def store(self, transition):
         state, action, reward, next_state, done = transition
@@ -27,14 +43,21 @@ class ReplayBuffer:
             self.reward = np.empty((self.max_size, 1), dtype=np.float32)
             self.done = np.empty((self.max_size, 1), dtype=np.float32)
 
+            self.obs_mean = np.zeros_like(state, dtype=np.float32)
+            self.obs_M2 = np.zeros_like(state, dtype=np.float32)
+
+        # Update observation statistics
+        self.current_idx = (self.current_idx + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
+        self.update_obs_stats(state)
+        self.update_obs_stats(next_state)
+
         self.state[self.current_idx] = state
         self.action[self.current_idx] = action
         self.next_state[self.current_idx] = next_state
         self.reward[self.current_idx] = reward
         self.done[self.current_idx] = done
 
-        self.current_idx = (self.current_idx + 1) % self.max_size
-        self.size = min(self.size + 1, self.max_size)
 
     def sample(self, batch_size):
         if batch_size > self.size:
@@ -42,12 +65,22 @@ class ReplayBuffer:
 
         idx = np.random.randint(0, self.size, size=batch_size)
 
+        state = self.state[idx]
+        action = self.action[idx]
+        reward = self.reward[idx]
+        next_state = self.next_state[idx]
+        done = self.done[idx]
+
+        if self.normalize_obs:
+            state = self.normalize(state)
+            next_state = self.normalize(next_state)
+
         return (
-            self.state[idx],
-            self.action[idx],
-            self.reward[idx],
-            self.next_state[idx],
-            self.done[idx],
+            state,
+            action,
+            reward,
+            next_state,
+            done,
         )
 
     def clear(self):

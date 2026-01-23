@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
 
+from rl_hockey.common.prioritizedbuffer import PERMemory
 from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
-    def __init__(self):
-        self.buffer = ReplayBuffer()
-
+    def __init__(self, priority_replay: bool = False, normalize_obs: bool = False):
+        if priority_replay:
+            self.buffer = PERMemory(normalize_obs=normalize_obs)
+        else:
+            self.buffer = ReplayBuffer(normalize_obs=normalize_obs)
     def store_transition(self, transition):
         """Stores a transition in the replay buffer."""
         self.buffer.store(transition)
