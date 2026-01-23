@@ -33,7 +33,15 @@
         "episodes": 40000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {"type": "basic_strong", "weight": 1.0},
-        "reward_shaping": null
+        "reward_shaping": {
+          "N": 150,
+          "K": 150,
+          "CLOSENESS_START": 20,
+          "TOUCH_START": 15,
+          "CLOSENESS_FINAL": 15,
+          "TOUCH_FINAL": 1,
+          "DIRECTION_FINAL": 2
+        }
       }
     ]
   },
