@@ -41,17 +41,8 @@ class QEnsemble(nn.Module):
         return q_list
 
     def min(self, latent, action):
-        """Returns minimum Q-value from ensemble."""
-        q_list = self.forward(latent, action)
-        q_values = torch.cat(
-            [
-                two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
-                for q_logits in q_list
-            ],
-            dim=1,
-        )
-        min_val = q_values.min(dim=1, keepdim=True)[0]
-        return min_val
+        """Returns minimum Q-value from a subsampled ensemble."""
+        return self.min_subsample(latent, action, k=2)
 
     def min_subsample(self, latent, action, k=2):
         """Returns minimum Q-value from k sampled heads."""
