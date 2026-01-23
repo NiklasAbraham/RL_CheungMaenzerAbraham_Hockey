@@ -548,26 +548,80 @@ def train_run(
 
             if reward_weights is not None:
                 shaped_reward = reward
-                shaped_reward += (
-                    info.get("reward_closeness_to_puck", 0.0)
-                    * reward_weights["closeness"]
+                closeness_raw = info.get("reward_closeness_to_puck", 0.0)
+                touch_raw = info.get("reward_touch_puck", 0.0)
+                direction_raw = info.get("reward_puck_direction", 0.0)
+
+                closeness_contribution = closeness_raw * reward_weights["closeness"]
+                touch_contribution = touch_raw * reward_weights["touch"]
+                direction_contribution = direction_raw * reward_weights["direction"]
+
+                shaped_reward += closeness_contribution
+                shaped_reward += touch_contribution
+                shaped_reward += direction_contribution
+
+                # Debug logging when shaped_reward is unusually high (potential bug indicator)
+                # Also log around episode 90, step 17 range
+                should_log = (
+                    abs(shaped_reward) > 25.0  # Unusually high reward
                 )
-                shaped_reward += (
-                    info.get("reward_touch_puck", 0.0) * reward_weights["touch"]
-                )
-                shaped_reward += (
-                    info.get("reward_puck_direction", 0.0) * reward_weights["direction"]
-                )
+
+                if should_log:
+                    logger.warning(
+                        f"[DEBUG REWARD] global_ep={global_episode}, step={t}: "
+                        f"base_reward={reward:.6f}, "
+                        f"closeness_raw={closeness_raw:.6f}, "
+                        f"touch_raw={touch_raw:.6f}, "
+                        f"direction_raw={direction_raw:.6f}, "
+                        f"weights_closeness={reward_weights['closeness']:.6f}, "
+                        f"weights_touch={reward_weights['touch']:.6f}, "
+                        f"weights_direction={reward_weights['direction']:.6f}, "
+                        f"closeness_contrib={closeness_contribution:.6f}, "
+                        f"touch_contrib={touch_contribution:.6f}, "
+                        f"direction_contrib={direction_contribution:.6f}, "
+                        f"shaped_reward={shaped_reward:.6f}, "
+                        f"reward_scale={reward_scale:.6f}"
+                    )
             else:
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
+
+            # Debug logging for scaled reward (after scaling)
+            should_log_scaled = (
+                abs(scaled_reward) > 25.0  # Unusually high reward
+                or (
+                    global_episode >= 89
+                    and global_episode <= 91
+                    and t >= 15
+                    and t <= 19
+                )
+            )
+
+            if should_log_scaled:
+                logger.warning(
+                    f"[DEBUG SCALED] global_ep={global_episode}, step={t}: "
+                    f"scaled_reward={scaled_reward:.6f}, "
+                    f"done={done}, "
+                    f"winner={info.get('winner', None)}"
+                )
+
+            # Track scaled rewards for backprop calculation
+            episode_scaled_rewards.append(scaled_reward)
 
             # Get winner information if episode is done (only pass when done=True, not trunc)
             # Winner is 1 for agent win, -1 for agent loss
             winner = None
             if done:
                 winner = info.get("winner", 0)
+                episode_winner = winner
+
+            # Check if buffer is episode-based (TDMPC2) - skip inline mirroring
+            # Episode-based buffers accumulate transitions into a single episode,
+            # so storing mirrored transitions would double/triple rewards incorrectly
+            is_episode_based_buffer = hasattr(agent, "buffer") and hasattr(
+                agent.buffer, "_episodes"
+            )
 
             if is_agent_discrete:
                 # Pre-allocate array once and reuse (optimization)
@@ -577,7 +631,11 @@ def train_run(
                     winner=winner,
                 )
 
-                if current_opponent is None or phase_config.opponent.type == "none":
+                # Only store mirrored transitions for transition-based buffers
+                # For episode-based buffers, this would corrupt the episode structure
+                if not is_episode_based_buffer and (
+                    current_opponent is None or phase_config.opponent.type == "none"
+                ):
                     if action_fineness is not None:
                         mirrored_action = utils.mirror_discrete_action(
                             discrete_action,
@@ -610,7 +668,11 @@ def train_run(
                     winner=winner,
                 )
 
-                if current_opponent is None or phase_config.opponent.type == "none":
+                # Only store mirrored transitions for transition-based buffers
+                # For episode-based buffers, this would corrupt the episode structure
+                if not is_episode_based_buffer and (
+                    current_opponent is None or phase_config.opponent.type == "none"
+                ):
                     mirrored_action_array = utils.mirror_action(action_array)
                     agent.store_transition(
                         (
@@ -1232,20 +1294,69 @@ def _train_run_vectorized(
             # Apply reward shaping
             if reward_weights is not None:
                 shaped_reward = reward
-                shaped_reward += (
-                    info.get("reward_closeness_to_puck", 0.0)
-                    * reward_weights["closeness"]
+                closeness_raw = info.get("reward_closeness_to_puck", 0.0)
+                touch_raw = info.get("reward_touch_puck", 0.0)
+                direction_raw = info.get("reward_puck_direction", 0.0)
+
+                closeness_contribution = closeness_raw * reward_weights["closeness"]
+                touch_contribution = touch_raw * reward_weights["touch"]
+                direction_contribution = direction_raw * reward_weights["direction"]
+
+                shaped_reward += closeness_contribution
+                shaped_reward += touch_contribution
+                shaped_reward += direction_contribution
+
+                # Debug logging when shaped_reward is unusually high (potential bug indicator)
+                # Also log around episode 90, step 17 range
+                should_log = (
+                    abs(shaped_reward) > 25.0  # Unusually high reward
+                    or (
+                        completed_episodes >= 89
+                        and completed_episodes <= 91
+                        and episode_steps[i] >= 15
+                        and episode_steps[i] <= 19
+                    )
                 )
-                shaped_reward += (
-                    info.get("reward_touch_puck", 0.0) * reward_weights["touch"]
-                )
-                shaped_reward += (
-                    info.get("reward_puck_direction", 0.0) * reward_weights["direction"]
-                )
+
+                if should_log:
+                    logger.warning(
+                        f"[DEBUG REWARD] env={i}, completed_ep={completed_episodes}, step={episode_steps[i]}: "
+                        f"base_reward={reward:.6f}, "
+                        f"closeness_raw={closeness_raw:.6f}, "
+                        f"touch_raw={touch_raw:.6f}, "
+                        f"direction_raw={direction_raw:.6f}, "
+                        f"weights_closeness={reward_weights['closeness']:.6f}, "
+                        f"weights_touch={reward_weights['touch']:.6f}, "
+                        f"weights_direction={reward_weights['direction']:.6f}, "
+                        f"closeness_contrib={closeness_contribution:.6f}, "
+                        f"touch_contrib={touch_contribution:.6f}, "
+                        f"direction_contrib={direction_contribution:.6f}, "
+                        f"shaped_reward={shaped_reward:.6f}, "
+                        f"reward_scale={reward_scale:.6f}"
+                    )
             else:
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
+
+            # Debug logging for scaled reward (after scaling)
+            should_log_scaled = (
+                abs(scaled_reward) > 25.0  # Unusually high reward
+                or (
+                    completed_episodes >= 89
+                    and completed_episodes <= 91
+                    and episode_steps[i] >= 15
+                    and episode_steps[i] <= 19
+                )
+            )
+
+            if should_log_scaled:
+                logger.warning(
+                    f"[DEBUG SCALED] env={i}, completed_ep={completed_episodes}, step={episode_steps[i]}: "
+                    f"scaled_reward={scaled_reward:.6f}, "
+                    f"done={done}, "
+                    f"winner={info.get('winner', None)}"
+                )
 
             # Track scaled rewards for backprop calculation
             episode_scaled_rewards[i].append(scaled_reward)
