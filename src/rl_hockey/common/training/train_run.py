@@ -502,8 +502,7 @@ def train_run(
 
         for t in range(max_episode_steps):
             if is_agent_discrete:
-                discrete_actions = agent.act_batch(state[None, :])
-                discrete_action = discrete_actions[0]
+                discrete_action = agent.act(state)
                 if action_fineness is not None:
                     action_p1 = discrete_to_continuous_action_with_fineness(
                         discrete_action,
@@ -515,9 +514,7 @@ def train_run(
                         discrete_action
                     )
             else:
-                t0s = np.array([t == 0], dtype=bool)
-                actions_p1 = agent.act_batch(state[None, :], t0s=t0s)
-                action_p1 = actions_p1[0]
+                action_p1 = agent.act(state, t0=(t == 0))
 
             obs_agent2 = current_env.obs_agent_two()
             deterministic_opponent = (

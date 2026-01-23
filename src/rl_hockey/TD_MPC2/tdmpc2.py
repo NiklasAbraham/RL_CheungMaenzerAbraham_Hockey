@@ -65,9 +65,9 @@ class TDMPC2(Agent):
         vmax=10.0,
         tau=0.01,
         grad_clip_norm=20.0,
-        consistency_coef=10.0,
-        reward_coef=0.5,
-        value_coef=0.3,
+        consistency_coef=20.0,
+        reward_coef=0.1,
+        value_coef=0.1,
         termination_coef=0.5,
         n_step=1,
         win_reward_bonus=10.0,
@@ -704,7 +704,7 @@ class TDMPC2(Agent):
 
             # Mark step boundary for CUDAGraphs to enable fast path
             # This ensures all backward operations are complete before next forward pass
-            if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+            if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
 
             policy_loss, grad_norm_policy = self._update_policy(zs.detach())
@@ -803,7 +803,7 @@ class TDMPC2(Agent):
 
         # Mark step boundary for CUDAGraphs before forward pass
         # This helps CUDAGraphs use the fast path by ensuring clean state
-        if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+        if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
             torch.compiler.cudagraph_mark_step_begin()
 
         num_states = zs.shape[0]
@@ -851,7 +851,7 @@ class TDMPC2(Agent):
         self.pi_optimizer.zero_grad(set_to_none=True)
 
         # Mark step boundary after policy update completes
-        if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+        if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
             torch.compiler.cudagraph_mark_step_begin()
 
         return pi_loss.detach(), grad_norm_policy
