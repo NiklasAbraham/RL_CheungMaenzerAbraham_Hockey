@@ -157,23 +157,27 @@ class ReplayBuffer:
                 idx = torch.randint(0, self.size, (batch_size,), device=self.device)
             else:
                 idx = torch.randint(0, self.size, (batch_size,))
-            return (
-                self.state[idx],
-                self.action[idx],
-                self.reward[idx],
-                self.next_state[idx],
-                self.done[idx],
-            )
+            
+            state = self.state[idx]
+            action = self.action[idx]
+            reward = self.reward[idx]
+            next_state = self.next_state[idx]
+            done = self.done[idx]
+            
 
         else:
             idx = np.random.randint(0, self.size, size=batch_size)
-            return (
-                self.state[idx],
-                self.action[idx],
-                self.reward[idx],
-                self.next_state[idx],
-                self.done[idx],
-            )
+            state = self.state[idx]
+            action = self.action[idx]
+            reward = self.reward[idx]
+            next_state = self.next_state[idx]
+            done = self.done[idx]
+
+        if self.normalize_obs:
+            state = self.normalize(state)
+            next_state = self.normalize(next_state)
+
+        return state, action, reward, next_state, done
 
     def _is_valid_sequence_start(self, start_idx, horizon):
         """Check if a sequence starting at start_idx is valid (no terminals, no wrap)."""
