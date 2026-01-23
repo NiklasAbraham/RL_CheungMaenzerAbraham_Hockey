@@ -37,7 +37,7 @@ cd "$PROJECT_DIR"
 
 # Set MODEL_PATH to the most recent model file
 # Update this path to use a different model if needed
-export MODEL_PATH="$PROJECT_DIR/results/tdmpc2_runs/2026-01-22_08-42-36/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260121_161543_ep002100.pt"
+export MODEL_PATH="$PROJECT_DIR/results/tdmpc2_runs/2026-01-22_08-42-36/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260121_161543_ep003700.pt"
 
 # Run the agent video script using singularity
 # Since the container is read-only, we can't install packages into /venv

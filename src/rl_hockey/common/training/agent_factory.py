@@ -89,6 +89,8 @@ def create_agent(
         vmin = agent_hyperparams.pop("vmin", -10.0)
         vmax = agent_hyperparams.pop("vmax", 10.0)
         n_step = agent_hyperparams.pop("n_step", 1)
+        win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
+        win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
 
         # Use provided device or default to CPU/CUDA
         if device is None:
@@ -118,6 +120,8 @@ def create_agent(
             vmin=vmin,
             vmax=vmax,
             n_step=n_step,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
         )
     elif agent_config.type == "TDMPC2_REPO":
         # TD-MPC2 reference repo wrapper specific parameters
