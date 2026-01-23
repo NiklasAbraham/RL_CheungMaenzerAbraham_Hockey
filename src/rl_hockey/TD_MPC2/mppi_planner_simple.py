@@ -56,7 +56,13 @@ class MPPIPlannerSimplePaper(nn.Module):
         self.register_buffer("_prev_mean", None)
 
     def rollout_trajectories(
-        self, z_init, actions, dynamics, reward_predictor, termination_predictor, gamma=0.99
+        self,
+        z_init,
+        actions,
+        dynamics,
+        reward_predictor,
+        termination_predictor,
+        gamma=0.99,
     ):
         """Rollout trajectories in latent space."""
         num_samples, horizon, action_dim = actions.shape
@@ -77,15 +83,14 @@ class MPPIPlannerSimplePaper(nn.Module):
             a = actions[:, h, :]
             r_logits = reward_predictor(z, a)
             r = two_hot_inv(r_logits, self.num_bins, self.vmin, self.vmax).squeeze(-1)
-            returns += gamma_powers[h] * r * (1 - termination_probs)
 
-            z = dynamics(z, a).clone()
-
-            t_logits = termination_predictor(z)
+            t_logits = termination_predictor(z, a)
             t_prob = torch.sigmoid(t_logits).squeeze(-1)
 
+            returns += gamma_powers[h] * r * (1 - termination_probs)
             termination_probs = torch.clip(termination_probs + t_prob, 0, 1)
 
+            z = dynamics(z, a).clone()
         return returns, z, termination_probs
 
     def plan(self, latent, return_mean=True, t0=False, return_stats=False):
@@ -161,7 +166,12 @@ class MPPIPlannerSimplePaper(nn.Module):
             actions_reshaped = actions.transpose(0, 1)
 
             returns, final_z, final_termination_probs = self.rollout_trajectories(
-                latent, actions_reshaped, self.dynamics, self.reward, self.termination, self.gamma
+                latent,
+                actions_reshaped,
+                self.dynamics,
+                self.reward,
+                self.termination,
+                self.gamma,
             )
 
             final_actions = self.policy.mean_action(final_z)
@@ -170,7 +180,9 @@ class MPPIPlannerSimplePaper(nn.Module):
                 terminal_gamma = self.gamma_powers[self.horizon]
             else:
                 terminal_gamma = self.gamma**self.horizon
-            returns += terminal_gamma * q_values.squeeze(-1) * (1 - final_termination_probs)
+            returns += (
+                terminal_gamma * q_values.squeeze(-1) * (1 - final_termination_probs)
+            )
 
             returns = returns.nan_to_num(0)
 
@@ -202,9 +214,7 @@ class MPPIPlannerSimplePaper(nn.Module):
             score = score / (score.sum() + 1e-9)
 
             score_expanded = score.unsqueeze(0).unsqueeze(-1)
-            mean = (score_expanded * elite_actions).sum(dim=1) / (
-                score.sum() + 1e-9
-            )
+            mean = (score_expanded * elite_actions).sum(dim=1) / (score.sum() + 1e-9)
 
             mean_expanded = mean.unsqueeze(1)
             std = (
@@ -219,9 +229,11 @@ class MPPIPlannerSimplePaper(nn.Module):
         rand_idx = gumbel_softmax_sample(score)
         action = elite_actions[0, rand_idx, :]
         final_std = std[0]
-        
+
         if not return_mean:
-            action = action + final_std * torch.randn(self.action_dim, device=action.device)
+            action = action + final_std * torch.randn(
+                self.action_dim, device=action.device
+            )
             action = action.clamp(-1, 1)
 
         if return_stats:

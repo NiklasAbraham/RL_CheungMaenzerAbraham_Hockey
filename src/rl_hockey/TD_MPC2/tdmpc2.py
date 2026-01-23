@@ -702,6 +702,11 @@ class TDMPC2(Agent):
             self.optimizer.step()
             self.optimizer.zero_grad(set_to_none=True)
 
+            # Mark step boundary for CUDAGraphs to enable fast path
+            # This ensures all backward operations are complete before next forward pass
+            if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+                torch.compiler.cudagraph_mark_step_begin()
+
             policy_loss, grad_norm_policy = self._update_policy(zs.detach())
             self._update_target_network(tau=self.tau)
             if steps == 1:
@@ -796,6 +801,11 @@ class TDMPC2(Agent):
         """Update policy to maximize Q-values + entropy."""
         self.pi_optimizer.zero_grad()
 
+        # Mark step boundary for CUDAGraphs before forward pass
+        # This helps CUDAGraphs use the fast path by ensuring clean state
+        if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+            torch.compiler.cudagraph_mark_step_begin()
+
         num_states = zs.shape[0]
         batch_size = zs.shape[1]
         zs_flat = zs.reshape(-1, zs.shape[-1])
@@ -839,6 +849,10 @@ class TDMPC2(Agent):
         )
         self.pi_optimizer.step()
         self.pi_optimizer.zero_grad(set_to_none=True)
+
+        # Mark step boundary after policy update completes
+        if hasattr(torch.compiler, 'cudagraph_mark_step_begin'):
+            torch.compiler.cudagraph_mark_step_begin()
 
         return pi_loss.detach(), grad_norm_policy
 
