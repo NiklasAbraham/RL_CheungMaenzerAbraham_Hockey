@@ -76,7 +76,6 @@ dependencies:
       - glob2==0.7
       - gymnasium==1.2.2
       - h11==0.16.0
-      - hockey==2.6
       - httpcore==1.0.9
       - idna==3.11
       - ipykernel==7.1.0
@@ -162,7 +161,6 @@ dependencies:
       - rfc3339-validator==0.1.4
       - rfc3986-validator==0.1.1
       - rfc3987-syntax==1.1.0
-      - rl-hockey==0.1.0
       - rpds-py==0.29.0
       - send2trash==1.8.3
       - sentry-sdk==2.46.0
