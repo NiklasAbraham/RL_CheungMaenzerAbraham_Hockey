@@ -7,6 +7,7 @@ Supports vectorized environments for faster training.
 import logging
 import sys
 from typing import Optional, Union
+from pathlib import Path
 
 # Configure logging (ensure it's configured before importing train_run)
 # Unbuffer stdout for immediate output in batch jobs
@@ -73,7 +74,9 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_tdmpc2.json"
+    SCRIPT_DIR = Path(__file__).parent.absolute()
+
+    path_to_config = SCRIPT_DIR / "../../../../configs/curriculum_sac.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
@@ -87,14 +90,14 @@ if __name__ == "__main__":
     import os
 
     num_envs = int(
-        os.environ.get("NUM_ENVS", "1")
+        os.environ.get("NUM_ENVS", "12")
     )  # Default to 4 for parallel environments
 
     train_single_run(
         path_to_config,
-        base_output_dir="results/tdmpc2_runs",
+        base_output_dir="results/sac_runs",
         device=device,
         num_envs=num_envs,
     )
 
-    # nohup python -u src/rl_hockey/common/training/train_single_run.py > results/tdmpc2_runs/train_single_run.log 2>&1 &
+    # nohup python -u src/rl_hockey/common/training/train_single_run.py > results/sac_runs/train_single_run.log 2>&1 &
