@@ -7,9 +7,6 @@ from typing import Optional, Union
 import hockey.hockey_env as h_env
 import numpy as np
 
-from rl_hockey.common.evaluation.value_propagation import evaluate_episodes
-
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -299,7 +296,6 @@ def train_run(
             phase_config.opponent.type == "self_play"
             and phase_config.opponent.checkpoint is None
         ):
-            # TODO use matchmaker
             current_opponent = sample_opponent(
                 phase_config.opponent,
                 agent=agent,
@@ -324,7 +320,7 @@ def train_run(
                         discrete_action
                     )
             else:
-                action_p1 = agent.act(state)
+                action_p1 = agent.act(state, t0=(t == 0))
 
             obs_agent2 = current_env.obs_agent_two()
             deterministic_opponent = (
@@ -513,8 +509,6 @@ def train_run(
                         device=device,
                     )
 
-                    q_values = evaluate_episodes(agent, "src/rl_hockey/common/evaluation/episodes.npy")
-
                     evaluation_results.append(
                         {
                             "step": steps,
@@ -525,14 +519,12 @@ def train_run(
                             "wins": eval_results["wins"],
                             "losses": eval_results["losses"],
                             "draws": eval_results["draws"],
-                            "q_values": q_values,
                         }
                     )
 
                     if evaluation_results:
                         run_manager.save_evaluation_plot(run_name, evaluation_results)
                         run_manager.save_evaluation_csv(run_name, evaluation_results)
-                        run_manager.save_value_propagation_plot(run_name, evaluation_results)
 
                     if verbose:
                         print(
@@ -714,7 +706,7 @@ def _train_run_vectorized(
     errors = validate_config(config_path)
     if errors:
         raise ValueError(
-            f"Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors)
+            "Configuration errors:\n" + "\n".join(f"  - {e}" for e in errors)
         )
 
     curriculum = load_curriculum(config_path)
@@ -893,7 +885,7 @@ def _train_run_vectorized(
     while completed_episodes < total_episodes:
         # Get actions for all environments (batched!)
         if is_agent_discrete:
-            discrete_actions = agent.act_batch(states)
+            discrete_actions = agent.act_batch(states, t0s=t0s)
             if action_fineness is not None:
                 actions_p1 = np.array(
                     [
@@ -916,7 +908,7 @@ def _train_run_vectorized(
                     ]
                 )
         else:
-            actions_p1 = agent.act_batch(states)
+            actions_p1 = agent.act_batch(states, t0s=t0s)
 
         # Get opponent actions for each environment
         obs_agent2 = current_vec_env.obs_agent_two()
@@ -1277,8 +1269,6 @@ def _train_run_vectorized(
                     device=device,
                 )
 
-                q_values = evaluate_episodes(agent, "src/rl_hockey/common/evaluation/episodes.npy")
-
                 evaluation_results.append(
                     {
                         "step": steps,
@@ -1289,14 +1279,12 @@ def _train_run_vectorized(
                         "wins": eval_results["wins"],
                         "losses": eval_results["losses"],
                         "draws": eval_results["draws"],
-                        "q_values": q_values,
                     }
                 )
 
                 if evaluation_results:
                     run_manager.save_evaluation_plot(run_name, evaluation_results)
                     run_manager.save_evaluation_csv(run_name, evaluation_results)
-                    run_manager.save_value_propagation_plot(run_name, evaluation_results)
 
                 if verbose:
                     print(

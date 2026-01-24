@@ -98,14 +98,20 @@ def _pool_initializer():
 
 def run_single_game(args: Tuple) -> Dict[str, Any]:
     """
-    Run a single game between an agent and a weak opponent.
+    Run a single game between an agent and an opponent (BasicOpponent or another agent).
 
     Args:
-        args: Tuple containing agent path, agent configuration dictionary, weak opponent flag, maximum steps, random seed, and device
+        args: Tuple containing:
+            - agent_path: Path to agent checkpoint
+            - agent_config_dict: Agent configuration
+            - opponent: Either bool (weak opponent flag) or tuple (opponent_path, opponent_config_dict) for agent vs agent
+            - max_steps: Maximum steps per game
+            - seed: Random seed
+            - device: Device to use
     Returns:
         Dictionary containing game results
     """
-    agent_path, agent_config_dict, weak_opponent, max_steps, seed, device = args
+    agent_path, agent_config_dict, opponent, max_steps, seed, device = args
 
     # Verify checkpoint file exists before trying to load
     # Note: agent_path should already be absolute from the parent process
@@ -148,7 +154,36 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
     if hasattr(agent, "critic1") and hasattr(agent.critic1, "eval"):
         agent.critic1.eval()
 
-    opponent = h_env.BasicOpponent(weak=weak_opponent)
+    # Determine opponent type and create opponent
+    is_agent_opponent = isinstance(opponent, tuple)
+    
+    if is_agent_opponent:
+        # Agent vs Agent
+        opponent_path, opponent_config_dict = opponent
+        if not os.path.exists(opponent_path):
+            raise FileNotFoundError(f"Opponent checkpoint not found: {opponent_path}")
+        
+        opponent_action_fineness = opponent_config_dict.get("hyperparameters", {}).get(
+            "action_fineness", None
+        )
+        opponent_state_dim, opponent_action_dim, opponent_is_discrete = get_action_space_info(
+            env, opponent_config_dict["type"], fineness=opponent_action_fineness
+        )
+        
+        opponent_agent_config = AgentConfig(
+            type=opponent_config_dict["type"],
+            hyperparameters=opponent_config_dict["hyperparameters"],
+        )
+        opponent_agent = create_agent(opponent_agent_config, opponent_state_dim, opponent_action_dim, {})
+        opponent_agent.load(opponent_path)
+        
+        # TODO set opponent to eval mode
+    else:
+        # Agent vs BasicOpponent
+        weak_opponent = opponent
+        opponent_agent = None
+        basic_opponent = h_env.BasicOpponent(weak=weak_opponent)
+
     state, _ = env.reset()
     obs_agent2 = env.obs_agent_two()
     total_reward = 0
@@ -164,7 +199,22 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
                 action_p1 = env.discrete_to_continous_action(discrete_action)
         else:
             action_p1 = agent.act(state.astype(np.float32), deterministic=True)
-        action_p2 = opponent.act(obs_agent2)
+        
+        # Get opponent action
+        if is_agent_opponent:
+            if opponent_is_discrete:
+                opponent_discrete_action = opponent_agent.act(obs_agent2.astype(np.float32), deterministic=True)
+                if opponent_action_fineness is not None:
+                    action_p2 = discrete_to_continuous_action_with_fineness(
+                        opponent_discrete_action, fineness=opponent_action_fineness, keep_mode=env.keep_mode
+                    )
+                else:
+                    action_p2 = env.discrete_to_continous_action(opponent_discrete_action)
+            else:
+                action_p2 = opponent_agent.act(obs_agent2.astype(np.float32), deterministic=True)
+        else:
+            action_p2 = basic_opponent.act(obs_agent2)
+        
         action = np.hstack([action_p1, action_p2])
         next_state, reward, done, trunc, info = env.step(action)
         total_reward += reward
@@ -177,6 +227,199 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
     env.close()
 
     return {"winner": winner, "reward": total_reward, "steps": step + 1}
+
+
+def evaluate_head_to_head(
+    agent1_path: str,
+    agent2_path: str,
+    agent1_config_path: str = None,
+    agent2_config_path: str = None,
+    agent1_config_dict: Dict[str, Any] = None,
+    agent2_config_dict: Dict[str, Any] = None,
+    num_games: int = 20,
+    max_steps: int = 250,
+    num_parallel: int = None,
+    device: Optional[Union[str, int]] = None,
+    use_cpu_for_eval: bool = False,
+) -> Dict[str, Any]:
+    """
+    Evaluate two agents head-to-head.
+    
+    Args:
+        agent1_path: Path to first agent checkpoint
+        agent2_path: Path to second agent checkpoint
+        agent1_config_path: Path to first agent's config (auto-detect if None)
+        agent2_config_path: Path to second agent's config (auto-detect if None)
+        agent1_config_dict: First agent's config dict (load if None)
+        agent2_config_dict: Second agent's config dict (load if None)
+        num_games: Number of games to play
+        max_steps: Maximum steps per game
+        num_parallel: Number of parallel processes
+        device: Device to use
+        use_cpu_for_eval: Force CPU usage
+        
+    Returns:
+        Dictionary with match results from agent1's perspective
+    """
+    # Auto-detect configs if not provided
+    if agent1_config_dict is None:
+        if agent1_config_path is None:
+            agent1_config_path = find_config_from_model_path(agent1_path)
+        
+        if agent1_config_path is not None:
+            curriculum = load_curriculum(agent1_config_path)
+            agent1_config_dict = {
+                "type": curriculum.agent.type,
+                "hyperparameters": curriculum.agent.hyperparameters,
+            }
+        else:
+            # Try to infer from checkpoint
+            checkpoint_params = load_agent_params_from_checkpoint(agent1_path)
+            agent1_config_dict = _infer_config_from_checkpoint(checkpoint_params)
+    
+    if agent2_config_dict is None:
+        if agent2_config_path is None:
+            agent2_config_path = find_config_from_model_path(agent2_path)
+        
+        if agent2_config_path is not None:
+            curriculum = load_curriculum(agent2_config_path)
+            agent2_config_dict = {
+                "type": curriculum.agent.type,
+                "hyperparameters": curriculum.agent.hyperparameters,
+            }
+        else:
+            # Try to infer from checkpoint
+            checkpoint_params = load_agent_params_from_checkpoint(agent2_path)
+            agent2_config_dict = _infer_config_from_checkpoint(checkpoint_params)
+    
+    # Override device to CPU if requested
+    if use_cpu_for_eval:
+        device = "cpu"
+    
+    if num_parallel is None:
+        if device is not None and device != "cpu" and (
+            isinstance(device, str) and "cuda" in str(device) or isinstance(device, int)
+        ):
+            num_parallel = min(3, mp.cpu_count(), num_games)
+        else:
+            num_parallel = min(mp.cpu_count(), num_games)
+    
+    # Convert paths to absolute
+    original_cwd = None
+    try:
+        original_cwd = os.getcwd()
+    except (OSError, FileNotFoundError):
+        original_cwd = None
+    
+    if not os.path.isabs(agent1_path):
+        if original_cwd is not None:
+            agent1_path = os.path.normpath(os.path.join(original_cwd, agent1_path))
+        else:
+            try:
+                agent1_path = str(Path(agent1_path).resolve())
+            except (OSError, RuntimeError):
+                agent1_path = os.path.normpath(os.path.expanduser(agent1_path))
+    
+    if not os.path.isabs(agent2_path):
+        if original_cwd is not None:
+            agent2_path = os.path.normpath(os.path.join(original_cwd, agent2_path))
+        else:
+            try:
+                agent2_path = str(Path(agent2_path).resolve())
+            except (OSError, RuntimeError):
+                agent2_path = os.path.normpath(os.path.expanduser(agent2_path))
+    
+    # Change to safe directory
+    safe_dir = "/tmp"
+    try:
+        home_dir = os.path.expanduser("~")
+        if os.path.exists(home_dir):
+            safe_dir = home_dir
+        else:
+            safe_dir = "/tmp"
+        os.chdir(safe_dir)
+    except (OSError, FileNotFoundError):
+        pass
+    
+    try:
+        mp.set_start_method("spawn", force=True)
+    except RuntimeError:
+        pass
+    
+    # Create args for parallel execution
+    seeds = np.random.randint(0, 2**31, size=num_games)
+    args_list = [
+        (agent1_path, agent1_config_dict, (agent2_path, agent2_config_dict), max_steps, int(seed), device)
+        for seed in seeds
+    ]
+    
+    results = []
+    try:
+        if num_parallel > 1:
+            with mp.Pool(processes=num_parallel, initializer=_pool_initializer) as pool:
+                results = pool.map(run_single_game, args_list)
+        else:
+            results = [run_single_game(args) for args in args_list]
+    finally:
+        if original_cwd is not None:
+            try:
+                os.chdir(original_cwd)
+            except (OSError, FileNotFoundError):
+                pass
+    
+    # Aggregate results
+    agent1_wins = sum(1 for r in results if r["winner"] == 1)
+    agent2_wins = sum(1 for r in results if r["winner"] == -1)
+    draws = sum(1 for r in results if r["winner"] == 0)
+    rewards = [r["reward"] for r in results]
+    mean_reward = np.mean(rewards)
+    std_reward = np.std(rewards)
+    agent1_win_rate = agent1_wins / num_games if num_games > 0 else 0.0
+    
+    return {
+        "agent1_wins": agent1_wins,
+        "agent2_wins": agent2_wins,
+        "draws": draws,
+        "agent1_win_rate": agent1_win_rate,
+        "mean_reward": mean_reward,
+        "std_reward": std_reward,
+        "num_games": num_games,
+        "all_rewards": rewards,
+        "all_winners": [r["winner"] for r in results],
+    }
+
+
+def _infer_config_from_checkpoint(checkpoint_params: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to infer agent config from checkpoint parameters."""
+    agent_type = "DDDQN"
+    if "config" in checkpoint_params:
+        agent_type = checkpoint_params["config"].get("type", "DDDQN")
+    
+    action_fineness = None
+    if "action_dim" in checkpoint_params:
+        action_dim = checkpoint_params["action_dim"]
+        action_fineness = infer_fineness_from_action_dim(action_dim, keep_mode=True)
+        if action_fineness is None:
+            action_fineness = infer_fineness_from_action_dim(action_dim, keep_mode=False)
+    
+    hyperparameters = {}
+    if action_fineness is not None:
+        hyperparameters["action_fineness"] = action_fineness
+    
+    if "config" in checkpoint_params:
+        checkpoint_config = checkpoint_params["config"]
+        for key in [
+            "hidden_dim",
+            "target_update_freq",
+            "eps",
+            "eps_min",
+            "eps_decay",
+            "use_huber_loss",
+        ]:
+            if key in checkpoint_config:
+                hyperparameters[key] = checkpoint_config[key]
+    
+    return {"type": agent_type, "hyperparameters": hyperparameters}
 
 
 def evaluate_agent(
@@ -223,45 +466,7 @@ def evaluate_agent(
     # If still no config, try to load from checkpoint and infer parameters
     if agent_config_dict is None:
         checkpoint_params = load_agent_params_from_checkpoint(agent_path)
-
-        # Try to infer agent type from checkpoint or default to DDDQN
-        # Check if checkpoint has q_network (DDDQN) or actor (SAC/PPO)
-        agent_type = "DDDQN"  # Default fallback
-        if "config" in checkpoint_params:
-            agent_type = checkpoint_params["config"].get("type", "DDDQN")
-
-        # Try to infer action_fineness from action_dim
-        action_fineness = None
-        if "action_dim" in checkpoint_params:
-            action_dim = checkpoint_params["action_dim"]
-            # Try both keep_mode=True and keep_mode=False
-            action_fineness = infer_fineness_from_action_dim(action_dim, keep_mode=True)
-            if action_fineness is None:
-                action_fineness = infer_fineness_from_action_dim(
-                    action_dim, keep_mode=False
-                )
-
-        # Build hyperparameters dict
-        hyperparameters = {}
-        if action_fineness is not None:
-            hyperparameters["action_fineness"] = action_fineness
-
-        # Add other hyperparameters from checkpoint config if available
-        if "config" in checkpoint_params:
-            checkpoint_config = checkpoint_params["config"]
-            # Copy relevant hyperparameters
-            for key in [
-                "hidden_dim",
-                "target_update_freq",
-                "eps",
-                "eps_min",
-                "eps_decay",
-                "use_huber_loss",
-            ]:
-                if key in checkpoint_config:
-                    hyperparameters[key] = checkpoint_config[key]
-
-        agent_config_dict = {"type": agent_type, "hyperparameters": hyperparameters}
+        agent_config_dict = _infer_config_from_checkpoint(checkpoint_params)
 
     # Final check: if action_fineness is still missing, try to infer from checkpoint
     if agent_config_dict.get("hyperparameters", {}).get("action_fineness") is None:
@@ -395,14 +600,32 @@ if __name__ == "__main__":
         mp.set_start_method("spawn", force=True)
     except RuntimeError:
         pass
-    # Now config_path can be None - it will auto-detect from model path
-    print(
-        evaluate_agent(
-            agent_path="results/hyperparameter_runs/2026-01-03_18-24-14/run_lr1e04_bs256_h512_512_512_31fb74b2_0002/2026-01-03_18-24-17/models/run_lr1e04_bs256_h512_512_512_31fb74b2_0002.pt",
-            config_path=None,
-            num_games=250,
-            weak_opponent=False,
-            max_steps=250,
-            num_parallel=None,
-        )
+    
+    # Example 1: Evaluate agent vs BasicOpponent
+    print("=" * 60)
+    print("Example 1: Agent vs BasicOpponent (Strong)")
+    print("=" * 60)
+    result = evaluate_agent(
+        agent_path="results/hyperparameter_runs/2026-01-03_18-24-14/run_lr1e04_bs256_h512_512_512_31fb74b2_0002/2026-01-03_18-24-17/models/run_lr1e04_bs256_h512_512_512_31fb74b2_0002.pt",
+        config_path=None,
+        num_games=10,
+        weak_opponent=False,
+        max_steps=250,
+        num_parallel=None,
     )
+    print(f"Win rate: {result['win_rate']:.1%}")
+    print(f"Wins: {result['wins']}, Losses: {result['losses']}, Draws: {result['draws']}")
+    print(f"Mean reward: {result['mean_reward']:.2f} ± {result['std_reward']:.2f}")
+    
+    # Example 2: Head-to-head evaluation (uncomment when you have two agents)
+    # print("\n" + "=" * 60)
+    # print("Example 2: Agent vs Agent (Head-to-Head)")
+    # print("=" * 60)
+    # result_h2h = evaluate_head_to_head(
+    #     agent1_path="results/archive/agents/agent_0001/checkpoint.pt",
+    #     agent2_path="results/archive/agents/agent_0002/checkpoint.pt",
+    #     num_games=20,
+    #     max_steps=250,
+    # )
+    # print(f"Agent 1 win rate: {result_h2h['agent1_win_rate']:.1%}")
+    # print(f"Agent 1 wins: {result_h2h['agent1_wins']}, Agent 2 wins: {result_h2h['agent2_wins']}, Draws: {result_h2h['draws']}")

@@ -5,6 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any, List
 import hashlib
+import numpy as np
 
 
 class RunManager:
@@ -234,6 +235,29 @@ class RunManager:
         
         plt.tight_layout()
         plt.savefig(paths['plot_evaluation'])
+        plt.close()
+
+    def save_value_propagation_plot(self, run_name: str, evaluation_results: List[Dict[str, Any]]):
+        """Save value propagation plot."""
+        import matplotlib
+        matplotlib.use('Agg')  # Use non-interactive backend
+        import matplotlib.pyplot as plt
+
+        q_values = [result['q_values'] for result in evaluation_results if 'q_values' in result]
+        if not q_values:
+            return
+        
+        q_values = np.array(q_values)
+        q_values = np.flipud(q_values.T)
+        
+        plt.figure(figsize=(10, 6))
+        plt.imshow(q_values, aspect='auto', cmap='plasma', origin='upper')
+        plt.colorbar(label='Average Q-Value')
+        plt.title(f"Value Propagation over Episodes - {run_name}")
+        plt.xlabel("Episodes")
+        plt.ylabel("Steps from goal state")
+        plt.gca().yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+        plt.savefig(self.plots_dir / f"{run_name}_value_propagation.png")
         plt.close()
     
     def save_resources_csv(self, run_name: str, resource_logs: List[Dict[str, Any]]):
