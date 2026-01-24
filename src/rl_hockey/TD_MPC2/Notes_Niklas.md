@@ -33,6 +33,9 @@
 ##### 1971525
 - more loggign , shorter horizion 5
 
+##### 1972025 
+- entire poliy change rolled back with the tanh, might be the ciritla fucking issue
+
 #### Architecture of TDMPC-2 
 
 ```
