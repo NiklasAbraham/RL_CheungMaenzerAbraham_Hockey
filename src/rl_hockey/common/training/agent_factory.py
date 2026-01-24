@@ -2,6 +2,7 @@ from typing import Optional, Tuple
 
 import hockey.hockey_env as h_env
 
+from rl_hockey.td3.td3 import TD3
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.training.curriculum_manager import AgentConfig
 from rl_hockey.common.utils import get_discrete_action_dim
@@ -218,6 +219,6 @@ def create_agent(
             **agent_hyperparams,
         )
     elif agent_config.type == "TD3":
-        raise NotImplementedError("TD3 is not yet implemented")
+        return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
     else:
         raise ValueError(f"Unknown agent type: {agent_config.type}")

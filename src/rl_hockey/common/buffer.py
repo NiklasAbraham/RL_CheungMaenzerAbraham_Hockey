@@ -14,6 +14,7 @@ class ReplayBuffer:
         use_torch_tensors=False,
         pin_memory=False,
         device="cpu",
+        normalize_obs = False
     ):
         """
         Initialize replay buffer.
@@ -46,6 +47,22 @@ class ReplayBuffer:
         self.next_state = None
         self.reward = None
         self.done = None
+        self.normalize_obs = normalize_obs
+
+        self.obs_mean = None
+        self.obs_M2 = None
+
+    def normalize(self, state: np.ndarray):
+        normalized_state = (state - self.obs_mean) / (np.sqrt(self.obs_M2 / self.size) + 1e-8)
+        return normalized_state
+
+
+    def update_obs_stats(self, state: np.ndarray):
+        delta = state - self.obs_mean
+        self.obs_mean += delta / self.size
+        delta2 = state - self.obs_mean
+        self.obs_M2 += delta * delta2
+
 
     def store(self, transition):
         state, action, reward, next_state, done = transition
@@ -84,6 +101,15 @@ class ReplayBuffer:
                 self.reward = np.empty((self.max_size, 1), dtype=np.float32)
                 self.done = np.empty((self.max_size, 1), dtype=np.float32)
 
+            self.obs_mean = np.zeros_like(state, dtype=np.float32)
+            self.obs_M2 = np.zeros_like(state, dtype=np.float32)
+
+        # Update observation statistics
+        self.current_idx = (self.current_idx + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
+        self.update_obs_stats(state)
+        self.update_obs_stats(next_state)
+
         # Store data (convert to tensor if using torch tensors)
         if self.use_torch_tensors:
             # Convert to tensor and move to buffer device if needed
@@ -120,8 +146,6 @@ class ReplayBuffer:
             self.reward[self.current_idx] = reward
             self.done[self.current_idx] = done
 
-        self.current_idx = (self.current_idx + 1) % self.max_size
-        self.size = min(self.size + 1, self.max_size)
 
     def sample(self, batch_size):
         if batch_size > self.size:
@@ -134,13 +158,27 @@ class ReplayBuffer:
                 idx = torch.randint(0, self.size, (batch_size,), device=self.device)
             else:
                 idx = torch.randint(0, self.size, (batch_size,))
-            return (
-                self.state[idx],
-                self.action[idx],
-                self.reward[idx],
-                self.next_state[idx],
-                self.done[idx],
-            )
+            
+            state = self.state[idx]
+            action = self.action[idx]
+            reward = self.reward[idx]
+            next_state = self.next_state[idx]
+            done = self.done[idx]
+            
+
+        else:
+            idx = np.random.randint(0, self.size, size=batch_size)
+            state = self.state[idx]
+            action = self.action[idx]
+            reward = self.reward[idx]
+            next_state = self.next_state[idx]
+            done = self.done[idx]
+
+        if self.normalize_obs:
+            state = self.normalize(state)
+            next_state = self.normalize(next_state)
+
+        return state, action, reward, next_state, done
 
     def _is_valid_sequence_start(self, start_idx, horizon):
         """Check if a sequence starting at start_idx is valid (no terminals, no wrap)."""

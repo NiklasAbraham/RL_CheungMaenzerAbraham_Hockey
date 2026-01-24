@@ -1,6 +1,9 @@
 bootstrap: docker
 from: ubuntu:24.04
 
+%files
+    requirements.txt /opt/requirements.txt
+
 %post
     set -e
     export DEBIAN_FRONTEND=noninteractive
@@ -20,12 +23,6 @@ from: ubuntu:24.04
     python3 -m venv /venv
     . /venv/bin/activate
 
-    # Create requirements.txt directly in the container from embedded content
-    # This will be replaced by cluster_setup.sh with actual requirements
-    cat > /tmp/requirements.txt << 'REQUIREMENTS_EMBEDDED'
-# Requirements will be embedded here by cluster_setup.sh
-REQUIREMENTS_EMBEDDED
-
     # Install setuptools and wheel first
     pip install --upgrade pip setuptools wheel
 
@@ -42,13 +39,8 @@ REQUIREMENTS_EMBEDDED
     # Install hockey environment (must be done separately as it's from git)
     pip install "hockey @ git+https://git@github.com/martius-lab/hockey-env.git"
 
-    # Install requirements from requirements.txt (excluding the editable rl_hockey package and hockey)
-    # Filter out rl_hockey and hockey since we install hockey separately above
+    # Install requirements from /opt/requirements.txt (copied via %files section)
     echo "Checking for requirements.txt..."
-    echo "Current directory: $(pwd)"
-    echo "Files in /tmp:"
-    ls -la /tmp/ | head -10 || true
-    echo ""
     
     if [ -f /tmp/requirements.txt ]; then
         echo "✓ Found requirements.txt at /tmp/requirements.txt"
@@ -103,7 +95,7 @@ EXCLUDE_PATTERNS
         rm -f /tmp/exclude_patterns.txt
         echo "Packages to install: $(wc -l < /tmp/filtered_requirements.txt)"
         echo "First few packages to install:"
-        head -5 /tmp/filtered_requirements.txt
+        head -5 /opt/filtered_requirements.txt
         echo ""
         echo "Installing packages from requirements.txt (this may take several minutes)..."
         # Install packages with better error handling
@@ -159,33 +151,16 @@ EXCLUDE_PATTERNS
         fi
         rm -f /tmp/install.log
         echo "✓ Finished installing requirements.txt packages"
-        rm -f /tmp/filtered_requirements.txt
+        rm -f /opt/filtered_requirements.txt
     else
-        echo "ERROR: requirements.txt not found at /tmp/requirements.txt"
-        echo "This means the %files section did not copy the file."
-        echo "Checking if we can find it elsewhere..."
-        find / -name "requirements.txt" -type f 2>/dev/null | head -5 || echo "Not found anywhere"
-        echo ""
-        echo "The container will only have minimal dependencies."
-        echo "You may need to install packages at runtime or rebuild with requirements.txt in the build directory."
+        echo "ERROR: requirements.txt not found at /opt/requirements.txt"
         exit 1
     fi
-
-    # Note: The rl_hockey package will be installed at runtime from the mounted project directory
-    # This allows you to update code without rebuilding the container
-    # Installation command: pip install -e /path/to/RL_CheungMaenzerAbraham_Hockey
 
     # cleanup
     apt-get clean
     pip cache purge
 
-
 %runscript
     . /venv/bin/activate
     "$@"
-
-
-
-
-
-

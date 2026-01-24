@@ -36,7 +36,7 @@ if [ ! -f "./requirements.txt" ]; then
     echo "ERROR: requirements.txt not found!"
     exit 1
 fi
-echo "✓ requirements.txt found in project root ($(wc -l < ../requirements.txt) lines)"
+echo "✓ requirements.txt found ($(wc -l < ./requirements.txt) lines)"
 
 # Show files in build directory
 echo "Files in build directory:"
