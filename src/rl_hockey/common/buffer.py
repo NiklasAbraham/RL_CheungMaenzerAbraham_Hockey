@@ -3,6 +3,7 @@ import random
 import numpy as np
 import torch
 
+from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.segment_tree import MinSegmentTree, SumSegmentTree
 
 
@@ -295,6 +296,8 @@ class TDMPC2ReplayBuffer:
         pin_memory=False,
         device="cpu",
         multitask=False,
+        win_reward_bonus=10.0,
+        win_reward_discount=0.92,
     ):
         """
         Initialize TD-MPC2 replay buffer.
@@ -310,6 +313,10 @@ class TDMPC2ReplayBuffer:
                 (only when use_torch_tensors=True and device="cpu").
             device: Device to place sampled batches on ("cpu" or "cuda").
             multitask: If True, expect and return task in add_episode and sample.
+            win_reward_bonus: Bonus reward to add to each step in a winning episode.
+                Applied with discount factor backwards through the episode.
+            win_reward_discount: Discount factor for applying win reward bonus
+                backwards through the episode (1.0 = no discount, 0.99 = standard).
         """
         self.max_size = max_size
         self.horizon = horizon
@@ -327,6 +334,8 @@ class TDMPC2ReplayBuffer:
             and torch.cuda.is_available()
         )
         self.multitask = multitask
+        self.win_reward_bonus = win_reward_bonus
+        self.win_reward_discount = win_reward_discount
 
         self._episodes = []
         self._total_transitions = 0
@@ -336,6 +345,7 @@ class TDMPC2ReplayBuffer:
         self._current_actions = []
         self._current_rewards = []
         self._current_dones = []
+        self._current_winner = None
 
     @property
     def capacity(self):
@@ -359,16 +369,29 @@ class TDMPC2ReplayBuffer:
             T = ep["action"].shape[0]
             self._total_transitions -= T
 
-    def _add_episode_internal(self, obs, action, reward, terminated, task=None):
+    def _add_episode_internal(
+        self,
+        obs,
+        action,
+        reward,
+        terminated,
+        task=None,
+        winner=None,
+        reward_original=None,
+    ):
         """Append one episode to _episodes and update _total_transitions."""
         T = action.shape[0]
         self._evict_if_needed(T)
         ep = {
             "obs": obs,
             "action": action,
-            "reward": reward,
+            "reward": reward,  # This is the backprop reward (used for training)
             "terminated": terminated,
             "task": task,
+            "winner": winner,
+            "reward_original": reward_original
+            if reward_original is not None
+            else reward,  # Original reward before backprop
         }
         self._episodes.append(ep)
         self._total_transitions += T
@@ -388,12 +411,14 @@ class TDMPC2ReplayBuffer:
             t = t.pin_memory()
         return t
 
-    def store(self, transition):
+    def store(self, transition, winner=None):
         """Store a transition. When done is True, the current trajectory is
         closed and added as an episode.
 
         Args:
             transition: (state, action, reward, next_state, done).
+            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
+                Should be provided when done=True to enable reward shaping for wins.
         """
         state, action, reward, next_state, done = transition
 
@@ -423,13 +448,19 @@ class TDMPC2ReplayBuffer:
         self._current_dones.append(d)
 
         if done:
+            if winner is not None:
+                self._current_winner = winner
             self._flush_episode()
 
     def _flush_episode(self):
-        """Build one episode from _current_* and add it; clear _current_*."""
+        """Build one episode from _current_* and add it; clear _current_*.
+        If the episode was a win and win_reward_bonus > 0, applies discounted
+        reward bonus backwards through the episode.
+        """
         if len(self._current_actions) == 0:
             self._current_obs = []
             self._current_dones = []
+            self._current_winner = None
             return
 
         if self.use_torch_tensors:
@@ -448,21 +479,56 @@ class TDMPC2ReplayBuffer:
         if terminated.ndim == 1:
             terminated = terminated.reshape(-1, 1)
 
-        self._add_episode_internal(obs, action, reward, terminated, task=None)
+        # Save original reward before backpropagation
+        if self.use_torch_tensors:
+            reward_original = reward.clone()
+        else:
+            reward_original = reward.copy()
+
+        # Apply reward shaping for winning episodes using the backpropagation function
+        if (
+            self._current_winner == 1
+            and self.win_reward_bonus > 0.0
+            and len(reward) > 0
+        ):
+            # Flatten reward for the function (it expects 1D or will flatten)
+            reward_flat = reward.flatten()
+            # Apply backpropagation
+            reward_flat, _, _ = apply_win_reward_backprop(
+                reward_flat,
+                winner=self._current_winner,
+                win_reward_bonus=self.win_reward_bonus,
+                win_reward_discount=self.win_reward_discount,
+                use_torch=self.use_torch_tensors,
+            )
+            # Reshape back to original shape
+            reward = reward_flat.reshape(reward.shape)
+
+        self._add_episode_internal(
+            obs,
+            action,
+            reward,
+            terminated,
+            task=None,
+            winner=self._current_winner,
+            reward_original=reward_original,
+        )
         self._current_obs = []
         self._current_actions = []
         self._current_rewards = []
         self._current_dones = []
+        self._current_winner = None
 
-    def add_episode(self, obs, action, reward, terminated, task=None):
+    def add_episode(self, obs, action, reward, terminated, task=None, winner=None):
         """Add one episode to the buffer.
 
         Args:
             obs: (T+1, obs_dim) observations for steps 0..T.
             action: (T, action_dim) actions for transitions 0..T-1.
-            reward: (T,) or (T, 1) rewards.
+            reward: (T,) or (T, 1) rewards. This should be the backprop reward if backprop was applied.
             terminated: (T,) or (T, 1) done flags.
             task: Optional (T, task_dim) or (task_dim,) for multitask; ignored if multitask=False.
+            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
         """
         obs = self._to_buffer_dtype(obs)
         action = self._to_buffer_dtype(action)
@@ -479,13 +545,24 @@ class TDMPC2ReplayBuffer:
                 t = t.reshape(1, -1).expand(action.shape[0], -1)
         else:
             t = None
-        self._add_episode_internal(obs, action, reward, terminated, task=t)
+        # For add_episode, assume reward is already backprop if needed, so use same as original
+        # (This method is typically used for batch loading where backprop may have been applied externally)
+        reward_original = reward.clone() if self.use_torch_tensors else reward.copy()
+        self._add_episode_internal(
+            obs,
+            action,
+            reward,
+            terminated,
+            task=t,
+            winner=winner,
+            reward_original=reward_original,
+        )
 
     def add_episodes(self, episodes):
         """Add multiple episodes (batch load).
 
         Args:
-            episodes: List of dicts with keys obs, action, reward, terminated, task (optional).
+            episodes: List of dicts with keys obs, action, reward, terminated, task (optional), winner (optional).
         """
         for ep in episodes:
             self.add_episode(
@@ -494,6 +571,7 @@ class TDMPC2ReplayBuffer:
                 ep["reward"],
                 ep["terminated"],
                 ep.get("task"),
+                ep.get("winner"),
             )
 
     def _episodes_with_length_at_least(self, H):
@@ -508,7 +586,7 @@ class TDMPC2ReplayBuffer:
                     out.append((ep, start))
         return out
 
-    def sample(self, batch_size=None, horizon=None):
+    def sample(self, batch_size=None, horizon=None, return_original_reward=False):
         """Sample a batch of subsequences.
 
         Returns
@@ -546,7 +624,11 @@ class TDMPC2ReplayBuffer:
         for ep, start in chunks:
             obs_list.append(ep["obs"][start : start + H + 1])
             action_list.append(ep["action"][start : start + H])
-            reward_list.append(ep["reward"][start : start + H])
+
+            if return_original_reward:
+                reward_list.append(ep["reward_original"][start : start + H])
+            else:
+                reward_list.append(ep["reward"][start : start + H])
             terminated_list.append(ep["terminated"][start : start + H])
             if self.multitask and ep.get("task") is not None:
                 task_list.append(ep["task"][start])
@@ -610,6 +692,7 @@ class TDMPC2ReplayBuffer:
         self._current_actions = []
         self._current_rewards = []
         self._current_dones = []
+        self._current_winner = None
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):

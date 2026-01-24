@@ -68,8 +68,10 @@ class TDMPC2(Agent):
         consistency_coef=20.0,
         reward_coef=0.1,
         value_coef=0.1,
-        termination_coef=1.0,
+        termination_coef=0.5,
         n_step=1,
+        win_reward_bonus=10.0,
+        win_reward_discount=0.92,
     ):
         super().__init__()
         self.obs_dim = obs_dim
@@ -178,7 +180,7 @@ class TDMPC2(Agent):
             vmax=vmax,
         ).to(self.device)
         self.termination = Termination(
-            latent_dim, action_dim, self.hidden_dim_dict["termination"]
+            latent_dim, self.hidden_dim_dict["termination"]
         ).to(self.device)
         self.q_ensemble = QEnsemble(
             num_q,
@@ -265,6 +267,8 @@ class TDMPC2(Agent):
             batch_size=batch_size,
             use_torch_tensors=True,
             device=self.device,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
         )
         self._obs_buffer = torch.empty(
             (batch_size, obs_dim), device=self.device, dtype=torch.float32
@@ -295,9 +299,15 @@ class TDMPC2(Agent):
 
         self.planner.to(self.device)
 
-    def store_transition(self, transition):
-        """Store a transition in the replay buffer."""
-        self.buffer.store(transition)
+    def store_transition(self, transition, winner=None):
+        """Store a transition in the replay buffer.
+
+        Args:
+            transition: (state, action, reward, next_state, done)
+            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
+                Used for reward shaping in winning episodes.
+        """
+        self.buffer.store(transition, winner=winner)
 
     @torch.no_grad()
     def rollout_dynamics_multi_step(self, z0, action_sequence, max_horizon):
@@ -578,8 +588,6 @@ class TDMPC2(Agent):
                     consistency_loss = 0.0
                     reward_loss = 0.0
                     value_loss = 0.0
-                    termination_loss = 0.0
-
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
                         r_t = rewards_seq[:, t]
@@ -601,15 +609,6 @@ class TDMPC2(Agent):
                             * soft_ce(
                                 r_pred_logits, r_t, self.num_bins, self.vmin, self.vmax
                             ).mean()
-                        )
-
-                        termination_pred_logits = self.termination(z_pred, a_t)
-                        termination_loss = (
-                            termination_loss
-                            + weight
-                            * F.binary_cross_entropy_with_logits(
-                                termination_pred_logits, d_t
-                            )
                         )
 
                         q_preds_logits = self.q_ensemble(z_pred, a_t)
@@ -654,7 +653,12 @@ class TDMPC2(Agent):
                     consistency_loss = consistency_loss / horizon
                     reward_loss = reward_loss / horizon
                     value_loss = value_loss / (horizon * self.num_q)
-                    termination_loss = termination_loss / horizon
+                    zs_bh = zs[1:].permute(1, 0, 2).reshape(-1, self.latent_dim)
+                    termination_pred_logits = self.termination(zs_bh)
+                    termination_target = dones_seq.reshape(-1, 1)
+                    termination_loss = F.binary_cross_entropy_with_logits(
+                        termination_pred_logits, termination_target
+                    )
 
                     used_sequences = True
 
@@ -697,6 +701,11 @@ class TDMPC2(Agent):
             )
             self.optimizer.step()
             self.optimizer.zero_grad(set_to_none=True)
+
+            # Mark step boundary for CUDAGraphs to enable fast path
+            # This ensures all backward operations are complete before next forward pass
+            if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+                torch.compiler.cudagraph_mark_step_begin()
 
             policy_loss, grad_norm_policy = self._update_policy(zs.detach())
             self._update_target_network(tau=self.tau)
@@ -792,6 +801,11 @@ class TDMPC2(Agent):
         """Update policy to maximize Q-values + entropy."""
         self.pi_optimizer.zero_grad()
 
+        # Mark step boundary for CUDAGraphs before forward pass
+        # This helps CUDAGraphs use the fast path by ensuring clean state
+        if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+            torch.compiler.cudagraph_mark_step_begin()
+
         num_states = zs.shape[0]
         batch_size = zs.shape[1]
         zs_flat = zs.reshape(-1, zs.shape[-1])
@@ -835,6 +849,10 @@ class TDMPC2(Agent):
         )
         self.pi_optimizer.step()
         self.pi_optimizer.zero_grad(set_to_none=True)
+
+        # Mark step boundary after policy update completes
+        if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+            torch.compiler.cudagraph_mark_step_begin()
 
         return pi_loss.detach(), grad_norm_policy
 

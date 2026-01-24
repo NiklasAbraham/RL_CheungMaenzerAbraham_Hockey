@@ -1,0 +1,70 @@
+#!/bin/bash
+
+#SBATCH --job-name=hockey_continue_run
+# Job name
+
+#SBATCH --partition=week
+# Partition: day, week, or month
+
+#SBATCH --gres=gpu:2080ti:1
+# Request 1 2080ti GPU (CUDA capability 7.5, supports torch.compile)
+# Alternative options: gpu:A4000:1 (CUDA 8.6) or gpu:1080ti:1 (CUDA 6.1, no torch.compile)
+
+#SBATCH --mem=32G
+# Request 32GB of memory (16 parallel environments + replay buffer need more memory)
+
+#SBATCH --time=7-00:00:00
+# Time limit: 7 days for week partition
+
+#SBATCH --error=job.%J.err
+# Error log file
+
+#SBATCH --output=job.%J.out
+# Output log file
+
+#SBATCH --mail-type=ALL
+# Email notifications: NONE, BEGIN, END, FAIL, REQUEUE, ALL
+
+#SBATCH --mail-user=blabla@student.uni-tuebingen.de
+# Your email address
+
+# Path to the Singularity container image
+SINGULARITY_IMAGE="$HOME/RL_CheungMaenzerAbraham_Hockey/singularity_build/rl_hockey.simg"
+
+# Set working directory to project root
+PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
+cd "$PROJECT_DIR"
+
+# Set number of parallel environments to match CPU cores
+export NUM_ENVS=1
+
+# Set the path to the run directory to resume from
+# Example: results/tdmpc2_runs/2026-01-21_19-12-44
+# Modify this to point to your specific run directory
+export RESUME_PATH="results/tdmpc2_runs/2026-01-21_19-12-44"
+
+# Disable Python output buffering for immediate logging in batch jobs
+export PYTHONUNBUFFERED=1
+
+# Run the training script using singularity
+# Since the container is read-only, we can't install packages into /venv
+# Install missing packages to a user-writable location if needed
+USER_PACKAGES_DIR="$PROJECT_DIR/.user_packages"
+mkdir -p "$USER_PACKAGES_DIR"
+
+# Run the training script using singularity
+singularity exec \
+    --nv \
+    --bind "$PROJECT_DIR:$PROJECT_DIR" \
+    --pwd "$PROJECT_DIR" \
+    "$SINGULARITY_IMAGE" \
+    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export NUM_ENVS=$NUM_ENVS && export RESUME_PATH='$RESUME_PATH' && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_continue_run.py'"
+
+# Alternative: Run with custom parameters by modifying train_continue_run.py
+# Or uncomment and modify the following line to pass parameters directly:
+# singularity run \
+#     --nv \
+#     --bind "$PROJECT_DIR:$PROJECT_DIR" \
+#     --pwd "$PROJECT_DIR" \
+#     "$SINGULARITY_IMAGE" \
+#     python3 -c "from rl_hockey.common.training.train_continue_run import train_continue_run; train_continue_run(base_path='results/tdmpc2_runs/2026-01-21_19-12-44', base_output_dir='results/tdmpc2_runs', num_envs=4, device='cuda:0')"

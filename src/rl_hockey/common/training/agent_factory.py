@@ -9,6 +9,7 @@ from rl_hockey.common.utils import get_discrete_action_dim
 from rl_hockey.DDDQN import DDDQN, DDQN_PER
 from rl_hockey.sac.sac import SAC
 from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
+from rl_hockey.TD_MPC2_repo.tdmpc2_repo_wrapper import TDMPC2RepoWrapper
 
 
 def get_action_space_info(
@@ -24,7 +25,7 @@ def get_action_space_info(
         else:
             action_dim = 7 if not env.keep_mode else 8
         is_discrete = True
-    elif agent_type == "TDMPC2":
+    elif agent_type == "TDMPC2" or agent_type == "TDMPC2_REPO":
         # TDMPC2 uses continuous actions, but also needs discretized action space for hockey
         action_dim = 4 if env.keep_mode else 3
         is_discrete = False
@@ -89,6 +90,8 @@ def create_agent(
         vmin = agent_hyperparams.pop("vmin", -10.0)
         vmax = agent_hyperparams.pop("vmax", 10.0)
         n_step = agent_hyperparams.pop("n_step", 1)
+        win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
+        win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
 
         # Use provided device or default to CPU/CUDA
         if device is None:
@@ -118,6 +121,102 @@ def create_agent(
             vmin=vmin,
             vmax=vmax,
             n_step=n_step,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
+        )
+    elif agent_config.type == "TDMPC2_REPO":
+        # TD-MPC2 reference repo wrapper specific parameters
+        latent_dim = agent_hyperparams.pop("latent_dim", 512)
+        hidden_dim = agent_hyperparams.pop("hidden_dim", None)
+        num_q = agent_hyperparams.pop("num_q", 5)
+        horizon = agent_hyperparams.pop("horizon", 5)
+        num_samples = agent_hyperparams.pop("num_samples", 512)
+        num_iterations = agent_hyperparams.pop("num_iterations", 6)
+        num_elites = agent_hyperparams.pop("num_elites", 64)
+        num_pi_trajs = agent_hyperparams.pop("num_pi_trajs", 24)
+        temperature = agent_hyperparams.pop("temperature", 0.5)
+        gamma = agent_hyperparams.pop("gamma", 0.99)
+        capacity = agent_hyperparams.pop("capacity", 1000000)
+        log_std_min = agent_hyperparams.pop("log_std_min", -10.0)
+        log_std_max = agent_hyperparams.pop("log_std_max", 2.0)
+        vmin = agent_hyperparams.pop("vmin", -10.0)
+        vmax = agent_hyperparams.pop("vmax", 10.0)
+        tau = agent_hyperparams.pop("tau", 0.01)
+        grad_clip_norm = agent_hyperparams.pop("grad_clip_norm", 20.0)
+        consistency_coef = agent_hyperparams.pop("consistency_coef", 20.0)
+        reward_coef = agent_hyperparams.pop("reward_coef", 0.1)
+        value_coef = agent_hyperparams.pop("value_coef", 0.1)
+        termination_coef = agent_hyperparams.pop("termination_coef", 1.0)
+        rho = agent_hyperparams.pop("rho", 0.5)
+        entropy_coef = agent_hyperparams.pop("entropy_coef", 1e-4)
+        min_std = agent_hyperparams.pop("min_std", 0.05)
+        max_std = agent_hyperparams.pop("max_std", 2.0)
+        discount_denom = agent_hyperparams.pop("discount_denom", 5.0)
+        discount_min = agent_hyperparams.pop("discount_min", 0.95)
+        discount_max = agent_hyperparams.pop("discount_max", 0.995)
+        episodic = agent_hyperparams.pop("episodic", False)
+        mpc = agent_hyperparams.pop("mpc", True)
+        compile_model = agent_hyperparams.pop("compile", True)
+        episode_length = agent_hyperparams.pop("episode_length", 500)
+        enc_lr_scale = agent_hyperparams.pop("enc_lr_scale", 0.3)
+        seed = agent_hyperparams.pop("seed", 1)
+        win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
+        win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
+        
+        # Extract batch_size and learning_rate before passing **agent_hyperparams
+        batch_size = agent_hyperparams.pop("batch_size", 256)
+        learning_rate = agent_hyperparams.pop("learning_rate", 3e-4)
+
+        # Use provided device or default to CPU/CUDA
+        if device is None:
+            import torch
+
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        return TDMPC2RepoWrapper(
+            obs_dim=state_dim,
+            action_dim=action_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            num_q=num_q,
+            lr=learning_rate,
+            enc_lr_scale=enc_lr_scale,
+            gamma=gamma,
+            horizon=horizon,
+            num_samples=num_samples,
+            num_iterations=num_iterations,
+            num_elites=num_elites,
+            num_pi_trajs=num_pi_trajs,
+            temperature=temperature,
+            capacity=capacity,
+            batch_size=batch_size,
+            device=device,
+            num_bins=101,
+            vmin=vmin,
+            vmax=vmax,
+            tau=tau,
+            grad_clip_norm=grad_clip_norm,
+            consistency_coef=consistency_coef,
+            reward_coef=reward_coef,
+            value_coef=value_coef,
+            termination_coef=termination_coef,
+            rho=rho,
+            entropy_coef=entropy_coef,
+            log_std_min=log_std_min,
+            log_std_max=log_std_max,
+            min_std=min_std,
+            max_std=max_std,
+            discount_denom=discount_denom,
+            discount_min=discount_min,
+            discount_max=discount_max,
+            episodic=episodic,
+            mpc=mpc,
+            compile=compile_model,
+            episode_length=episode_length,
+            seed=seed,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
+            **agent_hyperparams,
         )
     elif agent_config.type == "TD3":
         return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)

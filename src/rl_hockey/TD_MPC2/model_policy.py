@@ -53,16 +53,21 @@ class Policy(nn.Module):
         mean, std, log_std = self._distribution(latent)
         eps = torch.randn_like(mean)
         pre_tanh = mean + std * eps
-        action = torch.tanh(pre_tanh)
 
         gaussian_log_prob = -0.5 * eps.pow(2) - log_std - 0.9189385175704956
         gaussian_log_prob = gaussian_log_prob.sum(dim=-1, keepdim=True)
-        
-        squash_correction = torch.log(torch.relu(1 - action.pow(2)) + 1e-6).sum(dim=-1, keepdim=True)
+        scaled_log_prob = gaussian_log_prob * mean.shape[-1]
+
+        mean_action = torch.tanh(mean)
+        action = torch.tanh(pre_tanh)
+        squash_correction = torch.log(torch.relu(1 - action.pow(2)) + 1e-6).sum(
+            dim=-1, keepdim=True
+        )
         log_prob = gaussian_log_prob - squash_correction
-        entropy = -gaussian_log_prob
-        
-        return action, log_prob, torch.tanh(mean), entropy
+        entropy_scale = scaled_log_prob / (log_prob + 1e-8)
+        scaled_entropy = -log_prob * entropy_scale
+
+        return action, log_prob, mean_action, scaled_entropy
 
     def forward(self, latent):
         return self.mean_action(latent)
