@@ -549,7 +549,7 @@ def run_game(
 
             obs_tensor = torch.FloatTensor(obs.astype(np.float32)).to(agent.device)
             actual_latent = (
-                agent.encoder(obs_tensor.unsqueeze(0)).squeeze(0).cpu().numpy()
+                agent.encoder(obs_tensor.unsqueeze(0)).squeeze(0).detach().cpu().numpy()
             )
 
             # Look back at past states and evaluate multi-step predictions

@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 
 
 VALID_ENV_MODES = ["NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE"]
-VALID_AGENT_TYPES = ["DDDQN", "SAC", "TD3", "TDMPC2"]
+VALID_AGENT_TYPES = ["DDDQN", "SAC", "TD3", "TDMPC2", "TDMPC2_REPO"]
 VALID_OPPONENT_TYPES = ["none", "basic_weak", "basic_strong", "self_play", "weighted_mixture"]
 
 
