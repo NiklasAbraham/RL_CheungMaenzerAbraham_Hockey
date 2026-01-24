@@ -341,7 +341,7 @@ if __name__ == "__main__":
     # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
     # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
 
-    folder_path_1 = "results/tdmpc2_runs/2026-01-23_10-53-00"
+    folder_path_1 = "results/tdmpc2_runs/2026-01-23_21-00-09"
 
     window_size = 20
 
