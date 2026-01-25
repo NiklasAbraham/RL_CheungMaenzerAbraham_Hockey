@@ -77,7 +77,7 @@ def profile_single_action(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=True,  # Enable to see transfer operations
-        profile_memory=True,  # Enable to see memory operations
+        profile_memory=False,  # Enable to see memory operations
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("act_total"):
@@ -168,7 +168,7 @@ def profile_planning_step(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=True,  # Enable to see transfer operations
-        profile_memory=True,  # Enable to see memory operations
+        profile_memory=False,  # Enable to see memory operations
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("planning_total"):
@@ -380,7 +380,7 @@ def profile_training_step(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=True,  # Enable to see tensor shapes and transfer operations
-        profile_memory=True,  # Enable to see memory operations and CPU-GPU transfers
+        profile_memory=False,  # Enable to see memory operations and CPU-GPU transfers
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("training_total"):

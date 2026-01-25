@@ -47,7 +47,7 @@
   "agent": {
     "type": "TDMPC2",
     "hyperparameters": {
-      "latent_dim": 1024,
+      "latent_dim": 512,
       "hidden_dim": {
         "encoder": [512, 512, 512],
         "dynamics": [512, 512, 512],
@@ -56,10 +56,10 @@
         "q_function": [512, 512, 512],
         "policy": [512, 512, 512]
       },
-      "num_q": 5,
+      "num_q": 4,
       "gamma": 0.99,
       "horizon": 8,
-      "num_samples": 512,
+      "num_samples": 256,
       "num_iterations": 6,
       "temperature": 0.5,
       "vmin": -10.0,

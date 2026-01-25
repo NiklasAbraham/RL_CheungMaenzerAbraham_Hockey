@@ -6,11 +6,11 @@
 #SBATCH --partition=week
 # Partition: day, week, or month
 
-#SBATCH --gres=gpu:2080ti:1
+#SBATCH --gres=gpu:A4000:1
 # Request 1 2080ti GPU (CUDA capability 7.5, supports torch.compile)
 # Alternative options: gpu:A4000:1 (CUDA 8.6) or gpu:1080ti:1 (CUDA 6.1, no torch.compile)
 
-#SBATCH --mem=32G
+#SBATCH --mem=64G
 # Request 32GB of memory (16 parallel environments + replay buffer need more memory)
 
 #SBATCH --time=7-00:00:00
@@ -41,7 +41,7 @@ export NUM_ENVS=1
 # Set the path to the run directory to resume from
 # Example: results/tdmpc2_runs/2026-01-21_19-12-44
 # Modify this to point to your specific run directory
-export RESUME_PATH="results/tdmpc2_runs/2026-01-21_19-12-44"
+export RESUME_PATH="results/tdmpc2_runs/2026-01-23_21-00-09"
 
 # Disable Python output buffering for immediate logging in batch jobs
 export PYTHONUNBUFFERED=1

@@ -6,7 +6,7 @@
 #SBATCH --partition=week
 # Partition: day, week, or month
 
-#SBATCH --gres=gpu:2080ti:1
+#SBATCH --gres=gpu:A4000:1
 # Request 1 2080ti GPU (CUDA capability 7.5, supports torch.compile)
 # Alternative options: gpu:A4000:1 (CUDA 8.6) or gpu:1080ti:1 (CUDA 6.1, no torch.compile)
 
