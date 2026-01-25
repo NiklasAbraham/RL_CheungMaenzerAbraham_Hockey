@@ -480,13 +480,18 @@ class TDMPC2RepoWrapper(Agent):
         # Store reference to modules for later use
         self._modules = modules
 
+        # Buffer storage device: default to CPU for larger capacity and negligible transfer overhead
+        buffer_device = config.get("buffer_device", "cpu")
+        
         # Replace buffer with TDMPC2ReplayBuffer (use same normalized device as model)
         self.buffer = TDMPC2ReplayBuffer(
             max_size=capacity,
             horizon=horizon,
             batch_size=batch_size,
             use_torch_tensors=True,
-            device=self.device_str,
+            device=self.device_str,  # Where sampled batches go (for training)
+            buffer_device=buffer_device,  # Where episode data is stored
+            pin_memory=(buffer_device == "cpu"),  # Pin memory for faster CPU->GPU transfer
             multitask=False,
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,

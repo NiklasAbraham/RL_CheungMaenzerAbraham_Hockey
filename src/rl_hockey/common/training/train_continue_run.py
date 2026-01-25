@@ -301,7 +301,7 @@ if __name__ == "__main__":
         print("CUDA not available: Using CPU")
 
     # Get num_envs from environment variable if set, otherwise use default
-    num_envs = int(os.environ.get("NUM_ENVS", "4"))
+    num_envs = int(os.environ.get("NUM_ENVS", "1"))
 
     # Get base_path from environment variable or use default
     base_path = os.environ.get("RESUME_PATH", "results/tdmpc2_runs/2026-01-21_16-15-43")
