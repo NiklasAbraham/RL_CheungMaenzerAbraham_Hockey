@@ -253,9 +253,10 @@ class TDMPC2(Agent):
                 {"params": self.q_ensemble.parameters()},
             ],
             lr=self.lr,
+            capturable=True,
         )
         self.pi_optimizer = torch.optim.Adam(
-            list(self.policy.parameters()), lr=self.lr, eps=1e-5
+            list(self.policy.parameters()), lr=self.lr, eps=1e-5, capturable=True
         )
 
         self.scale = RunningScale(tau=self.tau).to(self.device)
@@ -290,12 +291,17 @@ class TDMPC2(Agent):
         )
 
         batch_size = self.config.get("batch_size", 256)
+        # Buffer storage device: default to CPU for larger capacity and negligible transfer overhead
+        # Set buffer_device="cuda" only if profiling shows transfer is a bottleneck (unlikely)
+        buffer_device = self.config.get("buffer_device", "cpu")
         self.buffer = TDMPC2ReplayBuffer(
             max_size=capacity,
             horizon=self.horizon,
             batch_size=batch_size,
             use_torch_tensors=True,
-            device=self.device,
+            device=self.device,  # Where sampled batches go (for training)
+            buffer_device=buffer_device,  # Where episode data is stored
+            pin_memory=(buffer_device == "cpu"),  # Pin memory for faster CPU->GPU transfer
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,
         )
@@ -628,6 +634,10 @@ class TDMPC2(Agent):
         }
 
         for _ in range(steps):
+            # Mark step boundary for CUDAGraphs (like reference repo)
+            if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
+                torch.compiler.cudagraph_mark_step_begin()
+
             batch_size = self.config.get("batch_size", 256)
 
             used_sequences = False
@@ -662,6 +672,17 @@ class TDMPC2(Agent):
                         batch_size_actual, horizon + 1, self.latent_dim
                     )
 
+                    # Pre-compute TD targets BEFORE the loop (like reference repo)
+                    # This batches all target computations
+                    with torch.no_grad():
+                        next_z = z_seq[:, 1:].detach()  # (batch, horizon, latent)
+                        # Compute TD targets for all timesteps at once
+                        td_targets = self._compute_td_targets(
+                            next_z, rewards_seq, dones_seq, horizon
+                        )
+
+                    # Latent rollout - SEQUENTIAL (autoregressive, like reference repo)
+                    # This is necessary because zs is used for policy update
                     zs = torch.empty(
                         horizon + 1,
                         batch_size_actual,
@@ -671,76 +692,59 @@ class TDMPC2(Agent):
                     z_pred = z_seq[:, 0].clone()
                     zs[0] = z_pred
                     consistency_loss = 0.0
-                    reward_loss = 0.0
-                    value_loss = 0.0
+
+                    # Pre-compute lambda weights (avoid recomputation)
+                    lambda_weights = self.lambda_coef ** torch.arange(
+                        horizon, device=self.device, dtype=torch.float32
+                    )
+
+                    # Sequential dynamics rollout (like reference repo)
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
-                        r_t = rewards_seq[:, t]
-                        d_t = dones_seq[:, t]
+                        z_target = z_seq[:, t + 1].detach()
 
                         with torch.amp.autocast("cuda", enabled=self.use_amp):
                             z_next_pred = self.dynamics(z_pred, a_t)
-                        z_target = z_seq[:, t + 1].detach()
                         zs[t + 1] = z_next_pred
 
-                        weight = self.lambda_coef**t
-                        consistency_loss = consistency_loss + weight * F.mse_loss(
+                        # Consistency loss with pre-computed weight
+                        consistency_loss = consistency_loss + lambda_weights[t] * F.mse_loss(
                             z_next_pred, z_target
                         )
-
-                        with torch.amp.autocast("cuda", enabled=self.use_amp):
-                            r_pred_logits = self.reward(z_pred, a_t)
-                        reward_loss = (
-                            reward_loss
-                            + weight
-                            * soft_ce(
-                                r_pred_logits, r_t, self.num_bins, self.vmin, self.vmax
-                            ).mean()
-                        )
-
-                        with torch.amp.autocast("cuda", enabled=self.use_amp):
-                            q_preds_logits = self.q_ensemble(z_pred, a_t)
-                        with torch.no_grad():
-                            n = min(self.n_step, horizon - t)
-                            gamma_powers = (
-                                self.gamma
-                                ** torch.arange(
-                                    n,
-                                    device=rewards_seq.device,
-                                    dtype=rewards_seq.dtype,
-                                )
-                            ).view(1, n, 1)
-                            reward_sum = (rewards_seq[:, t : t + n] * gamma_powers).sum(
-                                dim=1
-                            )
-                            z_bootstrap = z_seq[:, t + n].detach()
-                            with torch.amp.autocast("cuda", enabled=self.use_amp):
-                                next_action, _, _, _ = self.policy.sample(z_bootstrap)
-                                target_q = self.target_q_ensemble.min(
-                                    z_bootstrap, next_action
-                                )
-                            d_n = dones_seq[:, t + n - 1]
-                            bootstrap = (self.gamma**n) * (1.0 - d_n) * target_q
-                            q_target = reward_sum + bootstrap
-
-                        step_value_loss = 0.0
-                        for q_pred_logits in q_preds_logits:
-                            step_value_loss = (
-                                step_value_loss
-                                + soft_ce(
-                                    q_pred_logits,
-                                    q_target,
-                                    self.num_bins,
-                                    self.vmin,
-                                    self.vmax,
-                                ).mean()
-                            )
-                        value_loss = value_loss + weight * step_value_loss
 
                         z_pred = z_next_pred
 
                     consistency_loss = consistency_loss / horizon
-                    reward_loss = reward_loss / horizon
+
+                    # === BATCHED PREDICTIONS (like reference repo) ===
+                    # After building zs, do batched reward and Q predictions
+                    _zs = zs[:-1]  # (horizon, batch, latent) - states 0 to H-1
+                    _zs_flat = _zs.reshape(-1, self.latent_dim)  # (horizon*batch, latent)
+                    _actions_flat = actions_seq.permute(1, 0, 2).reshape(-1, self.action_dim)  # (horizon*batch, action)
+
+                    with torch.amp.autocast("cuda", enabled=self.use_amp):
+                        # Batched reward prediction
+                        reward_preds = self.reward(_zs_flat, _actions_flat)  # (horizon*batch, num_bins)
+                        # Batched Q prediction
+                        q_preds_all = self.q_ensemble(_zs_flat, _actions_flat)  # list of (horizon*batch, num_bins)
+
+                    # Compute reward loss with lambda weighting
+                    rewards_flat = rewards_seq.permute(1, 0, 2).reshape(-1, 1)  # (horizon*batch, 1)
+                    reward_loss_per_sample = soft_ce(
+                        reward_preds, rewards_flat, self.num_bins, self.vmin, self.vmax
+                    )  # (horizon*batch,)
+                    reward_loss_per_step = reward_loss_per_sample.reshape(horizon, batch_size_actual).mean(dim=1)
+                    reward_loss = (lambda_weights * reward_loss_per_step).sum() / horizon
+
+                    # Compute value loss with lambda weighting
+                    td_targets_flat = td_targets.permute(1, 0, 2).reshape(-1, 1)  # (horizon*batch, 1)
+                    value_loss = 0.0
+                    for q_pred in q_preds_all:
+                        value_loss_per_sample = soft_ce(
+                            q_pred, td_targets_flat, self.num_bins, self.vmin, self.vmax
+                        )
+                        value_loss_per_step = value_loss_per_sample.reshape(horizon, batch_size_actual).mean(dim=1)
+                        value_loss = value_loss + (lambda_weights * value_loss_per_step).sum()
                     value_loss = value_loss / (horizon * self.num_q)
                     zs_bh = zs[1:].permute(1, 0, 2).reshape(-1, self.latent_dim)
                     with torch.amp.autocast("cuda", enabled=self.use_amp):
@@ -900,6 +904,65 @@ class TDMPC2(Agent):
                 ]
 
         return all_losses
+
+    @torch.no_grad()
+    def _compute_td_targets(self, next_z, rewards_seq, dones_seq, horizon):
+        """
+        Compute TD targets for all timesteps at once (like reference repo).
+
+        This batches the target computation instead of doing it inside the loop.
+
+        Args:
+            next_z: (batch, horizon, latent_dim) - encoded next observations
+            rewards_seq: (batch, horizon, 1) - rewards
+            dones_seq: (batch, horizon, 1) - termination flags
+            horizon: int - planning horizon
+
+        Returns:
+            td_targets: (batch, horizon, 1) - TD targets for each timestep
+        """
+        batch_size = next_z.shape[0]
+
+        # For n_step=1: simple 1-step TD targets
+        # For n_step>1: would need more complex handling at episode boundaries
+        if self.n_step == 1:
+            # Flatten for batched computation
+            next_z_flat = next_z.reshape(-1, self.latent_dim)  # (batch*horizon, latent)
+
+            with torch.amp.autocast("cuda", enabled=self.use_amp):
+                # Get policy actions for all next states
+                next_actions, _, _, _ = self.policy.sample(next_z_flat)
+                # Get target Q-values for all next states
+                target_q_flat = self.target_q_ensemble.min(next_z_flat, next_actions)
+
+            target_q = target_q_flat.reshape(batch_size, horizon, 1)
+
+            # TD target: r + gamma * (1 - done) * Q(s', a')
+            td_targets = rewards_seq + self.gamma * (1.0 - dones_seq) * target_q
+        else:
+            # n-step returns: compute for each timestep
+            # This is more complex due to variable-length returns at episode boundaries
+            td_targets = torch.empty(
+                batch_size, horizon, 1, device=self.device, dtype=rewards_seq.dtype
+            )
+            for t in range(horizon):
+                n = min(self.n_step, horizon - t)
+                gamma_powers = (
+                    self.gamma
+                    ** torch.arange(n, device=self.device, dtype=rewards_seq.dtype)
+                ).view(1, n, 1)
+                reward_sum = (rewards_seq[:, t : t + n] * gamma_powers).sum(dim=1)
+
+                z_bootstrap = next_z[:, min(t + n - 1, horizon - 1)]
+                with torch.amp.autocast("cuda", enabled=self.use_amp):
+                    next_action, _, _, _ = self.policy.sample(z_bootstrap)
+                    target_q = self.target_q_ensemble.min(z_bootstrap, next_action)
+
+                d_n = dones_seq[:, min(t + n - 1, horizon - 1)]
+                bootstrap = (self.gamma**n) * (1.0 - d_n) * target_q
+                td_targets[:, t] = reward_sum + bootstrap
+
+        return td_targets
 
     def _init_detached_q_ensemble(self):
         """
