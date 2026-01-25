@@ -59,12 +59,31 @@ class RewardShapingConfig:
 
 
 @dataclass
+class RewardBonusConfig:
+    """Configuration for reward bonus parameters that can change over time within a phase.
+    
+    Similar to RewardShapingConfig, this allows transitioning from START to FINAL values
+    over N + K episodes:
+    - Episodes 0 to N-1: Use START values
+    - Episodes N to N+K-1: Linearly interpolate from START to FINAL
+    - Episodes N+K onwards: Use FINAL values
+    """
+    N: int = 0  # Number of episodes to use START values
+    K: int = 2000  # Number of episodes to transition from START to FINAL
+    WIN_BONUS_START: float = 10.0  # Initial win reward bonus
+    WIN_BONUS_FINAL: float = 1.0  # Final win reward bonus
+    WIN_DISCOUNT_START: float = 0.92  # Initial win reward discount
+    WIN_DISCOUNT_FINAL: float = 0.92  # Final win reward discount (usually kept same)
+
+
+@dataclass
 class PhaseConfig:
     name: str
     episodes: int
     environment: EnvironmentConfig
     opponent: OpponentConfig
     reward_shaping: Optional[RewardShapingConfig] = None
+    reward_bonus: Optional[RewardBonusConfig] = None
 
 
 @dataclass
@@ -130,12 +149,19 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
         else:
             reward_shaping = RewardShapingConfig(**reward_shaping_dict)
         
+        reward_bonus_dict = phase_dict.get('reward_bonus')
+        if reward_bonus_dict is None:
+            reward_bonus = None
+        else:
+            reward_bonus = RewardBonusConfig(**reward_bonus_dict)
+        
         phase = PhaseConfig(
             name=phase_dict['name'],
             episodes=phase_dict['episodes'],
             environment=env_config,
             opponent=opponent_config,
-            reward_shaping=reward_shaping
+            reward_shaping=reward_shaping,
+            reward_bonus=reward_bonus
         )
         phases.append(phase)
     

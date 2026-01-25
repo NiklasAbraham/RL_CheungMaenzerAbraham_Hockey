@@ -365,6 +365,40 @@ def train_run(
         if verbose:
             print("Checkpoint loaded successfully")
 
+    # Helper function to initialize reward bonus (defined early for use before main loop)
+    def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
+        """Initialize reward bonus parameters based on episode number."""
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        if phase_cfg.reward_bonus is not None:
+            rb = phase_cfg.reward_bonus
+            N, K = rb.N, rb.K
+            if phase_local_ep < N:
+                win_bonus = rb.WIN_BONUS_START
+                win_discount = rb.WIN_DISCOUNT_START
+            elif phase_local_ep < N + K:
+                alpha = (phase_local_ep - N) / K
+                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+            else:
+                win_bonus = rb.WIN_BONUS_FINAL
+                win_discount = rb.WIN_DISCOUNT_FINAL
+            
+            if hasattr(agent_ref, "buffer"):
+                if hasattr(agent_ref.buffer, "win_reward_bonus"):
+                    agent_ref.buffer.win_reward_bonus = win_bonus
+                if hasattr(agent_ref.buffer, "win_reward_discount"):
+                    agent_ref.buffer.win_reward_discount = win_discount
+            return {"win_bonus": win_bonus, "win_discount": win_discount}
+        return None
+
+    # Initialize reward bonus parameters based on start_episode (important for resuming)
+    if start_episode > 0:
+        init_bonus = _init_reward_bonus_from_config(start_episode, curriculum, agent)
+        if init_bonus is not None and verbose:
+            print(f"Initialized reward bonus for episode {start_episode}:")
+            print(f"  win_reward_bonus: {init_bonus['win_bonus']:.4f}")
+            print(f"  win_reward_discount: {init_bonus['win_discount']:.4f}")
+
     losses = []
     all_losses_dict = {}  # Dictionary to store all loss types: {loss_type: [values]}
     rewards = []
@@ -420,6 +454,52 @@ def train_run(
                 "direction": DIRECTION_FINAL,
             }
 
+    def get_reward_bonus_values(episode_idx, phase_config):
+        """Get the reward bonus parameters for a given episode within a phase.
+        
+        Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
+        reward_bonus config exists for this phase.
+        """
+        reward_bonus = phase_config.reward_bonus
+
+        if reward_bonus is None:
+            return None
+
+        N = reward_bonus.N
+        K = reward_bonus.K
+        WIN_BONUS_START = reward_bonus.WIN_BONUS_START
+        WIN_BONUS_FINAL = reward_bonus.WIN_BONUS_FINAL
+        WIN_DISCOUNT_START = reward_bonus.WIN_DISCOUNT_START
+        WIN_DISCOUNT_FINAL = reward_bonus.WIN_DISCOUNT_FINAL
+
+        if episode_idx < N:
+            return {
+                "win_bonus": WIN_BONUS_START,
+                "win_discount": WIN_DISCOUNT_START,
+            }
+        elif episode_idx < N + K:
+            alpha = (episode_idx - N) / K
+            return {
+                "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+            }
+        else:
+            return {
+                "win_bonus": WIN_BONUS_FINAL,
+                "win_discount": WIN_DISCOUNT_FINAL,
+            }
+
+    def update_buffer_reward_bonus(agent, bonus_values):
+        """Update the agent's buffer reward bonus parameters if they exist."""
+        if bonus_values is None:
+            return
+        if not hasattr(agent, "buffer"):
+            return
+        if hasattr(agent.buffer, "win_reward_bonus"):
+            agent.buffer.win_reward_bonus = bonus_values["win_bonus"]
+        if hasattr(agent.buffer, "win_reward_discount"):
+            agent.buffer.win_reward_discount = bonus_values["win_discount"]
+
     for global_episode in range(start_episode, total_episodes):
         phase_idx, phase_local_episode, phase_config = get_phase_for_episode(
             curriculum, global_episode
@@ -450,6 +530,10 @@ def train_run(
 
             current_phase_idx = phase_idx
             current_phase_start = steps
+
+        # Update reward bonus parameters for this episode
+        bonus_values = get_reward_bonus_values(phase_local_episode, phase_config)
+        update_buffer_reward_bonus(agent, bonus_values)
 
         sampled_mode_str = phase_config.environment.get_mode_for_episode(
             phase_local_episode
@@ -1096,6 +1180,40 @@ def _train_run_vectorized(
         if verbose:
             print("Checkpoint loaded successfully")
 
+    # Helper function to initialize reward bonus (defined early for use before main loop)
+    def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
+        """Initialize reward bonus parameters based on episode number."""
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        if phase_cfg.reward_bonus is not None:
+            rb = phase_cfg.reward_bonus
+            N, K = rb.N, rb.K
+            if phase_local_ep < N:
+                win_bonus = rb.WIN_BONUS_START
+                win_discount = rb.WIN_DISCOUNT_START
+            elif phase_local_ep < N + K:
+                alpha = (phase_local_ep - N) / K
+                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+            else:
+                win_bonus = rb.WIN_BONUS_FINAL
+                win_discount = rb.WIN_DISCOUNT_FINAL
+            
+            if hasattr(agent_ref, "buffer"):
+                if hasattr(agent_ref.buffer, "win_reward_bonus"):
+                    agent_ref.buffer.win_reward_bonus = win_bonus
+                if hasattr(agent_ref.buffer, "win_reward_discount"):
+                    agent_ref.buffer.win_reward_discount = win_discount
+            return {"win_bonus": win_bonus, "win_discount": win_discount}
+        return None
+
+    # Initialize reward bonus parameters based on start_episode (important for resuming)
+    if start_episode > 0:
+        init_bonus = _init_reward_bonus_from_config(start_episode, curriculum, agent)
+        if init_bonus is not None and verbose:
+            print(f"Initialized reward bonus for episode {start_episode}:")
+            print(f"  win_reward_bonus: {init_bonus['win_bonus']:.4f}")
+            print(f"  win_reward_discount: {init_bonus['win_discount']:.4f}")
+
     losses = []
     all_losses_dict = {}  # Dictionary to store all loss types: {loss_type: [values]}
     rewards = []
@@ -1163,6 +1281,52 @@ def _train_run_vectorized(
                 "touch": TOUCH_FINAL,
                 "direction": DIRECTION_FINAL,
             }
+
+    def get_reward_bonus_values(episode_idx, phase_config):
+        """Get the reward bonus parameters for a given episode within a phase.
+        
+        Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
+        reward_bonus config exists for this phase.
+        """
+        reward_bonus = phase_config.reward_bonus
+
+        if reward_bonus is None:
+            return None
+
+        N = reward_bonus.N
+        K = reward_bonus.K
+        WIN_BONUS_START = reward_bonus.WIN_BONUS_START
+        WIN_BONUS_FINAL = reward_bonus.WIN_BONUS_FINAL
+        WIN_DISCOUNT_START = reward_bonus.WIN_DISCOUNT_START
+        WIN_DISCOUNT_FINAL = reward_bonus.WIN_DISCOUNT_FINAL
+
+        if episode_idx < N:
+            return {
+                "win_bonus": WIN_BONUS_START,
+                "win_discount": WIN_DISCOUNT_START,
+            }
+        elif episode_idx < N + K:
+            alpha = (episode_idx - N) / K
+            return {
+                "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+            }
+        else:
+            return {
+                "win_bonus": WIN_BONUS_FINAL,
+                "win_discount": WIN_DISCOUNT_FINAL,
+            }
+
+    def update_buffer_reward_bonus(agent, bonus_values):
+        """Update the agent's buffer reward bonus parameters if they exist."""
+        if bonus_values is None:
+            return
+        if not hasattr(agent, "buffer"):
+            return
+        if hasattr(agent.buffer, "win_reward_bonus"):
+            agent.buffer.win_reward_bonus = bonus_values["win_bonus"]
+        if hasattr(agent.buffer, "win_reward_discount"):
+            agent.buffer.win_reward_discount = bonus_values["win_discount"]
 
     # Initialize first phase
     phase_idx, phase_local_episode, phase_config = get_phase_for_episode(curriculum, 0)
@@ -1606,6 +1770,12 @@ def _train_run_vectorized(
                     reward_weights = get_reward_weights(
                         new_phase_local_episode, new_phase_config
                     )
+                    
+                    # Update reward bonus parameters for the next episode
+                    bonus_values = get_reward_bonus_values(
+                        new_phase_local_episode, new_phase_config
+                    )
+                    update_buffer_reward_bonus(agent, bonus_values)
 
                 # Note: individual environment resets are handled automatically by vectorized env
 

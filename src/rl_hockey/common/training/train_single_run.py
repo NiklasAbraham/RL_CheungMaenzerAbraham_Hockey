@@ -106,7 +106,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_tdmpc2.json"
+    path_to_config = "configs/curriculum_tdmpc2_bonus_decay.json"
 
     # Auto-detect device
     if torch.cuda.is_available():

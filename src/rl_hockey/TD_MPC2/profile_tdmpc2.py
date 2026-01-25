@@ -4,6 +4,7 @@ Uses torch.profiler to measure time spent in different operations.
 """
 
 import argparse
+import gc
 import json
 import os
 
@@ -76,15 +77,15 @@ def profile_single_action(
         ]
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
-        record_shapes=True,  # Enable to see transfer operations
-        profile_memory=False,  # Enable to see memory operations
+        record_shapes=False,  # Disabled to save memory
+        profile_memory=False,  # Disabled to save memory
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("act_total"):
             for _ in range(num_iterations):
                 _ = agent.act(obs.cpu().numpy())
 
-    # Print results
+    # Extract results immediately and delete profiler
     print(f"\nProfiled {num_iterations} action selections")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -92,8 +93,9 @@ def profile_single_action(
         row_limit=30,
     )
     print(table_str)
-
-    return prof, table_str
+    
+    # Return table string only, not profiler object
+    return table_str
 
 
 def profile_batch_action(
@@ -123,15 +125,15 @@ def profile_batch_action(
         ]
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
-        record_shapes=True,  # Enable to see transfer operations
-        profile_memory=False,  # Enable to see memory operations
+        record_shapes=False,  # Disabled to save memory
+        profile_memory=False,  # Disabled to save memory
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("act_batch_total"):
             for _ in range(num_iterations):
                 _ = agent.act_batch(obs_batch.cpu().numpy())
 
-    # Print results
+    # Extract results immediately
     print(f"\nProfiled {num_iterations} batch action selections")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -140,7 +142,7 @@ def profile_batch_action(
     )
     print(table_str)
 
-    return prof, table_str
+    return table_str
 
 
 def profile_planning_step(
@@ -167,8 +169,8 @@ def profile_planning_step(
         ]
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
-        record_shapes=True,  # Enable to see transfer operations
-        profile_memory=False,  # Enable to see memory operations
+        record_shapes=False,  # Disabled to save memory
+        profile_memory=False,  # Disabled to save memory
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("planning_total"):
@@ -185,7 +187,7 @@ def profile_planning_step(
     )
     print(table_str)
 
-    return prof, table_str
+    return table_str
 
 
 def profile_model_forward_passes(
@@ -227,6 +229,8 @@ def profile_model_forward_passes(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=False,  # Disabled to save memory
+        profile_memory=False,
+        with_stack=False,
     ) as prof:
         for _ in range(num_iterations):
             with torch.profiler.record_function("encoder"):
@@ -239,6 +243,10 @@ def profile_model_forward_passes(
     )
     print(table_str)
     results.append(("encoder", table_str))
+    del prof
+    if device != "cpu":
+        torch.cuda.empty_cache()
+        gc.collect()
 
     print("\nProfiling dynamics (single)...")
     with torch.profiler.profile(
@@ -249,6 +257,8 @@ def profile_model_forward_passes(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=False,  # Disabled to save memory
+        profile_memory=False,
+        with_stack=False,
     ) as prof:
         for _ in range(num_iterations):
             with torch.profiler.record_function("dynamics_single"):
@@ -261,6 +271,10 @@ def profile_model_forward_passes(
     )
     print(table_str)
     results.append(("dynamics_single", table_str))
+    del prof
+    if device != "cpu":
+        torch.cuda.empty_cache()
+        gc.collect()
 
     print("\nProfiling dynamics (batched)...")
     with torch.profiler.profile(
@@ -271,6 +285,8 @@ def profile_model_forward_passes(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=False,  # Disabled to save memory
+        profile_memory=False,
+        with_stack=False,
     ) as prof:
         for _ in range(num_iterations):
             with torch.profiler.record_function("dynamics_batch"):
@@ -283,6 +299,10 @@ def profile_model_forward_passes(
     )
     print(table_str)
     results.append(("dynamics_batch", table_str))
+    del prof
+    if device != "cpu":
+        torch.cuda.empty_cache()
+        gc.collect()
 
     print("\nProfiling reward (batched)...")
     with torch.profiler.profile(
@@ -293,6 +313,8 @@ def profile_model_forward_passes(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=False,  # Disabled to save memory
+        profile_memory=False,
+        with_stack=False,
     ) as prof:
         for _ in range(num_iterations):
             with torch.profiler.record_function("reward_batch"):
@@ -305,6 +327,10 @@ def profile_model_forward_passes(
     )
     print(table_str)
     results.append(("reward_batch", table_str))
+    del prof
+    if device != "cpu":
+        torch.cuda.empty_cache()
+        gc.collect()
 
     print("\nProfiling Q-ensemble (batched)...")
     with torch.profiler.profile(
@@ -315,6 +341,8 @@ def profile_model_forward_passes(
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
         record_shapes=False,  # Disabled to save memory
+        profile_memory=False,
+        with_stack=False,
     ) as prof:
         for _ in range(num_iterations):
             with torch.profiler.record_function("q_ensemble_batch"):
@@ -327,6 +355,10 @@ def profile_model_forward_passes(
     )
     print(table_str)
     results.append(("q_ensemble_batch", table_str))
+    del prof
+    if device != "cpu":
+        torch.cuda.empty_cache()
+        gc.collect()
 
     return results
 
@@ -358,14 +390,27 @@ def profile_training_step(
         agent.policy.train()
 
     # Fill buffer with dummy data for sampling
+    # TD-MPC2 requires sequences, so we need to create episodes
+    # Each episode needs at least horizon+1 transitions
     action_dim = agent.action_dim
-    for _ in range(batch_size * 2):  # Fill buffer with enough samples
-        obs = torch.randn(obs_dim).cpu().numpy()
-        action = torch.randn(action_dim).cpu().numpy()
-        reward = np.random.randn()
-        next_obs = torch.randn(obs_dim).cpu().numpy()
-        done = False
-        agent.buffer.store((obs, action, reward, next_obs, done))
+    horizon = agent.horizon if hasattr(agent, "horizon") else 5
+    episodes_needed = max(batch_size // 4, 10)  # At least 10 episodes
+    transitions_per_episode = horizon + 5  # Make episodes longer than horizon
+    
+    # Clear buffer first
+    if hasattr(agent.buffer, "clear"):
+        agent.buffer.clear()
+    
+    # Store episodes (sequences of transitions ending with done=True)
+    for ep in range(episodes_needed):
+        for step in range(transitions_per_episode):
+            obs = torch.randn(obs_dim).cpu().numpy()
+            action = torch.randn(action_dim).cpu().numpy()
+            reward = np.random.randn()
+            next_obs = torch.randn(obs_dim).cpu().numpy()
+            # Mark last transition in episode as done
+            done = (step == transitions_per_episode - 1)
+            agent.buffer.store((obs, action, reward, next_obs, done))
 
     # Warmup
     for _ in range(num_warmup):
@@ -379,8 +424,8 @@ def profile_training_step(
         ]
         if device != "cpu"
         else [torch.profiler.ProfilerActivity.CPU],
-        record_shapes=True,  # Enable to see tensor shapes and transfer operations
-        profile_memory=False,  # Enable to see memory operations and CPU-GPU transfers
+        record_shapes=False,  # Disabled to save memory
+        profile_memory=False,  # Disabled to save memory
         with_stack=False,  # Disabled to save memory
     ) as prof:
         with torch.profiler.record_function("training_total"):
@@ -388,7 +433,7 @@ def profile_training_step(
                 with torch.profiler.record_function("train_step"):
                     _ = agent.train(steps=1)
 
-    # Print results
+    # Extract results immediately
     print(f"\nProfiled {num_iterations} training steps")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -459,7 +504,7 @@ def profile_training_step(
     if hasattr(agent, "policy"):
         agent.policy.eval()
 
-    return prof, table_str
+    return table_str
 
 
 def export_trace(prof, output_path: str):
@@ -550,83 +595,100 @@ def main(
     # Collect all profiling results
     profiling_results = []
 
-    # Helper to clear GPU cache between profiling sections (helps with memory)
+    # Helper to clear GPU cache and force garbage collection
     def clear_gpu_cache():
         if device != "cpu" and torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
+            # Force Python garbage collection to release profiler objects
+            gc.collect()
+            torch.cuda.empty_cache()
+    
+    # Helper to print memory status
+    def print_memory_status():
+        if device != "cpu" and torch.cuda.is_available():
+            current_device = torch.cuda.current_device()
+            allocated = torch.cuda.memory_allocated(current_device) / 1e9
+            reserved = torch.cuda.memory_reserved(current_device) / 1e9
+            total = torch.cuda.get_device_properties(current_device).total_memory / 1e9
+            free = total - reserved
+            print(f"GPU Memory: {allocated:.2f} GB allocated, {reserved:.2f} GB reserved, {free:.2f} GB free")
 
     # 1. Profile single action
     try:
         clear_gpu_cache()
-        prof1, table1 = profile_single_action(
+        print_memory_status()
+        print("\n[1/5] Profiling single action selection...")
+        table1 = profile_single_action(
             agent, obs_dim, num_iterations=num_iterations
         )
         profiling_results.append(("SINGLE ACTION SELECTION", table1))
-        if export_traces:
-            export_trace(prof1, os.path.join(output_dir, "single_action_trace.json"))
-        del prof1
         clear_gpu_cache()
+        print_memory_status()
     except Exception as e:
         print(f"\nWARNING: Failed to profile single action: {e}")
         profiling_results.append(("SINGLE ACTION SELECTION", f"ERROR: {str(e)}"))
+        clear_gpu_cache()
 
     # 2. Profile batch action
     try:
-        prof2, table2 = profile_batch_action(
+        print("\n[2/5] Profiling batch action selection...")
+        table2 = profile_batch_action(
             agent, obs_dim, batch_size=4, num_iterations=num_iterations // 2
         )
         profiling_results.append(("BATCH ACTION SELECTION", table2))
-        if export_traces:
-            export_trace(prof2, os.path.join(output_dir, "batch_action_trace.json"))
-        del prof2
         clear_gpu_cache()
+        print_memory_status()
     except Exception as e:
         print(f"\nWARNING: Failed to profile batch action: {e}")
         profiling_results.append(("BATCH ACTION SELECTION", f"ERROR: {str(e)}"))
+        clear_gpu_cache()
 
     # 3. Profile planning details
     try:
-        prof3, table3 = profile_planning_step(
+        print("\n[3/5] Profiling planning step...")
+        table3 = profile_planning_step(
             agent, obs_dim, num_iterations=num_iterations
         )
         profiling_results.append(("PLANNING STEP", table3))
-        if export_traces:
-            export_trace(prof3, os.path.join(output_dir, "planning_trace.json"))
-        del prof3
         clear_gpu_cache()
+        print_memory_status()
     except Exception as e:
         print(f"\nWARNING: Failed to profile planning step: {e}")
         profiling_results.append(("PLANNING STEP", f"ERROR: {str(e)}"))
+        clear_gpu_cache()
 
-    # 4. Profile individual models
+    # 4. Profile individual models (use fewer iterations to save memory)
     try:
+        print("\n[4/5] Profiling model forward passes...")
         model_results = profile_model_forward_passes(
-            agent, obs_dim, num_samples, horizon, num_iterations=num_iterations
+            agent, obs_dim, num_samples, horizon, num_iterations=min(num_iterations, 30)
         )
         for name, table in model_results:
             profiling_results.append((f"MODEL FORWARD PASS: {name.upper()}", table))
         clear_gpu_cache()
+        print_memory_status()
     except Exception as e:
         print(f"\nWARNING: Failed to profile model forward passes: {e}")
         profiling_results.append(("MODEL FORWARD PASSES", f"ERROR: {str(e)}"))
+        clear_gpu_cache()
 
     # 5. Profile training step
     try:
-        prof4, table4 = profile_training_step(
+        print("\n[5/5] Profiling training step...")
+        table4 = profile_training_step(
             agent,
             obs_dim,
-            batch_size=agent.config.get("batch_size", 256),
+            batch_size=agent.config.get("batch_size", 256) if hasattr(agent, "config") else 256,
             num_iterations=num_iterations // 2,  # Fewer iterations for training
         )
         profiling_results.append(("TRAINING STEP", table4))
-        if export_traces:
-            export_trace(prof4, os.path.join(output_dir, "training_trace.json"))
-        del prof4
         clear_gpu_cache()
+        print_memory_status()
     except Exception as e:
         print(f"\nWARNING: Failed to profile training step: {e}")
         profiling_results.append(("TRAINING STEP", f"ERROR: {str(e)}"))
+        clear_gpu_cache()
 
     # Save all results to a summary file
     summary_path = os.path.join(output_dir, "profiling_summary.txt")

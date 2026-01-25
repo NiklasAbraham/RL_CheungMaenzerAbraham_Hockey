@@ -5,8 +5,8 @@
 SERVER="tcml-login1"
 # SSH config should handle the full hostname mapping
 REMOTE_DIR="~/RL_CheungMaenzerAbraham_Hockey"
-# Get project root directory (one level up from resources folder where this script is located)
-LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Get project root directory (three level up from resources folder where this script is located)
+LOCAL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 
 echo "Syncing project to ${SERVER}:${REMOTE_DIR}..."
 echo ""
