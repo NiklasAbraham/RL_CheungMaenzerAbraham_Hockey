@@ -42,6 +42,7 @@ OUTPUT_DIR="$PROJECT_DIR/results/profiling"
 NUM_ITERATIONS=50
 # Reduced from 100 to save memory - torch.profiler uses significant memory per iteration
 EXPORT_TRACES=""
+export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 # Set EXPORT_TRACES="--export-traces" if you want Chrome trace files
 
 # Create output directory

@@ -26,10 +26,18 @@
         }
       },
       {
-        "name": "full_competency",
+        "name": "full_competency_bonus_decay",
         "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {"type": "basic_strong", "weight": 1.0}
+        "opponent": {"type": "basic_strong", "weight": 1.0},
+        "reward_bonus": {
+          "N": 0,
+          "K": 2000,
+          "WIN_BONUS_START": 10.0,
+          "WIN_BONUS_FINAL": 1.0,
+          "WIN_DISCOUNT_START": 0.92,
+          "WIN_DISCOUNT_FINAL": 0.92
+        }
       }
     ]
   },

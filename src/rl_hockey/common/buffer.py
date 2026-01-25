@@ -295,6 +295,7 @@ class TDMPC2ReplayBuffer:
         use_torch_tensors=False,
         pin_memory=False,
         device="cpu",
+        buffer_device="cpu",
         multitask=False,
         win_reward_bonus=10.0,
         win_reward_discount=0.92,
@@ -310,8 +311,13 @@ class TDMPC2ReplayBuffer:
             batch_size: Number of subsequences returned per sample.
             use_torch_tensors: If True, use torch tensors; else numpy.
             pin_memory: If True, pin memory for faster CPU to GPU transfer
-                (only when use_torch_tensors=True and device="cpu").
+                (only when use_torch_tensors=True and buffer_device="cpu").
             device: Device to place sampled batches on ("cpu" or "cuda").
+                This is where data goes AFTER sampling for training.
+            buffer_device: Device to store episode data on ("cpu" or "cuda").
+                Default "cpu" is recommended - allows larger buffers and
+                transfer overhead is negligible (<1% of training time).
+                Only set to "cuda" if profiling shows transfer bottleneck.
             multitask: If True, expect and return task in add_episode and sample.
             win_reward_bonus: Bonus reward to add to each step in a winning episode.
                 Applied with discount factor backwards through the episode.
@@ -321,15 +327,20 @@ class TDMPC2ReplayBuffer:
         self.max_size = max_size
         self.horizon = horizon
         self.batch_size = batch_size
-        self.use_torch_tensors = use_torch_tensors or (device != "cpu")
+        self.use_torch_tensors = use_torch_tensors or (device != "cpu") or (buffer_device != "cpu")
         self.device = (
             device
             if isinstance(device, str)
             else (device.type if hasattr(device, "type") else "cpu")
         )
+        self.buffer_device = (
+            buffer_device
+            if isinstance(buffer_device, str)
+            else (buffer_device.type if hasattr(buffer_device, "type") else "cpu")
+        )
         self.pin_memory = (
             pin_memory
-            and self.device == "cpu"
+            and self.buffer_device == "cpu"
             and self.use_torch_tensors
             and torch.cuda.is_available()
         )
@@ -397,7 +408,10 @@ class TDMPC2ReplayBuffer:
         self._total_transitions += T
 
     def _to_buffer_dtype(self, x, is_numpy=None):
-        """Convert to torch or numpy to match buffer config."""
+        """Convert to torch or numpy to match buffer config.
+        
+        Data is stored on buffer_device (default CPU), not the training device.
+        """
         if is_numpy is None:
             is_numpy = not self.use_torch_tensors
         if is_numpy:
@@ -405,8 +419,8 @@ class TDMPC2ReplayBuffer:
                 return np.asarray(x.detach().cpu().numpy(), dtype=np.float32)
             return np.asarray(x, dtype=np.float32)
         t = torch.as_tensor(x, dtype=torch.float32)
-        if self.device != "cpu":
-            t = t.to(self.device, non_blocking=True)
+        if self.buffer_device != "cpu":
+            t = t.to(self.buffer_device, non_blocking=True)
         elif self.pin_memory and t.is_cpu and torch.cuda.is_available():
             t = t.pin_memory()
         return t
