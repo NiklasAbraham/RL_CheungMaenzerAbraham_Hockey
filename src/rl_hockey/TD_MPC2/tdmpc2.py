@@ -35,6 +35,27 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
 
 
+def _load_state_dict_compat(model, state_dict, strict=True):
+    """Load state_dict into model, handling torch.compile key mismatch.
+
+    Checkpoints saved from non-compiled models use keys like 'mlp.0.weight'.
+    Compiled models (OptimizedModule) expect '_orig_mod.mlp.0.weight'.
+    - Compiled model + plain keys: load into model._orig_mod.
+    - Non-compiled model + prefixed keys: strip '_orig_mod.' and load into model.
+    """
+    if not state_dict:
+        return None
+    first_key = next(iter(state_dict.keys()))
+    has_prefix = first_key.startswith("_orig_mod.")
+    if hasattr(model, "_orig_mod"):
+        if not has_prefix:
+            return model._orig_mod.load_state_dict(state_dict, strict=strict)
+    elif has_prefix:
+        stripped = {k.removeprefix("_orig_mod."): v for k, v in state_dict.items()}
+        return model.load_state_dict(stripped, strict=strict)
+    return model.load_state_dict(state_dict, strict=strict)
+
+
 class TDMPC2(Agent):
     def __init__(
         self,
@@ -72,6 +93,7 @@ class TDMPC2(Agent):
         n_step=1,
         win_reward_bonus=10.0,
         win_reward_discount=0.92,
+        use_amp=True,
     ):
         super().__init__()
         self.obs_dim = obs_dim
@@ -133,6 +155,13 @@ class TDMPC2(Agent):
         self.value_coef = value_coef
         self.termination_coef = termination_coef
         self.n_step = n_step
+        self.use_amp = use_amp and torch.cuda.is_available()
+
+        # Initialize GradScaler for mixed precision training
+        if self.use_amp:
+            self.scaler = torch.amp.GradScaler("cuda")
+        else:
+            self.scaler = None
 
         self.config = {
             "batch_size": batch_size,
@@ -290,11 +319,52 @@ class TDMPC2(Agent):
         if compile_available:
             try:
                 self.encoder = torch.compile(self.encoder, mode="reduce-overhead")
-                self.dynamics = torch.compile(self.dynamics, mode="reduce-overhead")
-                self.reward = torch.compile(self.reward, mode="reduce-overhead")
+                logger.debug("Successfully compiled encoder")
             except Exception as e:
                 logger.warning(
-                    f"torch.compile failed: {e}. Using eager mode for all models."
+                    f"torch.compile failed for encoder: {e}. Using eager mode."
+                )
+
+            try:
+                self.dynamics = torch.compile(self.dynamics, mode="reduce-overhead")
+                logger.debug("Successfully compiled dynamics")
+            except Exception as e:
+                logger.warning(
+                    f"torch.compile failed for dynamics: {e}. Using eager mode."
+                )
+
+            try:
+                self.reward = torch.compile(self.reward, mode="reduce-overhead")
+                logger.debug("Successfully compiled reward")
+            except Exception as e:
+                logger.warning(
+                    f"torch.compile failed for reward: {e}. Using eager mode."
+                )
+
+            try:
+                self.termination = torch.compile(
+                    self.termination, mode="reduce-overhead"
+                )
+                logger.debug("Successfully compiled termination")
+            except Exception as e:
+                logger.warning(
+                    f"torch.compile failed for termination: {e}. Using eager mode."
+                )
+
+            try:
+                self.q_ensemble = torch.compile(self.q_ensemble, mode="reduce-overhead")
+                logger.debug("Successfully compiled q_ensemble")
+            except Exception as e:
+                logger.warning(
+                    f"torch.compile failed for q_ensemble: {e}. Using eager mode."
+                )
+
+            try:
+                self.policy = torch.compile(self.policy, mode="reduce-overhead")
+                logger.debug("Successfully compiled policy")
+            except Exception as e:
+                logger.warning(
+                    f"torch.compile failed for policy: {e}. Using eager mode."
                 )
 
         self.planner.to(self.device)
@@ -346,9 +416,9 @@ class TDMPC2(Agent):
         """Select action using MPC planning."""
         obs = torch.FloatTensor(obs).to(self.device)
 
-        z = self.encoder(obs.unsqueeze(0)).squeeze(0)
-
-        action = self.planner.plan(z, return_mean=deterministic, t0=t0)
+        with torch.amp.autocast("cuda", enabled=self.use_amp):
+            z = self.encoder(obs.unsqueeze(0)).squeeze(0)
+            action = self.planner.plan(z, return_mean=deterministic, t0=t0)
 
         return action.cpu().numpy()
 
@@ -366,12 +436,13 @@ class TDMPC2(Agent):
         obs_tensor = torch.FloatTensor(obs).to(self.device)
         obs_batch = obs_tensor.unsqueeze(0)
 
-        z = self.encoder(obs_batch).squeeze(0)
-        z = z.clone()
+        with torch.amp.autocast("cuda", enabled=self.use_amp):
+            z = self.encoder(obs_batch).squeeze(0)
+            z = z.clone()
 
-        plan_result = self.planner.plan(
-            z, return_mean=deterministic, return_stats=True, t0=t0
-        )
+            plan_result = self.planner.plan(
+                z, return_mean=deterministic, return_stats=True, t0=t0
+            )
         if isinstance(plan_result, tuple):
             action, planning_stats = plan_result
         else:
@@ -387,71 +458,82 @@ class TDMPC2(Agent):
         stats["encoder_latent_std"] = z.std().item()
         stats["_latent_state"] = z.cpu().numpy()
 
-        policy_action = self.policy.mean_action(z.unsqueeze(0)).squeeze(0)
+        with torch.amp.autocast("cuda", enabled=self.use_amp):
+            policy_action = self.policy.mean_action(z.unsqueeze(0)).squeeze(0)
 
-        q_logits_list = self.q_ensemble(z.unsqueeze(0), action.unsqueeze(0))
-        from rl_hockey.TD_MPC2.util import two_hot_inv
+            q_logits_list = self.q_ensemble(z.unsqueeze(0), action.unsqueeze(0))
+            from rl_hockey.TD_MPC2.util import two_hot_inv
 
-        q_values = []
-        for q_logits in q_logits_list:
-            q_val = two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax).item()
-            q_values.append(q_val)
+            q_values = []
+            for q_logits in q_logits_list:
+                q_val = two_hot_inv(
+                    q_logits, self.num_bins, self.vmin, self.vmax
+                ).item()
+                q_values.append(q_val)
 
-        stats["q_values"] = q_values
-        stats["q_min"] = min(q_values)
-        stats["q_max"] = max(q_values)
-        stats["q_mean"] = sum(q_values) / len(q_values)
-        q_std_val = torch.tensor(q_values).std().item() if len(q_values) > 1 else 0.0
-        stats["q_std"] = q_std_val
-
-        stats["q_spread"] = max(q_values) - min(q_values)
-        q_mean_val = stats["q_mean"]
-        stats["q_coefficient_of_variation"] = (
-            q_std_val / abs(q_mean_val) if abs(q_mean_val) > 1e-8 else 0.0
-        )
-
-        q_logits_policy = self.q_ensemble(z.unsqueeze(0), policy_action.unsqueeze(0))
-        q_values_policy = []
-        for q_logits in q_logits_policy:
-            q_val = two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax).item()
-            q_values_policy.append(q_val)
-
-        stats["q_policy_values"] = q_values_policy
-        stats["q_policy_min"] = min(q_values_policy)
-        stats["q_policy_max"] = max(q_values_policy)
-        stats["q_policy_mean"] = sum(q_values_policy) / len(q_values_policy)
-
-        z_next_pred = self.dynamics(z.unsqueeze(0), action.unsqueeze(0)).squeeze(0)
-        latent_change = z_next_pred - z
-        stats["dynamics_latent_change_norm"] = latent_change.norm().item()
-        stats["dynamics_latent_change_mean"] = latent_change.mean().item()
-        stats["dynamics_latent_change_std"] = latent_change.std().item()
-        stats["dynamics_latent_next_norm"] = z_next_pred.norm().item()
-
-        if prev_predicted_next_latent is not None:
-            prev_pred_tensor = (
-                prev_predicted_next_latent
-                if isinstance(prev_predicted_next_latent, torch.Tensor)
-                else torch.FloatTensor(prev_predicted_next_latent).to(self.device)
+            stats["q_values"] = q_values
+            stats["q_min"] = min(q_values)
+            stats["q_max"] = max(q_values)
+            stats["q_mean"] = sum(q_values) / len(q_values)
+            q_std_val = (
+                torch.tensor(q_values).std().item() if len(q_values) > 1 else 0.0
             )
-            dynamics_error = z - prev_pred_tensor
-            stats["dynamics_prediction_error_norm"] = dynamics_error.norm().item()
-            stats["dynamics_prediction_error_mse"] = (dynamics_error**2).mean().item()
-            stats["dynamics_prediction_error_mean"] = dynamics_error.mean().item()
-            stats["dynamics_prediction_error_std"] = dynamics_error.std().item()
-        else:
-            stats["dynamics_prediction_error_norm"] = None
-            stats["dynamics_prediction_error_mse"] = None
-            stats["dynamics_prediction_error_mean"] = None
-            stats["dynamics_prediction_error_std"] = None
+            stats["q_std"] = q_std_val
 
-        stats["_predicted_next_latent"] = z_next_pred.clone().cpu().numpy()
+            stats["q_spread"] = max(q_values) - min(q_values)
+            q_mean_val = stats["q_mean"]
+            stats["q_coefficient_of_variation"] = (
+                q_std_val / abs(q_mean_val) if abs(q_mean_val) > 1e-8 else 0.0
+            )
 
-        reward_logits = self.reward(z.unsqueeze(0), action.unsqueeze(0))
-        reward_pred = two_hot_inv(
-            reward_logits, self.num_bins, self.vmin, self.vmax
-        ).item()
-        stats["reward_pred"] = reward_pred
+            q_logits_policy = self.q_ensemble(
+                z.unsqueeze(0), policy_action.unsqueeze(0)
+            )
+            q_values_policy = []
+            for q_logits in q_logits_policy:
+                q_val = two_hot_inv(
+                    q_logits, self.num_bins, self.vmin, self.vmax
+                ).item()
+                q_values_policy.append(q_val)
+
+            stats["q_policy_values"] = q_values_policy
+            stats["q_policy_min"] = min(q_values_policy)
+            stats["q_policy_max"] = max(q_values_policy)
+            stats["q_policy_mean"] = sum(q_values_policy) / len(q_values_policy)
+
+            z_next_pred = self.dynamics(z.unsqueeze(0), action.unsqueeze(0)).squeeze(0)
+            latent_change = z_next_pred - z
+            stats["dynamics_latent_change_norm"] = latent_change.norm().item()
+            stats["dynamics_latent_change_mean"] = latent_change.mean().item()
+            stats["dynamics_latent_change_std"] = latent_change.std().item()
+            stats["dynamics_latent_next_norm"] = z_next_pred.norm().item()
+
+            if prev_predicted_next_latent is not None:
+                prev_pred_tensor = (
+                    prev_predicted_next_latent
+                    if isinstance(prev_predicted_next_latent, torch.Tensor)
+                    else torch.FloatTensor(prev_predicted_next_latent).to(self.device)
+                )
+                dynamics_error = z - prev_pred_tensor
+                stats["dynamics_prediction_error_norm"] = dynamics_error.norm().item()
+                stats["dynamics_prediction_error_mse"] = (
+                    (dynamics_error**2).mean().item()
+                )
+                stats["dynamics_prediction_error_mean"] = dynamics_error.mean().item()
+                stats["dynamics_prediction_error_std"] = dynamics_error.std().item()
+            else:
+                stats["dynamics_prediction_error_norm"] = None
+                stats["dynamics_prediction_error_mse"] = None
+                stats["dynamics_prediction_error_mean"] = None
+                stats["dynamics_prediction_error_std"] = None
+
+            stats["_predicted_next_latent"] = z_next_pred.clone().cpu().numpy()
+
+            reward_logits = self.reward(z.unsqueeze(0), action.unsqueeze(0))
+            reward_pred = two_hot_inv(
+                reward_logits, self.num_bins, self.vmin, self.vmax
+            ).item()
+            stats["reward_pred"] = reward_pred
 
         stats["action_norm"] = action.norm().item()
         stats["action_mean"] = action.mean().item()
@@ -505,14 +587,15 @@ class TDMPC2(Agent):
         if self.planners is None or len(self.planners) != num_envs:
             self.planners = [copy.deepcopy(self.planner) for _ in range(num_envs)]
 
-        z_batch = self.encoder(obs_batch)
-        actions = []
-        if t0s is None:
-            t0s = [False] * num_envs
+        with torch.amp.autocast("cuda", enabled=self.use_amp):
+            z_batch = self.encoder(obs_batch)
+            actions = []
+            if t0s is None:
+                t0s = [False] * num_envs
 
-        for i, (z, t0) in enumerate(zip(z_batch, t0s)):
-            action = self.planners[i].plan(z, return_mean=deterministic, t0=t0)
-            actions.append(action)
+            for i, (z, t0) in enumerate(zip(z_batch, t0s)):
+                action = self.planners[i].plan(z, return_mean=deterministic, t0=t0)
+                actions.append(action)
 
         return torch.stack(actions).cpu().numpy()
 
@@ -520,9 +603,10 @@ class TDMPC2(Agent):
         """Evaluate state value using Q-ensemble."""
         with torch.no_grad():
             obs = torch.FloatTensor(obs).to(self.device)
-            z = self.encoder(obs.unsqueeze(0))
-            action = self.policy.mean_action(z)
-            q_value = self.q_ensemble.min(z, action)
+            with torch.amp.autocast("cuda", enabled=self.use_amp):
+                z = self.encoder(obs.unsqueeze(0))
+                action = self.policy.mean_action(z)
+                q_value = self.q_ensemble.min(z, action)
 
             return q_value.item()
 
@@ -572,7 +656,8 @@ class TDMPC2(Agent):
                     horizon = horizon_plus_one - 1
 
                     obs_flat = obs_seq.reshape(batch_size_actual * (horizon + 1), -1)
-                    z_flat = self.encoder(obs_flat)
+                    with torch.amp.autocast("cuda", enabled=self.use_amp):
+                        z_flat = self.encoder(obs_flat)
                     z_seq = z_flat.reshape(
                         batch_size_actual, horizon + 1, self.latent_dim
                     )
@@ -593,7 +678,8 @@ class TDMPC2(Agent):
                         r_t = rewards_seq[:, t]
                         d_t = dones_seq[:, t]
 
-                        z_next_pred = self.dynamics(z_pred, a_t)
+                        with torch.amp.autocast("cuda", enabled=self.use_amp):
+                            z_next_pred = self.dynamics(z_pred, a_t)
                         z_target = z_seq[:, t + 1].detach()
                         zs[t + 1] = z_next_pred
 
@@ -602,7 +688,8 @@ class TDMPC2(Agent):
                             z_next_pred, z_target
                         )
 
-                        r_pred_logits = self.reward(z_pred, a_t)
+                        with torch.amp.autocast("cuda", enabled=self.use_amp):
+                            r_pred_logits = self.reward(z_pred, a_t)
                         reward_loss = (
                             reward_loss
                             + weight
@@ -611,7 +698,8 @@ class TDMPC2(Agent):
                             ).mean()
                         )
 
-                        q_preds_logits = self.q_ensemble(z_pred, a_t)
+                        with torch.amp.autocast("cuda", enabled=self.use_amp):
+                            q_preds_logits = self.q_ensemble(z_pred, a_t)
                         with torch.no_grad():
                             n = min(self.n_step, horizon - t)
                             gamma_powers = (
@@ -626,10 +714,11 @@ class TDMPC2(Agent):
                                 dim=1
                             )
                             z_bootstrap = z_seq[:, t + n].detach()
-                            next_action, _, _, _ = self.policy.sample(z_bootstrap)
-                            target_q = self.target_q_ensemble.min(
-                                z_bootstrap, next_action
-                            )
+                            with torch.amp.autocast("cuda", enabled=self.use_amp):
+                                next_action, _, _, _ = self.policy.sample(z_bootstrap)
+                                target_q = self.target_q_ensemble.min(
+                                    z_bootstrap, next_action
+                                )
                             d_n = dones_seq[:, t + n - 1]
                             bootstrap = (self.gamma**n) * (1.0 - d_n) * target_q
                             q_target = reward_sum + bootstrap
@@ -654,7 +743,8 @@ class TDMPC2(Agent):
                     reward_loss = reward_loss / horizon
                     value_loss = value_loss / (horizon * self.num_q)
                     zs_bh = zs[1:].permute(1, 0, 2).reshape(-1, self.latent_dim)
-                    termination_pred_logits = self.termination(zs_bh)
+                    with torch.amp.autocast("cuda", enabled=self.use_amp):
+                        termination_pred_logits = self.termination(zs_bh)
                     termination_target = dones_seq.reshape(-1, 1)
                     termination_loss = F.binary_cross_entropy_with_logits(
                         termination_pred_logits, termination_target
@@ -677,29 +767,60 @@ class TDMPC2(Agent):
             )
 
             self.optimizer.zero_grad()
-            total_loss.backward()
 
-            # Compute gradient norms before clipping
-            grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
-                self.encoder.parameters(), max_norm=float("inf")
-            )
-            grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
-                self.dynamics.parameters(), max_norm=float("inf")
-            )
-            grad_norm_reward = torch.nn.utils.clip_grad_norm_(
-                self.reward.parameters(), max_norm=float("inf")
-            )
-            grad_norm_termination = torch.nn.utils.clip_grad_norm_(
-                self.termination.parameters(), max_norm=float("inf")
-            )
-            grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
-                self.q_ensemble.parameters(), max_norm=float("inf")
-            )
+            # Use scaler for mixed precision backward pass
+            if self.scaler is not None:
+                self.scaler.scale(total_loss).backward()
 
-            torch.nn.utils.clip_grad_norm_(
-                self._model_params, max_norm=self.grad_clip_norm
-            )
-            self.optimizer.step()
+                # Compute gradient norms before clipping (unscale first)
+                self.scaler.unscale_(self.optimizer)
+                grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
+                    self.encoder.parameters(), max_norm=float("inf")
+                )
+                grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
+                    self.dynamics.parameters(), max_norm=float("inf")
+                )
+                grad_norm_reward = torch.nn.utils.clip_grad_norm_(
+                    self.reward.parameters(), max_norm=float("inf")
+                )
+                grad_norm_termination = torch.nn.utils.clip_grad_norm_(
+                    self.termination.parameters(), max_norm=float("inf")
+                )
+                grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
+                    self.q_ensemble.parameters(), max_norm=float("inf")
+                )
+
+                torch.nn.utils.clip_grad_norm_(
+                    self._model_params, max_norm=self.grad_clip_norm
+                )
+
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                total_loss.backward()
+
+                # Compute gradient norms before clipping
+                grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
+                    self.encoder.parameters(), max_norm=float("inf")
+                )
+                grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
+                    self.dynamics.parameters(), max_norm=float("inf")
+                )
+                grad_norm_reward = torch.nn.utils.clip_grad_norm_(
+                    self.reward.parameters(), max_norm=float("inf")
+                )
+                grad_norm_termination = torch.nn.utils.clip_grad_norm_(
+                    self.termination.parameters(), max_norm=float("inf")
+                )
+                grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
+                    self.q_ensemble.parameters(), max_norm=float("inf")
+                )
+
+                torch.nn.utils.clip_grad_norm_(
+                    self._model_params, max_norm=self.grad_clip_norm
+                )
+                self.optimizer.step()
+
             self.optimizer.zero_grad(set_to_none=True)
 
             # Mark step boundary for CUDAGraphs to enable fast path
@@ -809,45 +930,65 @@ class TDMPC2(Agent):
         num_states = zs.shape[0]
         batch_size = zs.shape[1]
         zs_flat = zs.reshape(-1, zs.shape[-1])
-        actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
-        q_logits_all = self._q_ensemble_detached(zs_flat, actions)
 
-        q_values = torch.stack(
-            [
-                two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
-                for q_logits in q_logits_all
-            ],
-            dim=0,
-        )
-        qs_flat = q_values.mean(dim=0)
-        qs = qs_flat.reshape(num_states, batch_size, 1)
+        with torch.amp.autocast("cuda", enabled=self.use_amp):
+            actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
+            q_logits_all = self._q_ensemble_detached(zs_flat, actions)
 
-        if scaled_entropies.dim() == 1:
-            scaled_entropies = scaled_entropies.reshape(num_states, batch_size, 1)
+            q_values = torch.stack(
+                [
+                    two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
+                    for q_logits in q_logits_all
+                ],
+                dim=0,
+            )
+            qs_flat = q_values.mean(dim=0)
+            qs = qs_flat.reshape(num_states, batch_size, 1)
+
+            if scaled_entropies.dim() == 1:
+                scaled_entropies = scaled_entropies.reshape(num_states, batch_size, 1)
+            else:
+                scaled_entropies = scaled_entropies.reshape(num_states, batch_size, -1)
+
+            self.scale.update(qs[0].detach())
+            qs_scaled = self.scale(qs)
+            rho = torch.pow(
+                torch.tensor(self.lambda_coef, device=self.device),
+                torch.arange(num_states, device=self.device),
+            )
+            pi_loss = (
+                -(self.entropy_coef * scaled_entropies + qs_scaled).mean(dim=(1, 2))
+                * rho
+            ).mean()
+
+        # Use scaler for mixed precision backward pass
+        if self.scaler is not None:
+            self.scaler.scale(pi_loss).backward()
+
+            # Compute gradient norm before clipping (unscale first)
+            self.scaler.unscale_(self.pi_optimizer)
+            grad_norm_policy = torch.nn.utils.clip_grad_norm_(
+                self.policy.parameters(), max_norm=float("inf")
+            )
+
+            torch.nn.utils.clip_grad_norm_(
+                self.policy.parameters(), max_norm=self.grad_clip_norm
+            )
+            self.scaler.step(self.pi_optimizer)
+            self.scaler.update()
         else:
-            scaled_entropies = scaled_entropies.reshape(num_states, batch_size, -1)
+            pi_loss.backward()
 
-        self.scale.update(qs[0].detach())
-        qs_scaled = self.scale(qs)
-        rho = torch.pow(
-            torch.tensor(self.lambda_coef, device=self.device),
-            torch.arange(num_states, device=self.device),
-        )
-        pi_loss = (
-            -(self.entropy_coef * scaled_entropies + qs_scaled).mean(dim=(1, 2)) * rho
-        ).mean()
+            # Compute gradient norm before clipping
+            grad_norm_policy = torch.nn.utils.clip_grad_norm_(
+                self.policy.parameters(), max_norm=float("inf")
+            )
 
-        pi_loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                self.policy.parameters(), max_norm=self.grad_clip_norm
+            )
+            self.pi_optimizer.step()
 
-        # Compute gradient norm before clipping
-        grad_norm_policy = torch.nn.utils.clip_grad_norm_(
-            self.policy.parameters(), max_norm=float("inf")
-        )
-
-        torch.nn.utils.clip_grad_norm_(
-            self.policy.parameters(), max_norm=self.grad_clip_norm
-        )
-        self.pi_optimizer.step()
         self.pi_optimizer.zero_grad(set_to_none=True)
 
         # Mark step boundary after policy update completes
@@ -922,13 +1063,14 @@ class TDMPC2(Agent):
                 f"(checkpoint: {checkpoint_action_dim}, current: {self.action_dim})"
             )
 
-        self.encoder.load_state_dict(checkpoint["encoder"])
-        self.dynamics.load_state_dict(checkpoint["dynamics"])
+        _load_state_dict_compat(self.encoder, checkpoint["encoder"])
+        _load_state_dict_compat(self.dynamics, checkpoint["dynamics"])
 
         if checkpoint_num_bins is not None and checkpoint_num_bins != self.num_bins:
-            missing_keys, unexpected_keys = self.reward.load_state_dict(
-                checkpoint["reward"], strict=False
+            load_result = _load_state_dict_compat(
+                self.reward, checkpoint["reward"], strict=False
             )
+            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
             if missing_keys:
                 logger.debug(f"Reward model missing keys (expected): {missing_keys}")
             if unexpected_keys:
@@ -939,19 +1081,20 @@ class TDMPC2(Agent):
                 f"Output layer initialized from scratch."
             )
         else:
-            self.reward.load_state_dict(checkpoint["reward"])
+            _load_state_dict_compat(self.reward, checkpoint["reward"])
 
         if "termination" in checkpoint:
-            self.termination.load_state_dict(checkpoint["termination"])
+            _load_state_dict_compat(self.termination, checkpoint["termination"])
         else:
             logger.warning(
                 "Termination model not found in checkpoint, initializing from scratch."
             )
 
         if checkpoint_num_bins is not None and checkpoint_num_bins != self.num_bins:
-            missing_keys, unexpected_keys = self.q_ensemble.load_state_dict(
-                checkpoint["q_ensemble"], strict=False
+            load_result = _load_state_dict_compat(
+                self.q_ensemble, checkpoint["q_ensemble"], strict=False
             )
+            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
             if missing_keys:
                 logger.debug(f"Q ensemble missing keys (expected): {missing_keys}")
             if unexpected_keys:
@@ -962,9 +1105,9 @@ class TDMPC2(Agent):
                 f"Output layers initialized from scratch."
             )
         else:
-            self.q_ensemble.load_state_dict(checkpoint["q_ensemble"])
+            _load_state_dict_compat(self.q_ensemble, checkpoint["q_ensemble"])
 
-        self.policy.load_state_dict(checkpoint["policy"])
+        _load_state_dict_compat(self.policy, checkpoint["policy"])
 
         try:
             self.optimizer.load_state_dict(checkpoint["optimizer"])
@@ -979,9 +1122,10 @@ class TDMPC2(Agent):
                 logger.warning(f"Could not load RunningScale state: {e}")
 
         if checkpoint_num_bins is not None and checkpoint_num_bins != self.num_bins:
-            missing_keys, unexpected_keys = self.target_q_ensemble.load_state_dict(
-                checkpoint["q_ensemble"], strict=False
+            load_result = _load_state_dict_compat(
+                self.target_q_ensemble, checkpoint["q_ensemble"], strict=False
             )
+            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
             if missing_keys:
                 logger.debug(
                     f"Target Q ensemble missing keys (expected): {missing_keys}"
@@ -989,7 +1133,7 @@ class TDMPC2(Agent):
             if unexpected_keys:
                 logger.debug(f"Target Q ensemble unexpected keys: {unexpected_keys}")
         else:
-            self.target_q_ensemble.load_state_dict(checkpoint["q_ensemble"])
+            _load_state_dict_compat(self.target_q_ensemble, checkpoint["q_ensemble"])
 
         self._init_detached_q_ensemble()
 
