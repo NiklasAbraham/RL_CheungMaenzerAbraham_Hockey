@@ -7,7 +7,7 @@
 SERVER="${1:-tcml-login1}"
 # SSH config should handle the full hostname mapping
 REMOTE_RUNS_DIR="/home/stud421/RL_CheungMaenzerAbraham_Hockey/results/tdmpc2_runs"
-LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOCAL_RUNS_DIR="${LOCAL_PROJECT_DIR}/results/tdmpc2_runs"
 
 echo "Connecting to ${SERVER}..."

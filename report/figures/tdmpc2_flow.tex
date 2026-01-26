@@ -35,7 +35,7 @@
 \node[vec, inner sep=0pt] (v1) at (0,0) {\(\left[\begin{array}{c} z_{11} \\ z_{12} \\ \vdots \\ z_{1n}\end{array}\right]\)};
 \node[above=2pt of v1] {\(\vec{z}_{t} \in \mathbb{R}^{512}\)};
 
-\node[enc, below=of v1] (e1) {enc};
+\node[enc, below=of v1] (e1) {encoder};
 \draw[<-, very thick] ([yshift=-0.25cm]v1.south) -- (e1);
 
 \node[env, below=of e1, yshift=0.45cm] (h1)
@@ -66,7 +66,7 @@
         rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm1_bg) {};
 \end{pgfonlayer}
 
-\node[enc, below=of v2] (e2) {enc};
+\node[enc, below=of v2] (e2) {encoder};
 \draw[<-, very thick] ([yshift=-0.25cm]v2.south) -- (e2);
 
 \node[env, below=of e2, yshift=0.45cm] (h2)
