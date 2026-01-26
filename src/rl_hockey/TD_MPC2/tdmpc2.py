@@ -241,6 +241,12 @@ class TDMPC2(Agent):
         init_q_ensemble(self.q_ensemble)
         init_policy(self.policy)
 
+        # Use fused Adam if available (PyTorch 2.0+) for faster optimizer steps
+        fused_available = "fused" in torch.optim.Adam.__init__.__code__.co_varnames
+        optimizer_kwargs = {"lr": self.lr, "capturable": True}
+        if fused_available and torch.cuda.is_available():
+            optimizer_kwargs["fused"] = True
+
         self.optimizer = torch.optim.Adam(
             [
                 {
@@ -252,11 +258,13 @@ class TDMPC2(Agent):
                 {"params": self.termination.parameters()},
                 {"params": self.q_ensemble.parameters()},
             ],
-            lr=self.lr,
-            capturable=True,
+            **optimizer_kwargs,
         )
+        pi_optimizer_kwargs = {"lr": self.lr, "eps": 1e-5, "capturable": True}
+        if fused_available and torch.cuda.is_available():
+            pi_optimizer_kwargs["fused"] = True
         self.pi_optimizer = torch.optim.Adam(
-            list(self.policy.parameters()), lr=self.lr, eps=1e-5, capturable=True
+            list(self.policy.parameters()), **pi_optimizer_kwargs
         )
 
         self.scale = RunningScale(tau=self.tau).to(self.device)
@@ -776,24 +784,17 @@ class TDMPC2(Agent):
             if self.scaler is not None:
                 self.scaler.scale(total_loss).backward()
 
-                # Compute gradient norms before clipping (unscale first)
+                # Unscale gradients before computing norms
                 self.scaler.unscale_(self.optimizer)
-                grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
-                    self.encoder.parameters(), max_norm=float("inf")
-                )
-                grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
-                    self.dynamics.parameters(), max_norm=float("inf")
-                )
-                grad_norm_reward = torch.nn.utils.clip_grad_norm_(
-                    self.reward.parameters(), max_norm=float("inf")
-                )
-                grad_norm_termination = torch.nn.utils.clip_grad_norm_(
-                    self.termination.parameters(), max_norm=float("inf")
-                )
-                grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
-                    self.q_ensemble.parameters(), max_norm=float("inf")
-                )
 
+                # Compute gradient norms efficiently using _grad_norm helper
+                grad_norm_encoder = self._grad_norm(self.encoder.parameters())
+                grad_norm_dynamics = self._grad_norm(self.dynamics.parameters())
+                grad_norm_reward = self._grad_norm(self.reward.parameters())
+                grad_norm_termination = self._grad_norm(self.termination.parameters())
+                grad_norm_q_ensemble = self._grad_norm(self.q_ensemble.parameters())
+
+                # Apply gradient clipping once for all model params
                 torch.nn.utils.clip_grad_norm_(
                     self._model_params, max_norm=self.grad_clip_norm
                 )
@@ -803,23 +804,14 @@ class TDMPC2(Agent):
             else:
                 total_loss.backward()
 
-                # Compute gradient norms before clipping
-                grad_norm_encoder = torch.nn.utils.clip_grad_norm_(
-                    self.encoder.parameters(), max_norm=float("inf")
-                )
-                grad_norm_dynamics = torch.nn.utils.clip_grad_norm_(
-                    self.dynamics.parameters(), max_norm=float("inf")
-                )
-                grad_norm_reward = torch.nn.utils.clip_grad_norm_(
-                    self.reward.parameters(), max_norm=float("inf")
-                )
-                grad_norm_termination = torch.nn.utils.clip_grad_norm_(
-                    self.termination.parameters(), max_norm=float("inf")
-                )
-                grad_norm_q_ensemble = torch.nn.utils.clip_grad_norm_(
-                    self.q_ensemble.parameters(), max_norm=float("inf")
-                )
+                # Compute gradient norms efficiently using _grad_norm helper
+                grad_norm_encoder = self._grad_norm(self.encoder.parameters())
+                grad_norm_dynamics = self._grad_norm(self.dynamics.parameters())
+                grad_norm_reward = self._grad_norm(self.reward.parameters())
+                grad_norm_termination = self._grad_norm(self.termination.parameters())
+                grad_norm_q_ensemble = self._grad_norm(self.q_ensemble.parameters())
 
+                # Apply gradient clipping once for all model params
                 torch.nn.utils.clip_grad_norm_(
                     self._model_params, max_norm=self.grad_clip_norm
                 )
@@ -973,6 +965,19 @@ class TDMPC2(Agent):
         """
         return
 
+    def _grad_norm(self, parameters):
+        """Compute gradient norm without clipping (faster than clip_grad_norm_ with inf)."""
+        parameters = list(parameters)
+        if len(parameters) == 0:
+            return torch.tensor(0.0, device=self.device)
+        grads = [p.grad for p in parameters if p.grad is not None]
+        if len(grads) == 0:
+            return torch.tensor(0.0, device=self.device)
+        total_norm = torch.norm(
+            torch.stack([torch.norm(g.detach(), 2) for g in grads]), 2
+        )
+        return total_norm
+
     def _q_ensemble_detached(self, latent, action):
         """Forward through Q-ensemble with detached parameters."""
         params = {
@@ -998,13 +1003,9 @@ class TDMPC2(Agent):
             actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
             q_logits_all = self._q_ensemble_detached(zs_flat, actions)
 
-            q_values = torch.stack(
-                [
-                    two_hot_inv(q_logits, self.num_bins, self.vmin, self.vmax)
-                    for q_logits in q_logits_all
-                ],
-                dim=0,
-            )
+            # Batch two_hot_inv: stack logits and apply once instead of per-Q loop
+            q_logits_stacked = torch.stack(q_logits_all, dim=0)  # (num_q, batch, num_bins)
+            q_values = two_hot_inv(q_logits_stacked, self.num_bins, self.vmin, self.vmax)
             qs_flat = q_values.mean(dim=0)
             qs = qs_flat.reshape(num_states, batch_size, 1)
 
@@ -1028,12 +1029,11 @@ class TDMPC2(Agent):
         if self.scaler is not None:
             self.scaler.scale(pi_loss).backward()
 
-            # Compute gradient norm before clipping (unscale first)
+            # Unscale gradients before computing norm
             self.scaler.unscale_(self.pi_optimizer)
-            grad_norm_policy = torch.nn.utils.clip_grad_norm_(
-                self.policy.parameters(), max_norm=float("inf")
-            )
 
+            # Compute gradient norm using helper, then clip
+            grad_norm_policy = self._grad_norm(self.policy.parameters())
             torch.nn.utils.clip_grad_norm_(
                 self.policy.parameters(), max_norm=self.grad_clip_norm
             )
@@ -1042,11 +1042,8 @@ class TDMPC2(Agent):
         else:
             pi_loss.backward()
 
-            # Compute gradient norm before clipping
-            grad_norm_policy = torch.nn.utils.clip_grad_norm_(
-                self.policy.parameters(), max_norm=float("inf")
-            )
-
+            # Compute gradient norm using helper, then clip
+            grad_norm_policy = self._grad_norm(self.policy.parameters())
             torch.nn.utils.clip_grad_norm_(
                 self.policy.parameters(), max_norm=self.grad_clip_norm
             )

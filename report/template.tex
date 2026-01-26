@@ -1,0 +1,83 @@
+\documentclass[11pt]{article}
+
+\usepackage{times}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{url}            % simple URL typesetting
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{tikz}
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{amsmath}       % blackboard math symbols
+\usepackage{amssymb}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shadows.blur,calc}
+
+\usepackage{geometry}
+\geometry{left=2.8cm,right=2.8cm,top=2.6cm,bottom=2.6cm}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,positioning}
+\pagestyle{fancy}
+\usepackage{hyperref}% should be the last package you include
+
+\newcommand{\theteam}{}
+\newcommand{\team}[1]{\def\theteam{#1}}
+
+
+\fancyhead[L]{\theteam}
+\fancyhead[R]{\thepage}
+\cfoot{}
+
+\setlength{\parindent}{0pt}
+
+\team{Ansel Cheung, Jannik Mänzer, Niklas Abraham}
+\title{RL-Course 2025/26: Final Project Report}
+\author{\theteam}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+    This report presents our application and comparative study of modern Reinforcement Learning (RL) algorithms—specifically, Twin Delayed Deep Deterministic Policy Gradient (TD3), Soft Actor-Critic (SAC), and the model-based TD-MPC2—within the challenging Laser Hockey environment. We discuss the environment's design, its state and action spaces, and the unique characteristics making it a compelling testbed for RL research. Our work details the methodological approaches taken with these algorithms, summarizes key experimental findings, and reflects on lessons learned in this multi-agent, continuous control setting.
+\end{abstract}
+
+\section{Introduction}\label{sec:intro}
+
+\subsection{Environment Overview}
+
+The Laser Hockey environment \cite{hockeyenv_github} is a custom reinforcement learning benchmark built on the Gymnasium Python API and powered by the Box2D physics engine. In this multi-agent setting, two agents each control a hockey stick and compete to score goals by striking a puck into the opponent's net. The environment is designed such that both agents receive identical but mirrored observations at each timestep, which eliminates the need for side-specific learning strategies.
+
+\begin{align}
+    s_t &= (\underbrace{x_1, y_1, \theta_1, v_{x,1}, v_{y,1}, \omega_1}_{\text{Player 1}}, \underbrace{x_2, y_2, \theta_2, v_{x,2}, v_{y,2}, \omega_2}_{\text{Player 2}}, \underbrace{x_p, y_p, v_{x,p}, v_{y,p}}_{\text{Puck}}, \underbrace{t_{\mathrm{puck},1}, t_{\mathrm{puck},2}}_{\text{Puck possession time}}) \nonumber \\
+\end{align}
+
+At each timestep, the agent receives an 18-dimensional continuous state vector that captures the complete game state. This observation includes the position and orientation of both players relative to the center of the field, along with their linear and angular velocities. The state also contains the puck's position and velocity, as well as time remaining for each player's puck possession in keep mode, which ranges from 0 to 15 seconds. Player 1 refers to the agent currently being controlled, while Player 2 represents the opponent. The observation structure ensures that when the viewpoint switches during training, the indices are automatically mirrored so that each agent always perceives itself as Player 1, maintaining a consistent learning perspective.
+
+The action space consists of a 4-dimensional continuous vector that controls the agent's stick. The first two components specify forces applied for stick movement in the x and y directions, while the third component controls the torque applied to adjust the stick's angle. The fourth component is a thresholded scalar that determines whether to release the puck when the agent is in possession.
+
+Reward feedback in this environment is sparse and goal-oriented. An agent receives a reward of +10 for scoring a goal, -10 for conceding one, and 0 for a draw. Additionally, there is a small reward signal for maintaining proximity to the puck, which helps guide exploration during early learning stages. Each episode begins with all entities positioned at the center of the field and terminates when a goal is scored or a timeout occurs. The environment supports both scripted opponents, such as the BasicOpponent, and learning agents as adversaries, making it a versatile and challenging benchmark for continuous control and multi-agent reinforcement learning research.
+
+
+\section{Related Work}\label{sec:related_work}
+
+\section{Method}\label{sec:Method}
+
+\subsection{TD-MPC 2 - Niklas Abraham}\label{sec:tdmpc2}
+    
+    
+
+% the figure will be a pdf file, so we need to include it with \includegraphics
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.65\textwidth]{figures/tdmpc2_flow.pdf}
+    \caption{TD-MPC2 agent architecture, the reward, Q-value, dynamics, and action heads are grouped together in the world model, and the latent space flow is shown in the background.}
+    \label{fig:tdmpc2_flow}
+\end{figure}
+
+
+
+
+\bibliographystyle{abbrv}
+\bibliography{main}
+
+\end{document}
