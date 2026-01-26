@@ -1,0 +1,103 @@
+% Preamble requirements:
+% \usepackage{tikz}
+% \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+
+\begin{figure}[h]
+    \centering
+    \begin{tikzpicture}[
+      font=\small,
+      >=Latex,
+      node distance=10mm and 16mm,
+      % ---- Styles (edit colors here) ----
+      obs/.style={
+        rounded corners=2pt, draw=black!55, very thick,
+        fill=blue!12,
+        minimum width=4.2cm, minimum height=0.95cm,
+        align=center
+      },
+      enc/.style={
+        rounded corners=2pt, draw=black!55, very thick,
+        fill=teal!14,
+        minimum width=4.6cm, minimum height=1.05cm,
+        align=center
+      },
+      latent/.style={
+        rounded corners=2pt, draw=black!55, very thick,
+        fill=violet!12,
+        minimum width=4.2cm, minimum height=0.95cm,
+        align=center
+      },
+      module/.style={
+        rounded corners=2pt, draw=black!55, thick,
+        fill=orange!13,
+        minimum width=4.2cm, minimum height=0.95cm,
+        align=center
+      },
+      qmod/.style={
+        rounded corners=2pt, draw=black!55, thick,
+        fill=yellow!18,
+        minimum width=4.2cm, minimum height=0.95cm,
+        align=center
+      },
+      planner/.style={
+        rounded corners=2pt, draw=black!55, very thick,
+        fill=green!14,
+        minimum width=5.4cm, minimum height=1.20cm,
+        align=center
+      },
+      act/.style={
+        rounded corners=2pt, draw=black!55, very thick,
+        fill=gray!12,
+        minimum width=4.2cm, minimum height=0.95cm,
+        align=center
+      },
+      arrow/.style={->, thick, draw=black!70},
+      label/.style={font=\small\bfseries, text=black!70}
+    ]
+    
+    % ---- Vertical main chain ----
+    \node[obs]   (obs) {Observation\\\(\mathbb{R}^{18}\)};
+    \node[enc,   below=of obs] (enc) {Encoder \(h_\theta\)\\obs \(\rightarrow\) latent \(z\)};
+    \node[latent,below=of enc] (z) {Latent state\\\(z \in \mathbb{R}^{512}\)};
+    
+    % ---- World model heads (3 columns) ----
+    \node[module, below=14mm of z, xshift=-5.2cm] (dyn) {Dynamics \(d_\phi\)\\\((z,a)\rightarrow z'\)};
+    \node[module, below=14mm of z]               (rew) {Reward \(r_\psi\)\\\((z,a)\rightarrow r\)};
+    \node[qmod,  below=14mm of z, xshift= 5.2cm] (qfn) {Q-ensemble \(Q_{\omega}\)\\\((z,a)\rightarrow Q\)};
+    
+    % ---- Planner and action ----
+    \node[planner, below=18mm of rew] (mppi) {MPPI Planner\\sample action sequences via world model};
+    \node[act, below=of mppi] (act) {Action\\\(\mathbb{R}^{4}\)};
+    
+    % ---- Arrows ----
+    \draw[arrow] (obs) -- (enc);
+    \draw[arrow] (enc) -- (z);
+    
+    % latent to heads
+    \draw[arrow] (z.south) |- (dyn.north);
+    \draw[arrow] (z.south) -- (rew.north);
+    \draw[arrow] (z.south) |- (qfn.north);
+    
+    % heads to planner
+    \draw[arrow] (dyn.south) |- (mppi.north);
+    \draw[arrow] (rew.south) -- (mppi.north);
+    \draw[arrow] (qfn.south) |- (mppi.north);
+    
+    \draw[arrow] (mppi) -- (act);
+    
+    % ---- World model background (light gray, behind everything) ----
+    \begin{pgfonlayer}{background}
+      \node[fit=(dyn) (rew) (qfn),
+            rounded corners=3pt,
+            fill=black!6,
+            inner sep=10pt,
+            draw=none] (wm_bg) {};
+    \end{pgfonlayer}
+    
+    % Label for world model (placed on top of the gray area)
+    \node[label, above=2pt of wm_bg.north] {World Model};
+    
+    \end{tikzpicture}
+    \caption{TD-MPC2 agent architecture (top-to-bottom, grouped world-model)}
+    \label{fig:tdmpc2_architecture}
+\end{figure}
