@@ -89,7 +89,6 @@ def train_single_run(
     )
 
 
-
 if __name__ == "__main__":
     import os
 
@@ -106,7 +105,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_tdmpc2_bonus_decay.json"
+    path_to_config = "configs/curriculum_sac.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
@@ -125,7 +124,7 @@ if __name__ == "__main__":
 
     train_single_run(
         path_to_config,
-        base_output_dir="results/tdmpc2_runs",
+        base_output_dir="results/sac_runs",
         device=device,
         num_envs=num_envs,
     )
