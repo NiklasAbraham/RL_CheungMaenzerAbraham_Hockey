@@ -1,3 +1,4 @@
+import logging
 import random
 
 import numpy as np
@@ -5,6 +6,8 @@ import torch
 
 from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.segment_tree import MinSegmentTree, SumSegmentTree
+
+logger = logging.getLogger(__name__)
 
 
 class ReplayBuffer:
@@ -14,7 +17,7 @@ class ReplayBuffer:
         use_torch_tensors=False,
         pin_memory=False,
         device="cpu",
-        normalize_obs = False
+        normalize_obs=False,
     ):
         """
         Initialize replay buffer.
@@ -53,9 +56,10 @@ class ReplayBuffer:
         self.obs_M2 = None
 
     def normalize(self, state: np.ndarray):
-        normalized_state = (state - self.obs_mean) / (np.sqrt(self.obs_M2 / self.size) + 1e-8)
+        normalized_state = (state - self.obs_mean) / (
+            np.sqrt(self.obs_M2 / self.size) + 1e-8
+        )
         return normalized_state
-
 
     def update_obs_stats(self, state: np.ndarray):
         delta = state - self.obs_mean
@@ -63,9 +67,29 @@ class ReplayBuffer:
         delta2 = state - self.obs_mean
         self.obs_M2 += delta * delta2
 
-
     def store(self, transition):
         state, action, reward, next_state, done = transition
+
+        # DEBUG: Log input shapes and values
+        # logger.info("[BUFFER STORE] Input transition:")
+        # logger.info(
+        #     f"  state: type={type(state)}, shape={state.shape if hasattr(state, 'shape') else 'N/A'}, dtype={getattr(state, 'dtype', 'N/A')}"
+        # )
+        # logger.info(
+        #     f"  action: type={type(action)}, shape={action.shape if hasattr(action, 'shape') else 'N/A'}, dtype={getattr(action, 'dtype', 'N/A')}"
+        # )
+        # logger.info(
+        #     f"  reward: type={type(reward)}, shape={reward.shape if hasattr(reward, 'shape') else 'N/A'}, dtype={getattr(reward, 'dtype', 'N/A')}, value={reward}"
+        # )
+        # logger.info(
+        #     f"  next_state: type={type(next_state)}, shape={next_state.shape if hasattr(next_state, 'shape') else 'N/A'}, dtype={getattr(next_state, 'dtype', 'N/A')}"
+        # )
+        # logger.info(
+        #     f"  done: type={type(done)}, shape={done.shape if hasattr(done, 'shape') else 'N/A'}, dtype={getattr(done, 'dtype', 'N/A')}, value={done}"
+        # )
+        # logger.info(
+        #     f"  buffer.use_torch_tensors={self.use_torch_tensors}, buffer.device={self.device}, buffer.size={self.size}"
+        # )
 
         if self.size == 0:
             if self.use_torch_tensors:
@@ -118,9 +142,18 @@ class ReplayBuffer:
             next_state_tensor = torch.as_tensor(next_state, dtype=torch.float32)
             # Handle reward/done - can be scalar or array, ensure shape (1,)
             reward_tensor = torch.as_tensor(reward, dtype=torch.float32)
+            # logger.info(
+            #     f"[BUFFER STORE] After torch.as_tensor(reward): shape={reward_tensor.shape}, value={reward_tensor.item() if reward_tensor.numel() == 1 else reward_tensor}"
+            # )
             if reward_tensor.dim() == 0:
                 reward_tensor = reward_tensor.unsqueeze(0)
+                # logger.info(
+                #     f"[BUFFER STORE] After unsqueeze(0): shape={reward_tensor.shape}, value={reward_tensor.item() if reward_tensor.numel() == 1 else reward_tensor}"
+                # )
             reward_tensor = reward_tensor.reshape(1)
+            # logger.info(
+            #     f"[BUFFER STORE] After reshape(1): shape={reward_tensor.shape}, value={reward_tensor.item()}"
+            # )
             done_tensor = torch.as_tensor(done, dtype=torch.float32)
             if done_tensor.dim() == 0:
                 done_tensor = done_tensor.unsqueeze(0)
@@ -134,22 +167,50 @@ class ReplayBuffer:
                 reward_tensor = reward_tensor.to(self.device, non_blocking=True)
                 done_tensor = done_tensor.to(self.device, non_blocking=True)
 
+            # logger.info(
+            #     f"[BUFFER STORE] Before assignment to buffer[{self.current_idx}]:"
+            # )
+            # logger.info(
+            #     f"  reward_tensor: shape={reward_tensor.shape}, value={reward_tensor.item()}, device={reward_tensor.device}"
+            # )
+            # logger.info(
+            #     f"  self.reward shape={self.reward.shape}, self.reward[{self.current_idx}] shape={self.reward[self.current_idx].shape}"
+            # )
+
             self.state[self.current_idx] = state_tensor
             self.action[self.current_idx] = action_tensor
             self.next_state[self.current_idx] = next_state_tensor
             self.reward[self.current_idx] = reward_tensor
             self.done[self.current_idx] = done_tensor
+
+            # logger.info("[BUFFER STORE] After assignment:")
+            # logger.info(
+            #     f"  self.reward[{self.current_idx}] value={self.reward[self.current_idx].item()}"
+            # )
         else:
+            # logger.info("[BUFFER STORE] Numpy mode - storing directly:")
+            # logger.info(
+            #     f"  reward: type={type(reward)}, shape={reward.shape if hasattr(reward, 'shape') else 'N/A'}, value={reward}"
+            # )
+            # logger.info(
+            #     f"  self.reward shape={self.reward.shape}, self.reward[{self.current_idx}] shape={self.reward[self.current_idx].shape}"
+            # )
             self.state[self.current_idx] = state
             self.action[self.current_idx] = action
             self.next_state[self.current_idx] = next_state
             self.reward[self.current_idx] = reward
             self.done[self.current_idx] = done
-
+            # logger.info(
+            #     f"[BUFFER STORE] After numpy assignment: self.reward[{self.current_idx}] value={self.reward[self.current_idx]}"
+            # )
 
     def sample(self, batch_size):
         if batch_size > self.size:
             batch_size = self.size
+
+        # logger.info(
+        #     f"[BUFFER SAMPLE] batch_size={batch_size}, buffer.size={self.size}, use_torch_tensors={self.use_torch_tensors}"
+        # )
 
         if self.use_torch_tensors:
             # Use torch.randint for faster random sampling
@@ -158,25 +219,91 @@ class ReplayBuffer:
                 idx = torch.randint(0, self.size, (batch_size,), device=self.device)
             else:
                 idx = torch.randint(0, self.size, (batch_size,))
-            
+
+            # logger.info("[BUFFER SAMPLE] Torch mode - before indexing:")
+            # logger.info(
+            #     f"  idx: shape={idx.shape}, dtype={idx.dtype}, device={idx.device}"
+            # )
+            # logger.info(
+            #     f"  self.reward shape={self.reward.shape}, dtype={self.reward.dtype}, device={self.reward.device}"
+            # )
+            # logger.info(
+            #     f"  self.reward[0:5] values={self.reward[:5].squeeze().tolist() if self.size >= 5 else self.reward.squeeze().tolist()}"
+            # )
+
             state = self.state[idx]
             action = self.action[idx]
             reward = self.reward[idx]
             next_state = self.next_state[idx]
             done = self.done[idx]
-            
+
+            # logger.info("[BUFFER SAMPLE] Torch mode - after indexing:")
+            # logger.info(
+            #     f"  state: shape={state.shape}, dtype={state.dtype}, device={state.device}"
+            # )
+            # logger.info(
+            #     f"  action: shape={action.shape}, dtype={action.dtype}, device={action.device}"
+            # )
+            # logger.info(
+            #     f"  reward: shape={reward.shape}, dtype={reward.dtype}, device={reward.device}"
+            # )
+            # logger.info(
+            #     f"    reward min={reward.min().item():.6f}, max={reward.max().item():.6f}, mean={reward.mean().item():.6f}"
+            # )
+            # logger.info(
+            #     f"    reward[0:5]={reward[:5].squeeze().tolist() if batch_size >= 5 else reward.squeeze().tolist()}"
+            # )
+            # logger.info(
+            #     f"  next_state: shape={next_state.shape}, dtype={next_state.dtype}, device={next_state.device}"
+            # )
+            # logger.info(
+            #     f"  done: shape={done.shape}, dtype={done.dtype}, device={done.device}"
+            # )
 
         else:
             idx = np.random.randint(0, self.size, size=batch_size)
+            # logger.info("[BUFFER SAMPLE] Numpy mode - before indexing:")
+            # logger.info(f"  idx: shape={idx.shape}, dtype={idx.dtype}")
+            # logger.info(
+            #     f"  self.reward shape={self.reward.shape}, dtype={self.reward.dtype}"
+            # )
+            # logger.info(
+            #     f"  self.reward[0:5] values={self.reward[:5].squeeze().tolist() if self.size >= 5 else self.reward.squeeze().tolist()}"
+            # )
+
             state = self.state[idx]
             action = self.action[idx]
             reward = self.reward[idx]
             next_state = self.next_state[idx]
             done = self.done[idx]
+
+            # logger.info("[BUFFER SAMPLE] Numpy mode - after indexing:")
+            # logger.info(f"  state: shape={state.shape}, dtype={state.dtype}")
+            # logger.info(f"  action: shape={action.shape}, dtype={action.dtype}")
+            # logger.info(f"  reward: shape={reward.shape}, dtype={reward.dtype}")
+            # logger.info(
+            #     f"    reward min={reward.min():.6f}, max={reward.max():.6f}, mean={reward.mean():.6f}"
+            # )
+            # logger.info(
+            #     f"    reward[0:5]={reward[:5].squeeze().tolist() if batch_size >= 5 else reward.squeeze().tolist()}"
+            # )
+            # logger.info(
+            #     f"  next_state: shape={next_state.shape}, dtype={next_state.dtype}"
+            # )
+            # logger.info(f"  done: shape={done.shape}, dtype={done.dtype}")
 
         if self.normalize_obs:
             state = self.normalize(state)
             next_state = self.normalize(next_state)
+
+        # logger.info("[BUFFER SAMPLE] Final return values:")
+        # logger.info(
+        #     f"  reward: shape={reward.shape if hasattr(reward, 'shape') else 'N/A'}, type={type(reward)}"
+        # )
+        # if hasattr(reward, "min"):
+        #     logger.info(
+        #         f"    reward stats: min={reward.min():.6f}, max={reward.max():.6f}, mean={reward.mean():.6f}"
+        # )
 
         return state, action, reward, next_state, done
 
@@ -327,7 +454,9 @@ class TDMPC2ReplayBuffer:
         self.max_size = max_size
         self.horizon = horizon
         self.batch_size = batch_size
-        self.use_torch_tensors = use_torch_tensors or (device != "cpu") or (buffer_device != "cpu")
+        self.use_torch_tensors = (
+            use_torch_tensors or (device != "cpu") or (buffer_device != "cpu")
+        )
         self.device = (
             device
             if isinstance(device, str)
@@ -409,7 +538,7 @@ class TDMPC2ReplayBuffer:
 
     def _to_buffer_dtype(self, x, is_numpy=None):
         """Convert to torch or numpy to match buffer config.
-        
+
         Data is stored on buffer_device (default CPU), not the training device.
         """
         if is_numpy is None:

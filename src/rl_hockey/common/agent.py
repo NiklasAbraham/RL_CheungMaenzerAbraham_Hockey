@@ -1,3 +1,4 @@
+import inspect
 from abc import ABC, abstractmethod
 
 from rl_hockey.common.prioritizedbuffer import PERMemory
@@ -10,9 +11,21 @@ class Agent(ABC):
             self.buffer = PERMemory(normalize_obs=normalize_obs)
         else:
             self.buffer = ReplayBuffer(normalize_obs=normalize_obs)
-    def store_transition(self, transition):
-        """Stores a transition in the replay buffer."""
-        self.buffer.store(transition)
+    
+    def store_transition(self, transition, winner=None):
+        """Stores a transition in the replay buffer.
+        
+        Args:
+            transition: Tuple of (state, action, reward, next_state, done)
+            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
+                Only used by buffers that support it (e.g., TDMPC2ReplayBuffer).
+        """
+        # Check if buffer.store() accepts winner parameter
+        store_sig = inspect.signature(self.buffer.store)
+        if 'winner' in store_sig.parameters:
+            self.buffer.store(transition, winner=winner)
+        else:
+            self.buffer.store(transition)
 
     @abstractmethod
     def act(self, state, deterministic=False):

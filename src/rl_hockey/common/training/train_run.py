@@ -368,7 +368,9 @@ def train_run(
     # Helper function to initialize reward bonus (defined early for use before main loop)
     def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
         """Initialize reward bonus parameters based on episode number."""
-        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(
+            curriculum_config, episode
+        )
         if phase_cfg.reward_bonus is not None:
             rb = phase_cfg.reward_bonus
             N, K = rb.N, rb.K
@@ -377,12 +379,16 @@ def train_run(
                 win_discount = rb.WIN_DISCOUNT_START
             elif phase_local_ep < N + K:
                 alpha = (phase_local_ep - N) / K
-                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
-                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                win_bonus = (
+                    rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                )
+                win_discount = (
+                    rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                )
             else:
                 win_bonus = rb.WIN_BONUS_FINAL
                 win_discount = rb.WIN_DISCOUNT_FINAL
-            
+
             if hasattr(agent_ref, "buffer"):
                 if hasattr(agent_ref.buffer, "win_reward_bonus"):
                     agent_ref.buffer.win_reward_bonus = win_bonus
@@ -456,7 +462,7 @@ def train_run(
 
     def get_reward_bonus_values(episode_idx, phase_config):
         """Get the reward bonus parameters for a given episode within a phase.
-        
+
         Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
         reward_bonus config exists for this phase.
         """
@@ -481,7 +487,8 @@ def train_run(
             alpha = (episode_idx - N) / K
             return {
                 "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
-                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha)
+                + WIN_DISCOUNT_FINAL * alpha,
             }
         else:
             return {
@@ -627,6 +634,13 @@ def train_run(
             if next_state.dtype != np.float32:
                 next_state = next_state.astype(np.float32, copy=False)
 
+            # Log raw reward from environment
+            # logger.info(f"[ENV STEP] Episode {global_episode}, step {t}:")
+            # logger.info(
+            #     f"  raw reward from env.step(): {reward:.6f} (type={type(reward)}, dtype={getattr(reward, 'dtype', 'N/A')})"
+            # )
+            # logger.info(f"  done={done}, trunc={trunc}")
+
             if reward_weights is not None:
                 shaped_reward = reward
                 closeness_raw = info.get("reward_closeness_to_puck", 0.0)
@@ -667,6 +681,14 @@ def train_run(
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
+
+            # Log reward calculation for debugging
+            # logger.info(f"[TRAIN REWARD CALC] Episode {global_episode}, step {t}:")
+            # logger.info(f"  raw reward from env: {reward:.6f}")
+            # logger.info(f"  shaped_reward: {shaped_reward:.6f}")
+            # logger.info(f"  reward_scale: {reward_scale:.6f}")
+            # logger.info(f"  scaled_reward (stored in buffer): {scaled_reward:.6f}")
+            # logger.info(f"  done: {done}, winner: {info.get('winner', None)}")
 
             # Debug logging for scaled reward (after scaling)
             should_log_scaled = (
@@ -795,6 +817,9 @@ def train_run(
                         logger.warning(f"Failed to log resource usage: {e}")
 
             if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
+                # logger.info(
+                #     f"[TRAINING CALL] steps={steps}, warmup_steps={warmup_steps}, current_phase_start={current_phase_start}, buffer.size={agent.buffer.size}"
+                # )
                 stats = agent.train(updates_per_step)
                 gradient_steps += updates_per_step
                 if isinstance(stats, dict):
@@ -1183,7 +1208,9 @@ def _train_run_vectorized(
     # Helper function to initialize reward bonus (defined early for use before main loop)
     def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
         """Initialize reward bonus parameters based on episode number."""
-        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(
+            curriculum_config, episode
+        )
         if phase_cfg.reward_bonus is not None:
             rb = phase_cfg.reward_bonus
             N, K = rb.N, rb.K
@@ -1192,12 +1219,16 @@ def _train_run_vectorized(
                 win_discount = rb.WIN_DISCOUNT_START
             elif phase_local_ep < N + K:
                 alpha = (phase_local_ep - N) / K
-                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
-                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                win_bonus = (
+                    rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                )
+                win_discount = (
+                    rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                )
             else:
                 win_bonus = rb.WIN_BONUS_FINAL
                 win_discount = rb.WIN_DISCOUNT_FINAL
-            
+
             if hasattr(agent_ref, "buffer"):
                 if hasattr(agent_ref.buffer, "win_reward_bonus"):
                     agent_ref.buffer.win_reward_bonus = win_bonus
@@ -1284,7 +1315,7 @@ def _train_run_vectorized(
 
     def get_reward_bonus_values(episode_idx, phase_config):
         """Get the reward bonus parameters for a given episode within a phase.
-        
+
         Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
         reward_bonus config exists for this phase.
         """
@@ -1309,7 +1340,8 @@ def _train_run_vectorized(
             alpha = (episode_idx - N) / K
             return {
                 "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
-                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha)
+                + WIN_DISCOUNT_FINAL * alpha,
             }
         else:
             return {
@@ -1499,6 +1531,16 @@ def _train_run_vectorized(
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
+
+            # Log reward calculation for debugging
+            # logger.info(
+            #     f"[TRAIN REWARD CALC] Env {i}, Episode {completed_episodes}, step {episode_steps[i]}:"
+            # )
+            # logger.info(f"  raw reward from env: {reward:.6f}")
+            # logger.info(f"  shaped_reward: {shaped_reward:.6f}")
+            # logger.info(f"  reward_scale: {reward_scale:.6f}")
+            # logger.info(f"  scaled_reward (stored in buffer): {scaled_reward:.6f}")
+            # logger.info(f"  done: {done}, winner: {info.get('winner', None)}")
 
             # Debug logging for scaled reward (after scaling)
             should_log_scaled = (
@@ -1770,7 +1812,7 @@ def _train_run_vectorized(
                     reward_weights = get_reward_weights(
                         new_phase_local_episode, new_phase_config
                     )
-                    
+
                     # Update reward bonus parameters for the next episode
                     bonus_values = get_reward_bonus_values(
                         new_phase_local_episode, new_phase_config
@@ -1807,6 +1849,7 @@ def _train_run_vectorized(
 
         # Train agent
         if steps >= current_phase_start + warmup_steps and steps % train_freq == 0:
+            # logger.info(f"[TRAINING CALL] steps={steps}, warmup_steps={warmup_steps}, current_phase_start={current_phase_start}, buffer.size={agent.buffer.size}")
             stats = agent.train(updates_per_step)
             gradient_steps += updates_per_step
             if isinstance(stats, dict):
