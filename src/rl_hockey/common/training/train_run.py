@@ -357,6 +357,9 @@ def train_run(
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
         print("")
+        logging.info("REWARD BACKPROPAGATION PARAMETERS:")
+        logging.info(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        logging.info(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
 
     if checkpoint_path is not None:
         if verbose:
@@ -1164,6 +1167,9 @@ def _train_run_vectorized(
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
         print("")
+        logging.info("REWARD BACKPROPAGATION PARAMETERS:")
+        logging.info(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        logging.info(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
 
     # Enable fast mode for TDMPC2 if specified in training config
     if hasattr(agent, "set_fast_mode") and training_params.get("use_fast_mode", False):
@@ -1987,6 +1993,16 @@ def _curriculum_to_dict(curriculum: CurriculumConfig) -> dict:
                         "CLOSENESS_FINAL": phase.reward_shaping.CLOSENESS_FINAL,
                         "TOUCH_FINAL": phase.reward_shaping.TOUCH_FINAL,
                         "DIRECTION_FINAL": phase.reward_shaping.DIRECTION_FINAL,
+                    },
+                    "reward_bonus": None
+                    if phase.reward_bonus is None
+                    else {
+                        "N": phase.reward_bonus.N,
+                        "K": phase.reward_bonus.K,
+                        "WIN_BONUS_START": phase.reward_bonus.WIN_BONUS_START,
+                        "WIN_BONUS_FINAL": phase.reward_bonus.WIN_BONUS_FINAL,
+                        "WIN_DISCOUNT_START": phase.reward_bonus.WIN_DISCOUNT_START,
+                        "WIN_DISCOUNT_FINAL": phase.reward_bonus.WIN_DISCOUNT_FINAL,
                     },
                 }
                 for phase in curriculum.phases
