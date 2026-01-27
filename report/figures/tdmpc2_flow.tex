@@ -1,4 +1,4 @@
-\documentclass[border=5mm]{standalone}
+\documentclass[border=0.5mm]{standalone}
 
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes}
@@ -42,7 +42,7 @@
       {\includegraphics[width=\imgwidth]{hockey_env_step.png}};
 \draw[-, very thick] (e1) -- (h1);
 
-\node[below=4pt of h1] {$s_t$};
+\node[below=4pt of h1, font=\LARGE] {$s_t$};
 
 % Column 2: s_{t+1} with encoder and image
 \node[vec, inner sep=0pt] (v2) at (\xsep,0) {\(\left[\begin{array}{c} z_{21} \\ z_{22} \\ \vdots \\ z_{2n} \end{array}\right]\)};
@@ -73,7 +73,7 @@
       {\includegraphics[width=\imgwidth]{hockey_env_step.png}};
 \draw[-, very thick] (e2) -- (h2);
 
-\node[below=4pt of h2] {$s_{t+1}$};
+\node[below=4pt of h2, font=\LARGE] {$s_{t+1}$};
 
 % Column 3: just vector
 \node[vec, inner sep=0pt] (v3) at (2*\xsep,0) {\(\left[\begin{array}{c} z_{31} \\ z_{32} \\ \vdots \\ z_{3n} \end{array}\right]\)};
@@ -96,6 +96,31 @@
   \node[fit=(wm2_r) (wm2_q) (wm2_p) (dyn2), 
         rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm2_bg) {};
 \end{pgfonlayer}
+
+% Legend, shifted down by 2.5cm and left by 3cm relative to previous placement
+\node[fill=white, rounded corners=4pt, minimum width=3cm, minimum height=4.5cm, 
+      right=1.5cm of v3, yshift=-4.5cm, xshift=-6cm, align=left, font=\footnotesize] (legend) {};
+      
+% Legend entries with colored boxes
+\node[rewardbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_r) at ([xshift=0.3cm, yshift=1.2cm]legend.west) {};
+\node[right=2pt of leg_r, anchor=west] {Reward Network};
+
+\node[qbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_q) at ([xshift=0.3cm, yshift=0.6cm]legend.west) {};
+\node[right=2pt of leg_q, anchor=west] {Q-Network Ensemble};
+
+\node[draw, rounded corners=2pt, fill=yellow!35, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_d) at ([xshift=0.3cm, yshift=0cm]legend.west) {};
+\node[right=2pt of leg_d, anchor=west] {Latent Dynamics Network};
+
+\node[actionbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_p) at ([xshift=0.3cm, yshift=-0.6cm]legend.west) {};
+\node[right=2pt of leg_p, anchor=west] {Policy Network};
+
+\node[termbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_t) at ([xshift=0.3cm, yshift=-1.2cm]legend.west) {};
+\node[right=2pt of leg_t, anchor=west] {Encoder Network};
 
 \end{tikzpicture}
 \end{document}
