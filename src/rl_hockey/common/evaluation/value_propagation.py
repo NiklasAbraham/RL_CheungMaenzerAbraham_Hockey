@@ -3,7 +3,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def evaluate_episodes(agent, episodes):
+def evaluate_episodes(agent):
+    episodes_path = "src/rl_hockey/common/evaluation/episodes.npy"
+    episodes = np.load(episodes_path, allow_pickle=True)
+
     q_values = np.zeros(len(episodes[0]))
     for transactions in episodes:
         for i, state in enumerate(transactions):

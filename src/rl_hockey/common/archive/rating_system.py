@@ -196,6 +196,7 @@ class RatingSystem:
         rating1 = self.ratings[agent1_id]
         rating2 = self.ratings[agent2_id]
         
+        # Use trueskill.Rating instead
         ts_rating1 = self.env.create_rating(mu=rating1.mu, sigma=rating1.sigma)
         ts_rating2 = self.env.create_rating(mu=rating2.mu, sigma=rating2.sigma)
         

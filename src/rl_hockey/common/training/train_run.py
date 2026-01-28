@@ -89,6 +89,7 @@ def train_run(
         is_daemon = getattr(current_proc, "daemon", False)
         proc_name = getattr(current_proc, "name", "")
         is_pool_worker = "PoolWorker" in proc_name or is_daemon
+        print(is_pool_worker)
 
         if num_envs > 1:
             if is_pool_worker:
@@ -191,6 +192,9 @@ def train_run(
         "resource_log_freq", 10
     )  # Log every N steps
     last_resource_log_step = 0
+
+    q_values = []
+    q_values.append(evaluate_episodes(agent))
 
     # Track resource usage per episode for averaging
     episode_resource_window = training_params.get("resource_avg_window_episodes", 10)
@@ -513,8 +517,6 @@ def train_run(
                         device=device,
                     )
 
-                    q_values = evaluate_episodes(agent, "src/rl_hockey/common/evaluation/episodes.npy")
-
                     evaluation_results.append(
                         {
                             "step": steps,
@@ -525,14 +527,15 @@ def train_run(
                             "wins": eval_results["wins"],
                             "losses": eval_results["losses"],
                             "draws": eval_results["draws"],
-                            "q_values": q_values,
                         }
                     )
 
                     if evaluation_results:
                         run_manager.save_evaluation_plot(run_name, evaluation_results)
                         run_manager.save_evaluation_csv(run_name, evaluation_results)
-                        run_manager.save_value_propagation_plot(run_name, evaluation_results)
+
+                    q_values.append(evaluate_episodes(agent))
+                    run_manager.save_value_propagation_plot(run_name, q_values)
 
                     if verbose:
                         print(
@@ -795,6 +798,9 @@ def _train_run_vectorized(
         "resource_log_freq", 200
     )  # Log every N steps
     last_resource_log_step = 0
+
+    q_values = []
+    q_values.append(evaluate_episodes(agent))
 
     # Track resource usage per episode for averaging
     episode_resource_window = training_params.get("resource_avg_window_episodes", 10)
@@ -1071,6 +1077,7 @@ def _train_run_vectorized(
                 # Save episode rewards before resetting (for logging)
                 final_episode_reward = episode_rewards[i]
                 final_episode_shaped_reward = episode_shaped_rewards[i]
+                final_episode_steps = episode_steps[i]
 
                 # Reset episode tracking for this environment
                 episode_rewards[i] = 0.0
@@ -1113,17 +1120,18 @@ def _train_run_vectorized(
                 )
                 opponent_type = current_phase_config.opponent.type
 
-                loss_info_parts = [
-                    f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}",
-                    f"env={sampled_mode_str}",
-                    f"opponent={opponent_type}",
-                ]
-                if avg_losses:
-                    for loss_key in sorted(avg_losses.keys()):
-                        loss_info_parts.append(f"{loss_key}={avg_losses[loss_key]:.6f}")
-                else:
-                    loss_info_parts.append("(no training in this episode)")
-                logger.info(" | ".join(loss_info_parts))
+                if completed_episodes % 100 == 0:
+                    loss_info_parts = [
+                        f"Episode {completed_episodes}: reward={final_episode_reward:.2f}, shaped_reward={final_episode_shaped_reward:.2f}, steps={final_episode_steps}",
+                        f"env={sampled_mode_str}",
+                        f"opponent={opponent_type}",
+                    ]
+                    if avg_losses:
+                        for loss_key in sorted(avg_losses.keys()):
+                            loss_info_parts.append(f"{loss_key}={avg_losses[loss_key]:.6f}")
+                    else:
+                        loss_info_parts.append("(no training in this episode)")
+                    logger.info(" | ".join(loss_info_parts))
 
                 # Reset episode losses after logging (for next episode)
                 current_episode_losses = {}
@@ -1277,8 +1285,6 @@ def _train_run_vectorized(
                     device=device,
                 )
 
-                q_values = evaluate_episodes(agent, "src/rl_hockey/common/evaluation/episodes.npy")
-
                 evaluation_results.append(
                     {
                         "step": steps,
@@ -1289,15 +1295,16 @@ def _train_run_vectorized(
                         "wins": eval_results["wins"],
                         "losses": eval_results["losses"],
                         "draws": eval_results["draws"],
-                        "q_values": q_values,
                     }
                 )
 
                 if evaluation_results:
                     run_manager.save_evaluation_plot(run_name, evaluation_results)
                     run_manager.save_evaluation_csv(run_name, evaluation_results)
-                    run_manager.save_value_propagation_plot(run_name, evaluation_results)
 
+                q_values.append(evaluate_episodes(agent))
+                run_manager.save_value_propagation_plot(run_name, q_values)
+                
                 if verbose:
                     print(
                         f"Evaluation results: Win rate: {eval_results['win_rate']:.2%}, "

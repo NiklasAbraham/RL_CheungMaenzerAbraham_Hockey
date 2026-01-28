@@ -237,15 +237,11 @@ class RunManager:
         plt.savefig(paths['plot_evaluation'])
         plt.close()
 
-    def save_value_propagation_plot(self, run_name: str, evaluation_results: List[Dict[str, Any]]):
+    def save_value_propagation_plot(self, run_name: str, q_values: List[np.ndarray]):
         """Save value propagation plot."""
         import matplotlib
         matplotlib.use('Agg')  # Use non-interactive backend
         import matplotlib.pyplot as plt
-
-        q_values = [result['q_values'] for result in evaluation_results if 'q_values' in result]
-        if not q_values:
-            return
         
         q_values = np.array(q_values)
         q_values = np.flipud(q_values.T)

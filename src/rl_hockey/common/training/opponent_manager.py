@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, Union
 
 import hockey.hockey_env as h_env
 from rl_hockey.common.agent import Agent
+from rl_hockey.common.archive.matchmaker import Matchmaker
 from rl_hockey.common.training.curriculum_manager import OpponentConfig, AgentConfig
 from rl_hockey.common.training.agent_factory import create_agent
 
@@ -19,7 +20,9 @@ def create_opponent(
     agent_config: Optional[AgentConfig] = None,
     state_dim: Optional[int] = None,
     action_dim: Optional[int] = None,
-    is_discrete: Optional[bool] = None
+    is_discrete: Optional[bool] = None,
+    rating: Optional[float] = None,
+    matchmaker: Optional[Matchmaker] = None
 ) -> Union[Agent, h_env.BasicOpponent, None]:
     """Create an opponent based on configuration."""
     if config.type == "none":
@@ -43,6 +46,13 @@ def create_opponent(
             deterministic=config.deterministic
         )
     
+    elif config.type == "archive":
+        return matchmaker.sample_opponent(
+            rating,
+            config.distribution,
+            config.skill_range
+        )
+    
     elif config.type == "weighted_mixture":
         # Return the config itself, sampling happens per episode
         return config
@@ -58,7 +68,8 @@ def sample_opponent(
     agent_config: Optional[AgentConfig] = None,
     state_dim: Optional[int] = None,
     action_dim: Optional[int] = None,
-    is_discrete: Optional[bool] = None
+    is_discrete: Optional[bool] = None,
+    rating: Optional[float] = None,
 ) -> Union[Agent, h_env.BasicOpponent, None]:
     """Sample an opponent from a weighted mixture configuration."""
     if opponent_config.type != "weighted_mixture":
@@ -87,7 +98,7 @@ def sample_opponent(
     
     return create_opponent(
         sampled_config, agent, checkpoint_dir, agent_config,
-        state_dim, action_dim, is_discrete
+        state_dim, action_dim, is_discrete, rating
     )
 
 

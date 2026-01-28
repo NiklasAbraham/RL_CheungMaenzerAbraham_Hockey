@@ -40,11 +40,13 @@ class EnvironmentConfig:
 
 @dataclass
 class OpponentConfig:
-    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture"
+    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture", "archive"
     weight: float = 1.0
     checkpoint: Optional[str] = None
     deterministic: bool = True
     opponents: Optional[List[Dict[str, Any]]] = None  # For weighted_mixture
+    skill_range: float = 50.0  # For archive sampling
+    distribution: Optional[Dict[str, float]] = None  # For archive sampling
 
 
 @dataclass
@@ -65,6 +67,7 @@ class PhaseConfig:
     environment: EnvironmentConfig
     opponent: OpponentConfig
     reward_shaping: Optional[RewardShapingConfig] = None
+    clear_buffer: bool = True
 
 
 @dataclass
@@ -74,10 +77,18 @@ class AgentConfig:
 
 
 @dataclass
+class TrainingConfig:
+    warmup_steps: int
+    updates_per_step: int
+    eval_frequency: int
+    checkpoint_frequency: int
+
+
+@dataclass
 class CurriculumConfig:
     phases: List[PhaseConfig]
     hyperparameters: Dict[str, Any]
-    training: Dict[str, Any]
+    training: TrainingConfig
     agent: AgentConfig
 
 
@@ -121,7 +132,9 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             weight=opponent_dict.get('weight', 1.0),
             checkpoint=opponent_dict.get('checkpoint'),
             deterministic=opponent_dict.get('deterministic', True),
-            opponents=opponent_dict.get('opponents')
+            opponents=opponent_dict.get('opponents'),
+            skill_range=opponent_dict.get('skill_range'),
+            distribution=opponent_dict.get('distribution')
         )
         
         reward_shaping_dict = phase_dict.get('reward_shaping')
@@ -135,7 +148,8 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             episodes=phase_dict['episodes'],
             environment=env_config,
             opponent=opponent_config,
-            reward_shaping=reward_shaping
+            reward_shaping=reward_shaping,
+            clear_buffer=phase_dict.get('clear_buffer', True)
         )
         phases.append(phase)
     
@@ -144,11 +158,19 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
         type=agent_dict['type'],
         hyperparameters=agent_dict.get('hyperparameters', {})
     )
+
+    training_dict = config_dict['training']
+    training_config = TrainingConfig(
+        warmup_steps=training_dict.get('warmup_steps', 10000),
+        updates_per_step=training_dict.get('updates_per_step', 1),
+        eval_frequency=training_dict.get('eval_frequency', 100_000),
+        checkpoint_frequency=training_dict.get('checkpoint_frequency', 100_000)
+    )
     
     curriculum_config = CurriculumConfig(
         phases=phases,
         hyperparameters=config_dict.get('hyperparameters', {}),
-        training=config_dict.get('training', {}),
+        training=training_config,
         agent=agent_config
     )
     
