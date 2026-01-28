@@ -7,9 +7,68 @@ enabling easy retrieval for self-play training and evaluation.
 
 import json
 import shutil
+from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+from rl_hockey.common.archive.rating_system import Rating
+
+
+@dataclass
+class AgentMetadata:
+    """Complete metadata for an archived agent."""
+    agent_id: str
+    archived_at: str
+    tags: List[str]
+    rating: Rating
+    checkpoint_path: Optional[str] = None
+    step: Optional[int] = None
+    config_path: Optional[str] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "AgentMetadata":
+        """Create from dictionary."""
+        return cls(
+            agent_id=data["agent_id"],
+            archived_at=data["archived_at"],
+            tags=data.get("tags", []),
+            rating=Rating.from_dict(data.get("rating", {})),
+            checkpoint_path=data.get("checkpoint_path"),
+            step=data.get("step"),
+            config_path=data.get("config_path"),
+        )
+
+
+@dataclass
+class RegistryEntry:
+    """Registry entry for an agent."""
+    agent_id: str
+    archived_at: str
+    tags: List[str]
+    rating: Rating
+    directory: Optional[str] = None
+    step: Optional[int] = None
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return asdict(self)
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "RegistryEntry":
+        """Create from dictionary."""
+        return cls(
+            agent_id=data["agent_id"],
+            archived_at=data["archived_at"],
+            tags=data.get("tags", []),
+            rating=Rating.from_dict(data.get("rating", {})),
+            directory=data.get("directory", ""),
+            step=data.get("step"),
+        )
 
 
 class Archive:
@@ -37,15 +96,23 @@ class Archive:
         """Load existing registry or create a new one."""
         if self.registry_file.exists():
             with open(self.registry_file, 'r') as f:
-                self.registry = json.load(f)
+                registry_data = json.load(f)
+                self.registry = {
+                    agent_id: RegistryEntry.from_dict(entry)
+                    for agent_id, entry in registry_data.items()
+                }
         else:
-            self.registry = {"agents": {}}
+            self.registry = {}
             self._save_registry()
     
     def _save_registry(self):
         """Save registry to disk."""
         with open(self.registry_file, 'w') as f:
-            json.dump(self.registry, f, indent=2)
+            registry_data = {
+                agent_id: entry.to_dict()
+                for agent_id, entry in self.registry.items()
+            }
+            json.dump(registry_data, f, indent=2)
     
     def _generate_agent_id(self, agent_name: str) -> str:
         """
@@ -58,20 +125,19 @@ class Archive:
             Unique agent ID string
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        agent_count = len(self.registry["agents"]) + 1
+        agent_count = len(self.registry) + 1
         
         return f"{agent_count:04d}_{agent_name}_{timestamp}"
 
-    
     def add_agent(
         self,
         checkpoint_path: str,
         config_path: str,
         agent_name: str,
-        tags: List[str] = [],
-        rating: Dict[str, float] = None,
-        step: int = None,
-        metadata: Dict[str, Any] = None,
+        tags: Optional[List[str]] = None,
+        rating: Optional[Dict[str, float]] = None,
+        step: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None,
     ) -> str:
         """
         Add an agent to the archive.
@@ -88,6 +154,9 @@ class Archive:
         Returns:
             Generated agent ID
         """
+        if tags is None:
+            tags = []
+        
         checkpoint_path = Path(checkpoint_path)
         
         if not checkpoint_path.exists():
@@ -109,44 +178,42 @@ class Archive:
 
         # Use default rating if not provided
         if not rating:
-            rating = {
-                "rating": 0.0,
-                "mu": 25.0,
-                "sigma": 8.333,
-                "games_played": 0
-            }
+            rating = Rating(25, 8.333)
             tags.append("needs_calibration")
         
         # Prepare metadata
-        agent_metadata = {
-            "agent_id": agent_id,
-            "archived_at": datetime.now().isoformat(),
-            "tags": tags,
-            "step": step,
-            "rating": rating,
-            "checkpoint_path": str(checkpoint_dest),
-            "config_path": str(config_dest) if config_path else None,
-        }
+        agent_metadata = AgentMetadata(
+            agent_id=agent_id,
+            archived_at=datetime.now().isoformat(),
+            tags=tags,
+            step=step,
+            rating=rating,
+            checkpoint_path=str(checkpoint_dest),
+            config_path=str(config_dest) if config_dest else None,
+        )
         
         # Add any additional metadata fields
+        metadata_dict = agent_metadata.to_dict()
+        
         if metadata:
             for key, value in metadata.items():
-                    agent_metadata[key] = value
+                metadata_dict[key] = value
         
         # Save metadata
         metadata_path = agent_dir / "metadata.json"
         with open(metadata_path, 'w') as f:
-            json.dump(agent_metadata, f, indent=2)
+            json.dump(metadata_dict, f, indent=2)
         
         # Update registry
-        self.registry["agents"][agent_id] = {
-            "agent_id": agent_id,
-            "archived_at": agent_metadata["archived_at"],
-            "tags": tags,
-            "step": step,
-            "rating": rating,
-            "directory": str(agent_dir),
-        }
+        registry_entry = RegistryEntry(
+            agent_id=agent_id,
+            archived_at=agent_metadata.archived_at,
+            tags=tags,
+            step=step,
+            rating=rating,
+            directory=str(agent_dir),
+        )
+        self.registry[agent_id] = registry_entry
         self._save_registry()
         
         return agent_id
@@ -162,17 +229,18 @@ class Archive:
         Returns:
             Generated agent ID
         """
-        self.registry["agents"][agent_name] = {
-            "agent_id": agent_name,
-            "archived_at": datetime.now().isoformat(),
-            "tags": ["baseline"],
-            "rating": rating,
-        }
+        registry_entry = RegistryEntry(
+            agent_id=agent_name,
+            archived_at=datetime.now().isoformat(),
+            tags=["baseline"],
+            rating=rating,
+        )
+        self.registry[agent_name] = registry_entry
         self._save_registry()
         
         return agent_name
     
-    def get_agents(self, sort_by: str = "archived_at", tags: List[str] = None) -> List[Dict[str, Any]]:
+    def get_agents(self, sort_by: str = "archived_at", tags: Optional[List[str]] = None) -> List[AgentMetadata]:
         """
         List all archived agents.
         
@@ -180,34 +248,38 @@ class Archive:
             sort_by: Field to sort by ("archived_at", "agent_id", "rating")
             tags: List of tags to filter agents by (optional)
         Returns:
-            List of agent metadata dictionaries
+            List of agent metadata objects
         """
         agents = []
         
-        for agent_id, registry_entry in self.registry["agents"].items():
+        for agent_id, registry_entry in self.registry.items():
             if tags:
-                if not all(tag in registry_entry["tags"] for tag in tags):
+                if not all(tag in registry_entry.tags for tag in tags):
                     continue
 
-            agent_dir = Path(registry_entry["directory"])
+            agent_dir = Path(registry_entry.directory) if registry_entry.directory else None
+            if not agent_dir:
+                continue
+                
             metadata_path = agent_dir / "metadata.json"
             
             if metadata_path.exists():
                 with open(metadata_path, 'r') as f:
-                    metadata = json.load(f)
+                    metadata_dict = json.load(f)
+                    metadata = AgentMetadata.from_dict(metadata_dict)
                     agents.append(metadata)
         
         # Sort agents
         if sort_by == "archived_at":
-            agents.sort(key=lambda x: x.get("archived_at", ""), reverse=True)
+            agents.sort(key=lambda x: x.archived_at, reverse=True)
         elif sort_by == "agent_id":
-            agents.sort(key=lambda x: x.get("agent_id", ""))
+            agents.sort(key=lambda x: x.agent_id)
         elif sort_by == "rating":
-            agents.sort(key=lambda x: x.get("rating", {}).get("rating", 0), reverse=True)
+            agents.sort(key=lambda x: x.rating.rating, reverse=True)
         
         return agents
     
-    def get_agent_metadata(self, agent_id: str) -> Optional[Dict[str, Any]]:
+    def get_agent_metadata(self, agent_id: str) -> Optional[AgentMetadata]:
         """
         Get metadata for a specific agent.
         
@@ -215,19 +287,24 @@ class Archive:
             agent_id: Agent identifier
             
         Returns:
-            Agent metadata dictionary or None if not found
+            Agent metadata object or None if not found
         """
-        if agent_id not in self.registry["agents"]:
+        if agent_id not in self.registry:
             return None
         
-        agent_dir = Path(self.registry["agents"][agent_id]["directory"])
+        registry_entry = self.registry[agent_id]
+        agent_dir = Path(registry_entry.directory) if registry_entry.directory else None
+        if not agent_dir:
+            return None
+            
         metadata_path = agent_dir / "metadata.json"
         
         if not metadata_path.exists():
             return None
         
         with open(metadata_path, 'r') as f:
-            return json.load(f)
+            metadata_dict = json.load(f)
+            return AgentMetadata.from_dict(metadata_dict)
     
     def get_agent_checkpoint_path(self, agent_id: str) -> Optional[str]:
         """
@@ -241,7 +318,7 @@ class Archive:
         """
         metadata = self.get_agent_metadata(agent_id)
         if metadata:
-            checkpoint_path = Path(metadata["checkpoint_path"])
+            checkpoint_path = Path(metadata.checkpoint_path)
             if checkpoint_path.exists():
                 return str(checkpoint_path)
         return None
@@ -257,35 +334,37 @@ class Archive:
             Path to config file or None if not found
         """
         metadata = self.get_agent_metadata(agent_id)
-        if metadata and metadata.get("config_path"):
-            config_path = Path(metadata["config_path"])
+        if metadata and metadata.config_path:
+            config_path = Path(metadata.config_path)
             if config_path.exists():
                 return str(config_path)
         return None
     
     def add_agent_tag(self, agent_id: str, tag: str) -> bool:
-        if agent_id not in self.registry["agents"]:
+        if agent_id not in self.registry:
             return False
         
-        if tag not in self.registry["agents"][agent_id]["tags"]:
-            self.registry["agents"][agent_id]["tags"].append(tag)
+        registry_entry = self.registry[agent_id]
+        if tag not in registry_entry.tags:
+            registry_entry.tags.append(tag)
             self._save_registry()
         return True
     
     def remove_agent_tag(self, agent_id: str, tag: str) -> bool:
-        if agent_id not in self.registry["agents"]:
+        if agent_id not in self.registry:
             return False
         
-        if tag in self.registry["agents"][agent_id]["tags"]:
-            self.registry["agents"][agent_id]["tags"].remove(tag)
+        registry_entry = self.registry[agent_id]
+        if tag in registry_entry.tags:
+            registry_entry.tags.remove(tag)
             self._save_registry()
         return True
     
-    def update_agent_rating(self, agent_id: str, rating: Dict[str, float]) -> bool:
-        if agent_id not in self.registry["agents"]:
+    def update_agent_rating(self, agent_id: str, rating: Rating) -> bool:
+        if agent_id not in self.registry:
             return False
         
-        self.registry["agents"][agent_id]["rating"] = rating
+        self.registry[agent_id].rating = rating
         self._save_registry()
         return True
     
@@ -299,28 +378,17 @@ class Archive:
         Returns:
             True if removed, False if not found
         """
-        if agent_id not in self.registry["agents"]:
+        if agent_id not in self.registry:
             return False
         
         # Remove agent directory
-        agent_dir = Path(self.registry["agents"][agent_id]["directory"])
-        if agent_dir.exists():
+        registry_entry = self.registry[agent_id]
+        agent_dir = Path(registry_entry.directory) if registry_entry.directory else None
+        if agent_dir and agent_dir.exists():
             shutil.rmtree(agent_dir)
         
         # Remove from registry
-        del self.registry["agents"][agent_id]
+        del self.registry[agent_id]
         self._save_registry()
         
         return True
-    
-    def get_archive_stats(self) -> Dict[str, Any]:
-        """
-        Get statistics about the archive.
-        
-        Returns:
-            Dictionary with archive statistics
-        """
-        return {
-            "total_agents": len(self.registry["agents"]),
-            "archive_directory": str(self.base_dir),
-        }

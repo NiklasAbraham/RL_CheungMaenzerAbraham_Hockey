@@ -3,7 +3,7 @@
     "phases": [
       {
         "name": "easy",
-        "episodes": 200,
+        "episodes": 20000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
@@ -17,7 +17,7 @@
       },
       {
         "name": "hard",
-        "episodes": 200,
+        "episodes": 20000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
@@ -27,23 +27,7 @@
           ]
         },
         "reward_shaping": null,
-        "clear_buffer": false
-      },
-      {
-        "name": "archive",
-        "episodes": 200,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {
-          "type": "archive",
-          "distribution": {
-            "skill": 0.8,
-            "random": 0.1,
-            "baseline": 0.1
-          },
-          "skill_range": 50.0
-        },
-        "reward_shaping": null,
-        "clear_buffer": false
+        "clear_buffer": true
       }
     ]
   },
@@ -52,11 +36,12 @@
     "batch_size": 256
   },
   "training": {
-    "max_episode_steps": 500,
+    "max_episode_steps": 250,
     "updates_per_step": 1,
-    "warmup_steps": 80000,
+    "warmup_steps": 10000,
     "reward_scale": 0.5,
-    "checkpoint_save_freq": 5000
+    "checkpoint_frequency": 100000,
+    "eval_frequency": 100000
   },
   "agent": {
     "type": "SAC",
@@ -66,7 +51,7 @@
       "alpha": 0.2,
       "learn_alpha": true,
       "noise": "pink",
-      "max_episode_steps": 500
+      "max_episode_steps": 250
     }
   }
 }

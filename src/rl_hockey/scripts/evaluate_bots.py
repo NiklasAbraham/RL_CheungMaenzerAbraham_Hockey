@@ -1,10 +1,12 @@
 """
-Simple script to evaluate weak bot vs strong bot using TrueSkill ratings.
+Evaluate a SAC agent against BasicOpponent using TrueSkill ratings.
 """
 
+import argparse
 import numpy as np
 import trueskill
 import hockey.hockey_env as h_env
+from rl_hockey.sac import SAC
 
 
 def play_match(env, player1, player2, max_steps=250, render=False):
@@ -46,69 +48,98 @@ def play_match(env, player1, player2, max_steps=250, render=False):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="Evaluate SAC agent against BasicOpponent")
+    parser.add_argument("checkpoint", type=str, help="Path to SAC checkpoint file")
+    parser.add_argument("--opponent", type=str, choices=["weak", "strong"], default="weak",
+                        help="Opponent strength (default: weak)")
+    parser.add_argument("--matches", type=int, default=10, help="Number of matches to play (default: 10)")
+    parser.add_argument("--render", action="store_true", help="Render matches")
+    args = parser.parse_args()
+    
     # Setup TrueSkill environment
     ts_env = trueskill.TrueSkill(mu=25.0, sigma=8.333, beta=4.166, tau=0.083, draw_probability=0.15)
     
-    # Initialize ratings (weak bot starts at 100 as requested)
-    weak_rating = ts_env.create_rating()  # Conservative estimate = 100
-    strong_rating = ts_env.create_rating()  # Default: mu=25, sigma=8.333
+    # Initialize ratings
+    # Agent starts at specified rating
+    agent_rating = ts_env.create_rating()
+    opponent_rating = ts_env.create_rating()
+    
+    # Create environment
+    env = h_env.HockeyEnv()
+    
+    # Load SAC agent
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0] // 2
+    agent = SAC(state_dim=state_dim, action_dim=action_dim)
+    
+    print(f"Loading agent from: {args.checkpoint}")
+    agent.load(args.checkpoint)
+    print("Agent loaded successfully!")
+    
+    # Create opponent
+    opponent = h_env.BasicOpponent(weak=(args.opponent == "weak"))
+    opponent_name = "Weak Bot" if args.opponent == "weak" else "Strong Bot"
     
     print("="*60)
-    print("Bot Evaluation: Weak Bot vs Strong Bot")
+    print(f"Evaluation: SAC Agent vs {opponent_name}")
     print("="*60)
     print(f"\nInitial Ratings:")
-    print(f"  Weak Bot:   μ={weak_rating.mu:.2f}, σ={weak_rating.sigma:.2f}, Rating={weak_rating.mu - 3*weak_rating.sigma:.2f}")
-    print(f"  Strong Bot: μ={strong_rating.mu:.2f}, σ={strong_rating.sigma:.2f}, Rating={strong_rating.mu - 3*strong_rating.sigma:.2f}")
-    
-    # Create environment and bots
-    env = h_env.HockeyEnv()
-    weak_bot = h_env.BasicOpponent(weak=True)
-    strong_bot = h_env.BasicOpponent(weak=False)
+    print(f"  Agent:    μ={agent_rating.mu:.2f}, σ={agent_rating.sigma:.2f}, Rating={agent_rating.mu - 3*agent_rating.sigma:.2f}")
+    print(f"  Opponent: μ={opponent_rating.mu:.2f}, σ={opponent_rating.sigma:.2f}, Rating={opponent_rating.mu - 3*opponent_rating.sigma:.2f}")
     
     # Play matches
-    num_matches = 1000
+    num_matches = args.matches
     results = []
     
     print(f"\nPlaying {num_matches} matches...\n")
     
     for i in range(num_matches):
-        result = play_match(env, weak_bot, strong_bot, max_steps=250)
+        # Create a wrapper for the agent that uses the agent.act method
+        class AgentWrapper:
+            def __init__(self, sac_agent):
+                self.agent = sac_agent
+            
+            def act(self, obs):
+                return self.agent.act(obs.astype(np.float32))
+        
+        agent_wrapper = AgentWrapper(agent)
+        result = play_match(env, agent_wrapper, opponent, max_steps=250, render=args.render)
         results.append(result)
         
         # Update ratings
-        if result == 1:  # Weak wins
-            weak_rating, strong_rating = ts_env.rate_1vs1(weak_rating, strong_rating)
-        elif result == -1:  # Strong wins
-            strong_rating, weak_rating = ts_env.rate_1vs1(strong_rating, weak_rating)
+        if result == 1:  # Agent wins
+            agent_rating, opponent_rating = ts_env.rate_1vs1(agent_rating, opponent_rating)
+        elif result == -1:  # Opponent wins
+            opponent_rating, agent_rating = ts_env.rate_1vs1(opponent_rating, agent_rating)
         else:  # Draw
-            weak_rating, strong_rating = ts_env.rate_1vs1(weak_rating, strong_rating, drawn=True)
+            agent_rating, opponent_rating = ts_env.rate_1vs1(agent_rating, opponent_rating, drawn=True)
         
         # Print match result
-        result_str = "Weak Win" if result == 1 else ("Strong Win" if result == -1 else "Draw")
-        print(f"Match {i+1:2d}: {result_str:12s} | Weak: {weak_rating.mu - 3*weak_rating.sigma:6.2f}, Strong: {strong_rating.mu - 3*strong_rating.sigma:6.2f}")
+        result_str = "Agent Win" if result == 1 else ("Opponent Win" if result == -1 else "Draw")
+        print(f"Match {i+1:2d}: {result_str:12s} | Agent: {agent_rating.mu - 3*agent_rating.sigma:6.2f}, Opponent: {opponent_rating.mu - 3*opponent_rating.sigma:6.2f}")
     
     env.close()
     
     # Print summary
-    wins_weak = sum(1 for r in results if r == 1)
-    wins_strong = sum(1 for r in results if r == -1)
+    wins_agent = sum(1 for r in results if r == 1)
+    wins_opponent = sum(1 for r in results if r == -1)
     draws = sum(1 for r in results if r == 0)
     
     print("\n" + "="*60)
     print("RESULTS SUMMARY")
     print("="*60)
     print(f"\nMatches Played: {num_matches}")
-    print(f"  Weak Bot Wins:   {wins_weak:2d} ({wins_weak/num_matches*100:.1f}%)")
-    print(f"  Strong Bot Wins: {wins_strong:2d} ({wins_strong/num_matches*100:.1f}%)")
-    print(f"  Draws:           {draws:2d} ({draws/num_matches*100:.1f}%)")
+    print(f"  Agent Wins:    {wins_agent:2d} ({wins_agent/num_matches*100:.1f}%)")
+    print(f"  Opponent Wins: {wins_opponent:2d} ({wins_opponent/num_matches*100:.1f}%)")
+    print(f"  Draws:         {draws:2d} ({draws/num_matches*100:.1f}%)")
     
     print(f"\nFinal Ratings:")
-    print(f"  Weak Bot:   μ={weak_rating.mu:.2f}, σ={weak_rating.sigma:.2f}, Rating={weak_rating.mu - 3*weak_rating.sigma:.2f}")
-    print(f"  Strong Bot: μ={strong_rating.mu:.2f}, σ={strong_rating.sigma:.2f}, Rating={strong_rating.mu - 3*strong_rating.sigma:.2f}")
+    print(f"  Agent:    μ={agent_rating.mu:.2f}, σ={agent_rating.sigma:.2f}, Rating={agent_rating.mu - 3*agent_rating.sigma:.2f}")
+    print(f"  Opponent: μ={opponent_rating.mu:.2f}, σ={opponent_rating.sigma:.2f}, Rating={opponent_rating.mu - 3*opponent_rating.sigma:.2f}")
     
     print(f"\nRating Change:")
-    print(f"  Weak Bot:   {(weak_rating.mu - 3*weak_rating.sigma) - 100.0:+.2f}")
-    print(f"  Strong Bot: {(strong_rating.mu - 3*strong_rating.sigma) - 0.0:+.2f}")
+    print(f"  Agent:    {(agent_rating.mu - 3*agent_rating.sigma):+.2f}")
+    print(f"  Opponent: {(opponent_rating.mu - 3*opponent_rating.sigma):+.2f}")
     print("="*60)
 
 

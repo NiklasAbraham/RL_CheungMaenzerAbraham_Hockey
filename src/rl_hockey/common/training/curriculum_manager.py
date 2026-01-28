@@ -82,6 +82,7 @@ class TrainingConfig:
     updates_per_step: int
     eval_frequency: int
     checkpoint_frequency: int
+    reward_scale: float = 1.0
 
 
 @dataclass
@@ -164,7 +165,8 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
         warmup_steps=training_dict.get('warmup_steps', 10000),
         updates_per_step=training_dict.get('updates_per_step', 1),
         eval_frequency=training_dict.get('eval_frequency', 100_000),
-        checkpoint_frequency=training_dict.get('checkpoint_frequency', 100_000)
+        checkpoint_frequency=training_dict.get('checkpoint_frequency', 100_000),
+        reward_scale=training_dict.get('reward_scale', 1.0)
     )
     
     curriculum_config = CurriculumConfig(
