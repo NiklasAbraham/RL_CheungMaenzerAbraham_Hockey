@@ -3,6 +3,7 @@ Minimal training script for debugging.
 No curriculum, just SAC vs weak opponent with basic logging.
 """
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import tqdm
@@ -26,6 +27,11 @@ from rl_hockey.common.training.opponent_manager import (
     sample_opponent,
     get_opponent_action,
 )
+from rl_hockey.common.evaluation.value_propagation import (
+    evaluate_episodes,
+    plot_value_heatmap,
+    plot_values,
+)
 
 
 @dataclass
@@ -45,6 +51,7 @@ class TrainingMetrics:
     """Flexible container for all training data, indexed by global steps."""
     episodes: List[Dict[str, Any]] = field(default_factory=list) 
     updates: List[Dict[str, Any]] = field(default_factory=list)
+    q_values: List[Dict[str, Any]] = field(default_factory=list)  # value propagation
 
     def add_episode(self, step: int, reward: float, length: int, phase: Optional[str] = None):
         """Records an episode finish at a specific global step."""
@@ -58,6 +65,13 @@ class TrainingMetrics:
         self.updates.append({
             "step": step,
             **metrics
+        })
+    
+    def add_q_values(self, step: int, q_vals: np.ndarray):
+        """Records Q-values for value propagation at a specific global step."""
+        self.q_values.append({
+            "step": step,
+            "values": q_vals
         })
 
 
@@ -213,8 +227,8 @@ def _create_opponents(num_envs: int, phase: PhaseConfig, state_dim: int, action_
                 state_dim=state_dim,
                 action_dim=action_dim,
                 is_discrete=False,
-                rating=rating,
-                matchmaker=matchmaker,
+                # rating=rating,
+                # matchmaker=matchmaker,
             )
             for _ in range(num_envs)
         ]
@@ -354,8 +368,9 @@ def train_vectorized(
         next_states, rewards, dones, truncs, infos = env.step(full_actions)
         
         for i in range(num_envs):
+            reward = rewards[i] * curriculum.training.reward_scale
             done = dones[i] and infos[i]["winner"] == 0  # handle truncation (env always returns done)
-            agent.store_transition((states[i], actions[i], rewards[i], next_states[i], done))
+            agent.store_transition((states[i], actions[i], reward, next_states[i], done))
             
             episode_metrics[i].reward += rewards[i]
             episode_metrics[i].length += 1
@@ -387,8 +402,9 @@ def train_vectorized(
                 new_phase_index, _, _ = get_phase_for_episode(curriculum, training_state.episode)
                 if new_phase_index != training_state.phase_index:
                     switch = True
+
+                # TODO sample new opponent
                 
-            
         # Step or switch phase
         if switch:
             switch = False
@@ -419,6 +435,12 @@ def train_vectorized(
             training_state.last_checkpoint_step = training_state.step
             agent.save(f"{result_dir}/models/ep_{training_state.episode}.pt")
 
+        # Run value propagation evaluation
+        if training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
+            training_state.last_eval_step = training_state.step
+            q_vals = evaluate_episodes(agent)
+            training_metrics.add_q_values(step=training_state.step, q_vals=q_vals)
+        
         # TODO Run evaluation
         # if evaluator and training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
         #     training_state.last_eval_step = training_state.step
@@ -434,38 +456,66 @@ def train_vectorized(
     if verbose:
         print(f"\nTraining complete. Total steps: {training_state.step}")
     
-    # TODO plot metrics
+    # TODO Plots
+    os.makedirs(f"{result_dir}/plots", exist_ok=True)
 
-    # num_metrics = len(metrics.custom_metrics)
-    # if num_metrics > 0:
-    #     fig, axes = plt.subplots(num_metrics, 1, figsize=(12, 4 * num_metrics))
-    #     if num_metrics == 1:
-    #         axes = [axes]
-        
-    #     for idx, (metric_name, values) in enumerate(metrics.custom_metrics.items()):
-    #         axes[idx].plot(values, label=metric_name)
-    #         axes[idx].set_xlabel("Episodes")
-    #         axes[idx].set_ylabel(metric_name)
-    #         axes[idx].set_title(f"{metric_name} over Training")
-    #         axes[idx].legend()
-        
-    #     plt.tight_layout()
-    #     plt.savefig(f"{base_dir}/training_metrics_vectorized.png")
+    if training_metrics.episodes:
+        episode_rewards = [ep["reward"] for ep in training_metrics.episodes]
+        plt.figure(figsize=(12, 6))
+        plt.plot(episode_rewards, label="Episode Reward", alpha=0.6)
+        # Add rolling average
+        if len(episode_rewards) > 100:
+            window = 100
+            rolling_avg = np.convolve(episode_rewards, np.ones(window)/window, mode='valid')
+            plt.plot(range(window-1, len(episode_rewards)), rolling_avg, label=f"Rolling Avg ({window})", linewidth=2)
+        plt.xlabel("Episodes")
+        plt.ylabel("Reward")
+        plt.title("Episode Rewards")
+        plt.legend()
+        plt.grid(alpha=0.3)
+        plt.savefig(f"{result_dir}/plots/episode_rewards.png")
+        plt.close()
     
-    # # Plot rewards
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(metrics.episode_rewards, label="Episode Reward")
-    # plt.xlabel("Episodes")
-    # plt.ylabel("Reward")
-    # plt.title("Episode Rewards (Vectorized)")
-    # plt.legend()
-    # plt.savefig(f"{base_dir}/episode_rewards_vectorized.png")
-    # plt.close('all')
+    if training_metrics.updates:
+        # Extract unique metric names (excluding 'step')
+        metric_names = set()
+        for update in training_metrics.updates:
+            metric_names.update(k for k in update.keys() if k != "step")
+        metric_names = sorted(metric_names)
+        
+        if metric_names:
+            num_metrics = len(metric_names)
+            fig, axes = plt.subplots(num_metrics, 1, figsize=(12, 4 * num_metrics))
+            if num_metrics == 1:
+                axes = [axes]
+            
+            for idx, metric_name in enumerate(metric_names):
+                steps = [u["step"] for u in training_metrics.updates if metric_name in u]
+                values = [u[metric_name] for u in training_metrics.updates if metric_name in u]
+                
+                axes[idx].plot(steps, values, label=metric_name, alpha=0.7)
+                axes[idx].set_xlabel("Steps")
+                axes[idx].set_ylabel(metric_name)
+                axes[idx].set_title(metric_name)
+                axes[idx].legend()
+                axes[idx].grid(alpha=0.3)
+            
+            plt.tight_layout()
+            plt.savefig(f"{result_dir}/plots/training_metrics.png")
+            plt.close()    
 
+    # Plot value propagation
+    if training_metrics.q_values:
+        q_vals = [qv["values"] for qv in training_metrics.q_values]
+        plot_value_heatmap(q_vals, path=f"{result_dir}/plots/value_propagation_heatmap.png")
+        indices = [0, len(q_vals)//3, 2*len(q_vals)//3, -1]
+        q_vals = [q_vals[i] for i in indices]
+        labels = [f"Step {training_metrics.q_values[i]['step']}" for i in indices]
+        plot_values(q_vals, labels, path=f"{result_dir}/plots/value_propagation_line.png")
 
 if __name__ == "__main__":
     train_vectorized(
         config_path="./configs/curriculum_sac.json",
-        result_dir="./minimal_runs/5",
+        result_dir="./results/minimal_runs/7",
         num_envs=16,
     )

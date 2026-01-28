@@ -1,11 +1,17 @@
 import os
 import numpy as np
+import random
 import matplotlib.pyplot as plt
+import tqdm
+from hockey import hockey_env as h_env
+
+from rl_hockey.sac import SAC
 
 
-def evaluate_episodes(agent):
-    episodes_path = "src/rl_hockey/common/evaluation/episodes.npy"
-    episodes = np.load(episodes_path, allow_pickle=True)
+def evaluate_episodes(agent, episodes=None):
+    if episodes is None:
+        episodes_path = "src/rl_hockey/common/evaluation/episodes.npy"
+        episodes = np.load(episodes_path, allow_pickle=True)
 
     q_values = np.zeros(len(episodes[0]))
     for transactions in episodes:
@@ -47,27 +53,49 @@ def plot_value_heatmap(q_values, path="q_values_heatmap.png"):
 
 
 if __name__ == "__main__":
-    # episodes = np.load("src/rl_hockey/common/evaluation/episodes.npy", allow_pickle=True)
+    env = h_env.HockeyEnv()
+    o_space = env.observation_space
+    ac_space = env.action_space
 
-    # from rl_hockey.sac import SAC
+    opponent = h_env.BasicOpponent(weak=False)
+    
+    untrained_agent = SAC(o_space.shape[0], action_dim=ac_space.shape[0] // 2, noise='pink', max_episode_steps=250)
+    
+    trained_agent = SAC(o_space.shape[0], action_dim=ac_space.shape[0] // 2, noise='pink', max_episode_steps=250)
+    trained_agent.load("minimal_runs/7/models/final.pt")
+    
+    # Collect episodes
+    all_episodes = []
+    for episode in tqdm.tqdm(range(500)):
+        obs, info = env.reset()
+        episode_states = []
+        done = False
+        
+        while not done:
+            episode_states.append(obs)
 
-    # agent_new = SAC(len(episodes[0][0]), action_dim=4, noise='pink', max_episode_steps=500)
-
-    # agent_trained = SAC(len(episodes[0][0]), action_dim=4, noise='pink', max_episode_steps=500)
-    # agent_trained.load("results/hyperparameter_runs/2026-01-11_14-06-38/models/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt")
-
-    # q_values_new = evaluate_episodes(agent_new, episodes)
-    # q_values_trained = evaluate_episodes(agent_trained, episodes)
-
-    # q_values_new = np.array(q_values_new)
-    # q_values_trained = np.array(q_values_trained)
-
-    # np.save("src/rl_hockey/common/evaluation/q_values_new.npy", q_values_new)
-    # np.save("src/rl_hockey/common/evaluation/q_values_trained.npy", q_values_trained)
-
-    # plot_values([q_values_new, q_values_trained], labels=["Untrained SAC", "Trained SAC"])
-
-    q_values_new = np.load("src/rl_hockey/common/evaluation/q_values_new.npy", allow_pickle=True)
-    q_values_trained = np.load("src/rl_hockey/common/evaluation/q_values_trained.npy", allow_pickle=True)
-
-    plot_value_heatmap([q_values_new,q_values_new,q_values_new,q_values_new, q_values_trained])
+            action1 = trained_agent.act(obs.astype(np.float32))
+            action2 = opponent.act(env.obs_agent_two())
+            action = np.hstack([action1, action2])
+            obs, reward, done, trunc, info = env.step(action)
+            done = done or trunc
+        
+        all_episodes.append(episode_states)
+    
+    # Filter episodes
+    filtered_episodes = [ep for ep in all_episodes if len(ep) >= 50]
+    filtered_episodes = [ep[-50:] for ep in filtered_episodes]
+    sampled_episodes = random.sample(filtered_episodes, min(100, len(filtered_episodes)))
+    
+    # Evaluate both agents
+    untrained_q_values = evaluate_episodes(untrained_agent, sampled_episodes)
+    trained_q_values = evaluate_episodes(trained_agent, sampled_episodes)
+    
+    # Create comparison plot
+    plot_values(
+        [untrained_q_values, trained_q_values],
+        ["Untrained Agent", "Trained Agent"],
+        path="q_values_comparison.png"
+    )
+    
+    print("Evaluation complete. Plot saved as q_values_comparison.png")

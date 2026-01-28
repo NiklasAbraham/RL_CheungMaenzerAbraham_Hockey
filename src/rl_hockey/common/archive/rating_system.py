@@ -16,17 +16,18 @@ from rl_hockey.common.archive.archive import Archive
 class Rating:
     """Represents a single agent's rating with uncertainty."""
     
-    def __init__(self, mu: float = 25.0, sigma: float = 8.333):
+    def __init__(self, mu: float = 25.0, sigma: float = 8.333, matches_played: int = 0):
         """
         Initialize agent rating.
         
         Args:
             mu: Mean skill level (default: 25.0)
             sigma: Uncertainty/standard deviation (default: 8.333)
+            matches_played: Number of matches played (default: 0)
         """
         self.mu = mu
         self.sigma = sigma
-        self.matches_played = 0
+        self.matches_played = matches_played
     
     @property
     def rating(self) -> float:
