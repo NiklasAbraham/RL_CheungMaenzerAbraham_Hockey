@@ -15,14 +15,14 @@ from typing import Any, Dict, List, Optional
 class Archive:
     """Manages the agent archive directory and metadata."""
     
-    def __init__(self, base_archive_dir: str = "results/archive"):
+    def __init__(self, base_dir: str = "results/archive"):
         """
         Initialize the archive.
         
         Args:
-            base_archive_dir: Root directory for the agent archive
+            base_dir: Root directory for the agent archive
         """
-        self.base_dir = Path(base_archive_dir)
+        self.base_dir = Path(base_dir)
         self.agents_dir = self.base_dir / "agents"
         self.registry_file = self.base_dir / "registry.json"
         

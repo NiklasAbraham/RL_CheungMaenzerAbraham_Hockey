@@ -4,18 +4,19 @@ from rl_hockey.common.archive import Archive
 
 
 class Matchmaker:
-    def __init__(self, archive: Archive, distribution: dict[str, float] = None):
+    def __init__(self, archive: Archive):
         self.archive = archive
-        self.distribution = distribution or {
+
+    def sample_opponent(self, rating: float,  distribution: dict[str, float] = None, skill_range: float = 50) -> dict:
+        distribution = distribution or {
             "skill": 0.8,
             "random": 0.1,
             "baseline": 0.1
         }
 
-    def sample_opponent(self, rating, skill_range=50) -> dict:
         rand_value = random.random()
         cumulative = 0.0
-        for strategy, prob in self.distribution.items():
+        for strategy, prob in distribution.items():
             cumulative += prob
             if rand_value < cumulative:
                 selected_strategy = strategy

@@ -27,7 +27,7 @@ class SAC(Agent):
             "alpha": 0.2,
             "learn_alpha": True,
             "noise": "normal",
-            "max_episode_steps": 1000,
+            "max_episode_steps": 250,
         }
         self.config.update(user_config)
 

@@ -1,5 +1,6 @@
 """
-Single training run with curriculum learning support.
+Single training run with curriculum learning support - REFACTORED VERSION.
+Uses the refactored train_run implementation with cleaner, modular code.
 Can use either JSON config file or dict config.
 Supports vectorized environments for faster training.
 """
@@ -22,7 +23,7 @@ logging.basicConfig(
     force=True,  # Force reconfiguration if already configured
 )
 
-from rl_hockey.common.training.train_run import train_run
+from rl_hockey.common.training.train_run_refactored import train_run
 
 
 def train_single_run(
@@ -36,6 +37,7 @@ def train_single_run(
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,
     num_envs: int = 4,
+    log_freq_episodes: int = 10,
 ):
     """
     Train a single run with optional vectorized environments.
@@ -52,6 +54,7 @@ def train_single_run(
         checkpoint_path: Continue from checkpoint
         num_envs: Number of parallel environments (1 = no vectorization, 4-8 recommended)
                     4 cores: use 2, 8 cores: use 4, 12+ cores: use 8 (max recommended)
+        log_freq_episodes: Logging frequency in episodes
     """
     return train_run(
         config_path,
@@ -64,6 +67,7 @@ def train_single_run(
         device=device,
         checkpoint_path=checkpoint_path,
         num_envs=num_envs,
+        log_freq_episodes=log_freq_episodes,
     )
 
 
@@ -91,7 +95,7 @@ if __name__ == "__main__":
 
     num_envs = int(
         os.environ.get("NUM_ENVS", "24")
-    )  # Default to 4 for parallel environments
+    ) # Default to 24 envs if not set
 
     train_single_run(
         path_to_config,
@@ -100,4 +104,4 @@ if __name__ == "__main__":
         num_envs=num_envs,
     )
 
-    # nohup python -u src/rl_hockey/common/training/train_single_run.py > results/sac_runs/train_single_run.log 2>&1 &
+    # nohup python -u src/rl_hockey/common/training/train_single_run_refactored.py > results/sac_runs/train_single_run_refactored.log 2>&1 &
