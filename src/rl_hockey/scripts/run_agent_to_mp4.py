@@ -7,6 +7,7 @@ from datetime import datetime
 
 import hockey.hockey_env as h_env
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from rl_hockey.common.utils import (
     discrete_to_continuous_action_with_fineness,
@@ -54,6 +55,21 @@ else:
         # Go up 3 levels to reach PROJECT_ROOT
         project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
         MODEL_PATH = os.path.join(project_root, _MODEL_PATH_ENV)
+
+_OPPONENT_MODEL_PATH_ENV = os.environ.get("OPPONENT_MODEL_PATH", "")
+if _OPPONENT_MODEL_PATH_ENV and os.path.isabs(_OPPONENT_MODEL_PATH_ENV):
+    OPPONENT_MODEL_PATH_DEFAULT = _OPPONENT_MODEL_PATH_ENV
+elif _OPPONENT_MODEL_PATH_ENV:
+    project_dir = os.environ.get("PROJECT_DIR")
+    if project_dir and os.path.exists(project_dir):
+        OPPONENT_MODEL_PATH_DEFAULT = os.path.join(project_dir, _OPPONENT_MODEL_PATH_ENV)
+    else:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+        OPPONENT_MODEL_PATH_DEFAULT = os.path.join(project_root, _OPPONENT_MODEL_PATH_ENV)
+else:
+    OPPONENT_MODEL_PATH_DEFAULT = ""
+
 NUM_GAMES = 25
 OPPONENT_TYPE = "basic_strong"
 PAUSE_BETWEEN_GAMES = 1.5
@@ -80,13 +96,14 @@ def infer_fineness_from_action_dim(action_dim, keep_mode=True):
 
 
 def detect_algorithm_from_filename(model_path):
-    """Detect algorithm type from model filename."""
-    filename = os.path.basename(model_path)
-    if "TDMPC2" in filename or "tdmpc2" in filename.lower():
+    """Detect algorithm type from model path (filename and parent path)."""
+    path_lower = model_path.lower()
+    path_upper = model_path
+    if "TDMPC2" in path_upper or "tdmpc2" in path_lower:
         return "TDMPC2"
-    elif "DDDQN" in filename or "ddqn" in filename.lower():
+    if "DDDQN" in path_upper or "ddqn" in path_lower:
         return "DDDQN"
-    elif "SAC" in filename or "sac" in filename.lower():
+    if "SAC" in path_upper or "sac" in path_lower:
         return "SAC"
     return None
 
@@ -149,11 +166,51 @@ def load_agent(model_path, state_dim, action_dim, algorithm=None):
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
 
-def create_blank_frames(frame_shape, duration_seconds, fps=50):
+def _default_font(size=16):
+    try:
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size)
+    except OSError:
+        try:
+            return ImageFont.truetype("/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", size)
+        except OSError:
+            return ImageFont.load_default()
+
+
+def add_agent_labels(frame, label_p1, label_p2):
+    """Draw agent labels on frame (mutates frame in place).
+    P1 top-left, P2 top-right to match env: Player 1 is left (red), Player 2 is right (blue)."""
+    if not label_p1 and not label_p2:
+        return
+    pil = Image.fromarray(frame)
+    draw = ImageDraw.Draw(pil)
+    font = _default_font(18)
+    pad = 6
+    if label_p1:
+        text_p1 = f"P1: {label_p1}"
+        bbox = draw.textbbox((0, 0), text_p1, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        draw.rectangle([0, 0, w + 2 * pad, h + 2 * pad], fill=(0, 0, 0), outline=(255, 255, 255))
+        draw.text((pad, pad), text_p1, fill=(255, 255, 255), font=font)
+    if label_p2:
+        text_p2 = f"P2: {label_p2}"
+        bbox = draw.textbbox((0, 0), text_p2, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = frame.shape[1] - w - 2 * pad
+        draw.rectangle([x, 0, x + w + 2 * pad, h + 2 * pad], fill=(0, 0, 0), outline=(255, 255, 255))
+        draw.text((x + pad, pad), text_p2, fill=(255, 255, 255), font=font)
+    frame[:] = np.array(pil)
+
+
+def create_blank_frames(frame_shape, duration_seconds, fps=50, label_p1=None, label_p2=None):
     num_frames = int(duration_seconds * fps)
     blank_frame = np.zeros(frame_shape, dtype=np.uint8)
-    # Use list comprehension with copy to avoid repeated allocations
-    return [blank_frame.copy() for _ in range(num_frames)]
+    out = []
+    for _ in range(num_frames):
+        f = blank_frame.copy()
+        if label_p1 or label_p2:
+            add_agent_labels(f, label_p1, label_p2)
+        out.append(f)
+    return out
 
 
 def apply_frame_delay(frames, frame_delay, fps=50):
@@ -430,6 +487,9 @@ def run_game(
     action_fineness=None,
     algorithm="DDDQN",
     collect_stats=False,
+    opponent_algorithm=None,
+    label_p1=None,
+    label_p2=None,
 ):
     """
     Run a game at full speed (no delays during execution).
@@ -462,6 +522,8 @@ def run_game(
     for step in range(max_steps):
         frame = env.render(mode="rgb_array")
         frames.append(frame)
+        if label_p1 or label_p2:
+            add_agent_labels(frames[-1], label_p1, label_p2)
         # Convert observation to float32 for agent
         obs_float = obs.astype(np.float32) if obs.dtype != np.float32 else obs
 
@@ -528,7 +590,28 @@ def run_game(
                 action_p1 = env.discrete_to_continous_action(discrete_action)
 
         if opponent is not None:
-            action_p2 = opponent.act(obs_agent2)
+            if opponent_algorithm == "TDMPC2":
+                obs_agent2_float = (
+                    obs_agent2.astype(np.float32)
+                    if obs_agent2.dtype != np.float32
+                    else obs_agent2
+                )
+                action_p2 = opponent.act(
+                    obs_agent2_float, deterministic=True, t0=(step == 0)
+                )
+            elif opponent_algorithm == "SAC":
+                obs_agent2_float = (
+                    obs_agent2.astype(np.float32)
+                    if obs_agent2.dtype != np.float32
+                    else obs_agent2
+                )
+                action_p2 = opponent.act(obs_agent2_float, deterministic=True)
+            else:
+                action_p2 = opponent.act(obs_agent2)
+            if isinstance(action_p2, (list, tuple)):
+                action_p2 = np.array(action_p2)
+            if action_p2.ndim > 1:
+                action_p2 = action_p2.flatten()
         else:
             action_p2 = np.random.uniform(-1, 1, action_dim)
         action = np.hstack([action_p1, action_p2])
@@ -637,7 +720,20 @@ def find_available_models(base_dir=None, max_results=10):
     return model_files[:max_results]
 
 
-def get_video_filename(base_folder="videos", base_name="agent_games"):
+def _get_video_base_folder():
+    """Resolve video output folder: VIDEO_OUTPUT_DIR env, else PROJECT_DIR/videos, else cwd/videos."""
+    env_dir = os.environ.get("VIDEO_OUTPUT_DIR")
+    if env_dir:
+        return env_dir
+    project_dir = os.environ.get("PROJECT_DIR")
+    if project_dir and os.path.exists(project_dir):
+        return os.path.join(project_dir, "videos")
+    return "videos"
+
+
+def get_video_filename(base_folder=None, base_name="agent_games"):
+    if base_folder is None:
+        base_folder = _get_video_base_folder()
     now = datetime.now()
     dt_str = now.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(base_folder):
@@ -650,6 +746,7 @@ def main(
     model_path=MODEL_PATH,
     num_games=NUM_GAMES,
     opponent_type=OPPONENT_TYPE,
+    opponent_model_path=OPPONENT_MODEL_PATH_DEFAULT or None,
     pause_between_games=PAUSE_BETWEEN_GAMES,
     frame_delay=FRAME_DELAY,
     max_steps=MAX_STEPS,
@@ -703,6 +800,8 @@ def main(
     logger.info(f"Output: {output_file}")
     logger.info(f"Games: {num_games}")
     logger.info(f"Opponent: {opponent_type}")
+    if opponent_type == "agent" and opponent_model_path:
+        logger.info(f"Opponent model: {opponent_model_path}")
     logger.info(f"Environment mode: {env_mode}")
     logger.info(f"Max steps per game: {max_steps}")
     logger.info(f"Frame delay in video: {frame_delay}s per frame")
@@ -808,6 +907,7 @@ def main(
 
     algorithm = detected_algorithm
     opponent = None
+    opponent_algorithm = None
     if opponent_type == "basic_weak":
         opponent = h_env.BasicOpponent(weak=True)
         logger.info("Using weak BasicOpponent")
@@ -817,8 +917,34 @@ def main(
     elif opponent_type == "random":
         opponent = None
         logger.info("Using random actions for player 2")
+    elif opponent_type == "agent":
+        if not opponent_model_path or not os.path.exists(opponent_model_path):
+            raise FileNotFoundError(
+                f"opponent_type is 'agent' but opponent model not found: {opponent_model_path}. "
+                "Set OPPONENT_MODEL_PATH environment variable or pass opponent_model_path."
+            )
+        opponent, opponent_algorithm = load_agent(
+            opponent_model_path, state_dim, action_dim
+        )
+        logger.info(
+            f"Using loaded agent as opponent (player 2): {opponent_model_path} ({opponent_algorithm})"
+        )
     else:
-        raise ValueError(f"Unknown opponent_type: {opponent_type}")
+        raise ValueError(
+            f"Unknown opponent_type: {opponent_type}. "
+            "Use 'basic_weak', 'basic_strong', 'random', or 'agent'."
+        )
+    label_p1 = algorithm
+    if opponent_algorithm:
+        label_p2 = opponent_algorithm
+    elif opponent_type == "basic_weak":
+        label_p2 = "Basic weak"
+    elif opponent_type == "basic_strong":
+        label_p2 = "Basic strong"
+    elif opponent_type == "random":
+        label_p2 = "Random"
+    else:
+        label_p2 = ""
     # Get frame shape without extra reset
     obs_temp, _ = env.reset()
     frame_temp = env.render(mode="rgb_array")
@@ -843,6 +969,9 @@ def main(
             action_fineness=action_fineness,
             algorithm=algorithm,
             collect_stats=collect_stats,
+            opponent_algorithm=opponent_algorithm,
+            label_p1=label_p1,
+            label_p2=label_p2,
         )
         all_frames.extend(frames)
         game_results.append(
@@ -859,7 +988,11 @@ def main(
         if game_num < num_games:
             logger.info(f"  Adding {pause_between_games}s pause (blank screen)...")
             blank_frames = create_blank_frames(
-                frame_shape, pause_between_games, fps=video_fps
+                frame_shape,
+                pause_between_games,
+                fps=video_fps,
+                label_p1=label_p1,
+                label_p2=label_p2,
             )
             all_frames.extend(blank_frames)
     execution_time = time.time() - start_time
@@ -935,4 +1068,15 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    _model_path = os.environ.get("MODEL_PATH", MODEL_PATH)
+    if not os.path.isabs(_model_path) and os.environ.get("PROJECT_DIR"):
+        _model_path = os.path.join(os.environ["PROJECT_DIR"], _model_path)
+    _opponent_type = os.environ.get("OPPONENT_TYPE", OPPONENT_TYPE)
+    _opponent_model_path = os.environ.get("OPPONENT_MODEL_PATH") or OPPONENT_MODEL_PATH_DEFAULT or None
+    if _opponent_model_path and not os.path.isabs(_opponent_model_path) and os.environ.get("PROJECT_DIR"):
+        _opponent_model_path = os.path.join(os.environ["PROJECT_DIR"], _opponent_model_path)
+    main(
+        model_path=_model_path,
+        opponent_type=_opponent_type,
+        opponent_model_path=_opponent_model_path,
+    )

@@ -1,3 +1,4 @@
+import logging
 import multiprocessing as mp
 import os
 from pathlib import Path
@@ -14,6 +15,8 @@ from rl_hockey.common.utils import (
     get_discrete_action_dim,
     set_cuda_device,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def find_config_from_model_path(model_path: str) -> Optional[str]:
@@ -212,11 +215,17 @@ def evaluate_agent(
     Returns:
         Dictionary containing evaluation results
     """
+    logger.info(f"Starting agent evaluation: {agent_path}")
+    logger.info(
+        f"Configuration: num_games={num_games}, weak_opponent={weak_opponent}, max_steps={max_steps}"
+    )
+
     # Auto-detect config_path if not provided
     if config_path is None:
         detected_config = find_config_from_model_path(agent_path)
         if detected_config is not None:
             config_path = detected_config
+            logger.info(f"Auto-detected config path: {config_path}")
 
     # Load config if available
     if config_path is not None:
@@ -225,6 +234,7 @@ def evaluate_agent(
             "type": curriculum.agent.type,
             "hyperparameters": curriculum.agent.hyperparameters,
         }
+        logger.info(f"Loaded agent config: type={agent_config_dict['type']}")
 
     # If still no config, try to load from checkpoint and infer parameters
     if agent_config_dict is None:
@@ -289,6 +299,7 @@ def evaluate_agent(
     # Override device to CPU if requested
     if use_cpu_for_eval:
         device = "cpu"
+        logger.info("Forcing CPU usage for evaluation")
 
     if num_parallel is None:
         # Limit parallel processes to avoid GPU memory exhaustion
@@ -308,6 +319,8 @@ def evaluate_agent(
         else:
             # CPU evaluation: can use more processes
             num_parallel = min(mp.cpu_count(), num_games)
+
+    logger.info(f"Using device: {device}, parallel processes: {num_parallel}")
 
     # Save current working directory and convert agent_path to absolute path BEFORE changing directories
     # This ensures worker processes can find the checkpoint file even after we change cwd
@@ -357,15 +370,45 @@ def evaluate_agent(
         for seed in seeds
     ]
 
+    logger.info(f"Starting {num_games} game(s)...")
     results = []
     try:
         if num_parallel > 1:
             # Use initializer to set a safe working directory for worker processes
             # This prevents FileNotFoundError when multiprocessing spawns workers
             with mp.Pool(processes=num_parallel, initializer=_pool_initializer) as pool:
-                results = pool.map(run_single_game, args_list)
+                # Use imap to get results as they complete for progress logging
+                completed = 0
+                for result in pool.imap(run_single_game, args_list):
+                    results.append(result)
+                    completed += 1
+                    if (
+                        completed % max(1, num_games // 10) == 0
+                        or completed == num_games
+                    ):
+                        logger.info(
+                            f"Progress: {completed}/{num_games} games completed"
+                        )
+                        wins_so_far = sum(1 for r in results if r["winner"] == 1)
+                        logger.info(
+                            f"  Current stats: {wins_so_far} wins, {completed - wins_so_far} non-wins"
+                        )
         else:
-            results = [run_single_game(args) for args in args_list]
+            # Sequential execution: log after each game
+            for i, args in enumerate(args_list, 1):
+                result = run_single_game(args)
+                results.append(result)
+                winner_str = (
+                    "win"
+                    if result["winner"] == 1
+                    else ("loss" if result["winner"] == -1 else "draw")
+                )
+                logger.info(
+                    f"Game {i}/{num_games} completed: {winner_str}, reward={result['reward']:.2f}, steps={result['steps']}"
+                )
+                wins_so_far = sum(1 for r in results if r["winner"] == 1)
+                if i % 10 == 0 or i == num_games:
+                    logger.info(f"  Progress: {wins_so_far}/{i} wins so far")
     finally:
         # Restore original working directory if we changed it
         if original_cwd is not None:
@@ -374,6 +417,8 @@ def evaluate_agent(
             except (OSError, FileNotFoundError):
                 pass
 
+    logger.info(f"All {num_games} games completed")
+
     wins = sum(1 for r in results if r["winner"] == 1)
     losses = sum(1 for r in results if r["winner"] == -1)
     draws = sum(1 for r in results if r["winner"] == 0)
@@ -381,6 +426,15 @@ def evaluate_agent(
     mean_reward = np.mean(rewards)
     std_reward = np.std(rewards)
     win_rate = wins / num_games if num_games > 0 else 0.0
+
+    logger.info("=" * 60)
+    logger.info("Evaluation Results Summary:")
+    logger.info(f"  Wins: {wins}")
+    logger.info(f"  Losses: {losses}")
+    logger.info(f"  Draws: {draws}")
+    logger.info(f"  Win Rate: {win_rate:.2%}")
+    logger.info(f"  Mean Reward: {mean_reward:.2f} ± {std_reward:.2f}")
+    logger.info("=" * 60)
 
     return {
         "wins": wins,
@@ -404,11 +458,11 @@ if __name__ == "__main__":
     # Now config_path can be None - it will auto-detect from model path
     print(
         evaluate_agent(
-            agent_path="results/hyperparameter_runs/2026-01-03_18-24-14/run_lr1e04_bs256_h512_512_512_31fb74b2_0002/2026-01-03_18-24-17/models/run_lr1e04_bs256_h512_512_512_31fb74b2_0002.pt",
+            agent_path="results/tdmpc2_runs/2026-01-25_11-40-04/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep007000.pt",
             config_path=None,
-            num_games=250,
+            num_games=200,
             weak_opponent=False,
-            max_steps=250,
-            num_parallel=None,
+            max_steps=500,
+            num_parallel=1,
         )
     )
