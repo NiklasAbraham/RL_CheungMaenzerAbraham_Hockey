@@ -8,7 +8,6 @@ from typing import Optional, Dict, Any, Union
 
 import hockey.hockey_env as h_env
 from rl_hockey.common.agent import Agent
-from rl_hockey.common.archive.matchmaker import Matchmaker
 from rl_hockey.common.training.curriculum_manager import OpponentConfig, AgentConfig
 from rl_hockey.common.training.agent_factory import create_agent
 
@@ -22,7 +21,6 @@ def create_opponent(
     action_dim: Optional[int] = None,
     is_discrete: Optional[bool] = None,
     rating: Optional[float] = None,
-    matchmaker: Optional[Matchmaker] = None
 ) -> Union[Agent, h_env.BasicOpponent, None]:
     """Create an opponent based on configuration."""
     if config.type == "none":
@@ -44,13 +42,6 @@ def create_opponent(
             action_dim=action_dim,
             is_discrete=is_discrete,
             deterministic=config.deterministic
-        )
-    
-    elif config.type == "archive":
-        return matchmaker.sample_opponent(
-            rating,
-            config.distribution,
-            config.skill_range
         )
     
     elif config.type == "weighted_mixture":

@@ -32,6 +32,7 @@ from rl_hockey.common.evaluation.value_propagation import (
     plot_value_heatmap,
     plot_values,
 )
+from rl_hockey.common.evaluation.winrate_evaluator import evaluate_winrate
 
 
 @dataclass
@@ -43,6 +44,7 @@ class TrainingState:
     last_checkpoint_step: int = 0
     phase: PhaseConfig = None
     phase_index: int = 0
+    last_warmup_reset_step: int = 0
     rating: Rating = None
 
 
@@ -52,6 +54,7 @@ class TrainingMetrics:
     episodes: List[Dict[str, Any]] = field(default_factory=list) 
     updates: List[Dict[str, Any]] = field(default_factory=list)
     q_values: List[Dict[str, Any]] = field(default_factory=list)  # value propagation
+    winrates: List[Dict[str, Any]] = field(default_factory=list)  # winrate evaluations
 
     def add_episode(self, step: int, reward: float, length: int, phase: Optional[str] = None):
         """Records an episode finish at a specific global step."""
@@ -72,6 +75,13 @@ class TrainingMetrics:
         self.q_values.append({
             "step": step,
             "values": q_vals
+        })
+    
+    def add_winrate(self, step: int, winrate: float):
+        """Records winrate evaluation at a specific global step."""
+        self.winrates.append({
+            "step": step,
+            "winrate": winrate,
         })
 
 
@@ -281,6 +291,8 @@ def _switch_phase(
 
     # Clear agent buffer if specified
     if agent and new_phase.clear_buffer:
+        training_state.last_warmup_reset_step = training_state.step
+
         agent.buffer.clear()
         if verbose:
             print("  -> Cleared agent replay buffer")
@@ -424,7 +436,7 @@ def train_vectorized(
             states = next_states
 
         # Train
-        if training_state.step > curriculum.training.warmup_steps:
+        if training_state.step - curriculum.training.warmup_steps > training_state.last_warmup_reset_step:
             metrics = agent.train(steps=curriculum.training.updates_per_step)
             training_metrics.add_update(step=training_state.step, **metrics)
         
@@ -440,6 +452,10 @@ def train_vectorized(
             training_state.last_eval_step = training_state.step
             q_vals = evaluate_episodes(agent)
             training_metrics.add_q_values(step=training_state.step, q_vals=q_vals)
+            
+            # Run winrate evaluation
+            winrate = evaluate_winrate(agent, opponent_weak=False, verbose=verbose)
+            training_metrics.add_winrate(step=training_state.step, winrate=winrate)
         
         # TODO Run evaluation
         # if evaluator and training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
@@ -473,7 +489,7 @@ def train_vectorized(
         plt.title("Episode Rewards")
         plt.legend()
         plt.grid(alpha=0.3)
-        plt.savefig(f"{result_dir}/plots/episode_rewards.png")
+        plt.savefig(f"{result_dir}/plots/rewards.png")
         plt.close()
     
     if training_metrics.updates:
@@ -512,10 +528,26 @@ def train_vectorized(
         q_vals = [q_vals[i] for i in indices]
         labels = [f"Step {training_metrics.q_values[i]['step']}" for i in indices]
         plot_values(q_vals, labels, path=f"{result_dir}/plots/value_propagation_line.png")
+    
+    # Plot winrates
+    if training_metrics.winrates:
+        steps = [wr["step"] for wr in training_metrics.winrates]
+        winrates = [wr["winrate"] for wr in training_metrics.winrates]
+        
+        plt.figure(figsize=(12, 6))
+        plt.plot(steps, winrates, marker='o', linewidth=2, markersize=6, label="Winrate")
+        plt.xlabel("Training Steps")
+        plt.ylabel("Winrate")
+        plt.title("Winrate over Training")
+        plt.ylim(0, 1.0)
+        plt.grid(alpha=0.3)
+        plt.legend()
+        plt.savefig(f"{result_dir}/plots/winrates.png")
+        plt.close()
 
 if __name__ == "__main__":
     train_vectorized(
         config_path="./configs/curriculum_sac.json",
-        result_dir="./results/minimal_runs/7",
+        result_dir="./results/minimal_runs/8",
         num_envs=16,
     )
