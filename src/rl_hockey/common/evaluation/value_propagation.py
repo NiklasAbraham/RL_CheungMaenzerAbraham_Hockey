@@ -27,8 +27,9 @@ def plot_values(q_values, labels, path="q_values_comparison.png"):
     plt.figure(figsize=(10, 6))
     for qv, label in zip(q_values, labels):
         plt.plot(qv, marker='o', label=label)
-    plt.title("Value Propagation over Episodes")
-    plt.xlabel("Step")
+    plt.title("Value Propagation")
+    plt.xlabel("Steps from goal state")
+    plt.gca().invert_xaxis()
     plt.ylabel("Average Q-Value")
     plt.grid(True)
     plt.legend()
@@ -36,7 +37,7 @@ def plot_values(q_values, labels, path="q_values_comparison.png"):
     # plt.show()
 
 
-def plot_value_heatmap(q_values, path="q_values_heatmap.png"):    
+def plot_value_heatmap(q_values, path="q_values_heatmap.png", interval=10_000):    
     q_values = np.array(q_values)
     q_values = np.flipud(q_values.T)
     
@@ -44,11 +45,10 @@ def plot_value_heatmap(q_values, path="q_values_heatmap.png"):
     plt.imshow(q_values, aspect='auto', cmap='plasma', origin='upper')
     plt.colorbar(label='Average Q-Value')
     plt.title("Value Propagation over Episodes")
-    plt.xlabel("Episodes")
+    plt.xlabel(f"Training Steps ({interval:.0e})")
     plt.ylabel("Steps from goal state")
     plt.gca().yaxis.set_major_locator(plt.MaxNLocator(integer=True))
     plt.savefig(path)
-    
     # plt.show()
 
 

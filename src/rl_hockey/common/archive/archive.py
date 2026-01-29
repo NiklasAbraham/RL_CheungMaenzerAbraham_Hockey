@@ -12,7 +12,45 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from rl_hockey.common.archive.rating_system import Rating
+
+class Rating:
+    """Represents a single agent's rating with uncertainty."""
+    
+    def __init__(self, mu: float = 25.0, sigma: float = 8.333, matches_played: int = 0):
+        """
+        Initialize agent rating.
+        
+        Args:
+            mu: Mean skill level (default: 25.0)
+            sigma: Uncertainty/standard deviation (default: 8.333)
+            matches_played: Number of matches played (default: 0)
+        """
+        self.mu = mu
+        self.sigma = sigma
+        self.matches_played = matches_played
+    
+    @property
+    def rating(self) -> float:
+        """
+        Conservative skill estimate (mu - 3*sigma).
+        """
+        return self.mu - 3*self.sigma
+    
+    def to_dict(self) -> Dict:
+        """Convert to dictionary for serialization."""
+        return {
+            "mu": self.mu,
+            "sigma": self.sigma,
+            "rating": self.rating,
+            "matches_played": self.matches_played,
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict) -> "Rating":
+        """Create from dictionary."""
+        rating = cls(mu=data["mu"], sigma=data["sigma"])
+        rating.matches_played = data.get("matches_played", 0)
+        return rating
 
 
 @dataclass
