@@ -105,7 +105,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_sac.json"
+    path_to_config = "configs/curriculum_redq_td3.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     train_single_run(
         path_to_config,
-        base_output_dir="results/sac_runs",
+        base_output_dir="results/redq_td3",
         device=device,
         num_envs=num_envs,
     )
