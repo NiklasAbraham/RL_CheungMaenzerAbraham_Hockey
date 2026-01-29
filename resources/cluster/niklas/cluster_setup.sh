@@ -1,6 +1,6 @@
 #!/bin/bash
 # Setup script to run on the TCML cluster after syncing files
-# Run this script on the cluster: bash resources/cluster_setup.sh
+# Run this script on the cluster: bash resources/cluster/niklas/cluster_setup.sh
 
 set -e
 
@@ -17,7 +17,7 @@ cd singularity_build
 
 # Copy container definition
 echo "Copying container definition..."
-cp ../resources/container/container.def ./rl_hockey.def
+cp ../resources/container/container_abraham.def ./rl_hockey.def
 
 # Copy requirements.txt to build directory
 echo "Copying requirements.txt..."

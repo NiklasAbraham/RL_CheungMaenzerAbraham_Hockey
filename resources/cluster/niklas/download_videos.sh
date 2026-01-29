@@ -8,7 +8,7 @@ SERVER="${1:-tcml-login1}"
 NUM_VIDEOS="${2:-5}"
 # SSH config should handle the full hostname mapping
 REMOTE_VIDEOS_DIR="/home/stud421/RL_CheungMaenzerAbraham_Hockey/videos"
-LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOCAL_VIDEOS_DIR="${LOCAL_PROJECT_DIR}/videos"
 
 echo "Connecting to ${SERVER}..."

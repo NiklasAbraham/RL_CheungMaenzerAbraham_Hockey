@@ -345,7 +345,7 @@ if __name__ == "__main__":
     folder_path_2 = "results/tdmpc2_runs/2026-01-25_18-56-52"
     folder_path_3 = "results/tdmpc2_runs/2026-01-26_16-37-13"
 
-    window_size = 50
+    window_size = 100
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
