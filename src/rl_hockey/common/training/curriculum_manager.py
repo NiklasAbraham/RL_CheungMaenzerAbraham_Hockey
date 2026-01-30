@@ -146,7 +146,7 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             checkpoint=opponent_dict.get('checkpoint'),
             deterministic=opponent_dict.get('deterministic', True),
             opponents=opponent_dict.get('opponents'),
-            skill_range=opponent_dict.get('skill_range'),
+            skill_range=opponent_dict.get('skill_range', 50),
             distribution=opponent_dict.get('distribution')
         )
         

@@ -49,7 +49,7 @@ class TrainingState:
     phase: PhaseConfig = None
     phase_index: int = 0
     last_warmup_reset_step: int = 0
-    rating: Rating = None
+    rating: Rating = Rating()
 
 
 @dataclass
@@ -159,11 +159,7 @@ def _switch_phase(
     states = env.reset()
 
     # Create opponents
-    rating = None
-    if training_state.rating:
-        rating = training_state.rating.rating
-
-    opponents = [matchmaker.get_opponent(new_phase.opponent, rating) for _ in range(num_envs)]
+    opponents = [matchmaker.get_opponent(new_phase.opponent, training_state.rating.rating) for _ in range(num_envs)]
 
     # Clear agent buffer if specified
     if agent and new_phase.clear_buffer:
@@ -180,7 +176,7 @@ def train_vectorized(
     config_path: str,
     verbose: bool = True,
     result_dir: str = "./results/minimal_runs",
-    archive_dir: str = "./results/archive",
+    archive_dir: str = "./archive",
     num_envs: int = 4,
 ):
     """
@@ -190,6 +186,7 @@ def train_vectorized(
         config_path: Path to curriculum config file
         verbose: Print episode info
         result_dir: Directory to save results
+        archive_dir: Directory for agent archive
         num_envs: Number of parallel environments
     """
     # TODO support for loading existing training state
@@ -223,6 +220,7 @@ def train_vectorized(
     
     # TODO agent loading
     agent = SAC(state_dim=state_dim, action_dim=action_dim, noise="pink")
+    agent.load("results/minimal_runs/8/models/final.pt")
 
     # Setup initial phase
     env, states, opponents = _switch_phase(
@@ -304,7 +302,7 @@ def train_vectorized(
                     switch = True
 
                 # Sample new opponent
-                opponent, opponent_rating = matchmaker.get_opponent(training_state.phase.opponent, training_state.rating)
+                opponent, opponent_rating = matchmaker.get_opponent(training_state.phase.opponent, training_state.rating.rating)
                 opponents[i] = (opponent, opponent_rating)
                 
         # Step or switch phase
@@ -314,12 +312,13 @@ def train_vectorized(
             env, new_states, opponents = _switch_phase(
                 curriculum,
                 training_state,
-                state_dim,
-                action_dim,
-                num_envs,
-                env,
-                agent,
-                verbose,
+                state_dim=state_dim,
+                action_dim=action_dim,
+                num_envs=num_envs,
+                env=env,
+                agent=agent,
+                matchmaker=matchmaker,
+                verbose=verbose,
             )
             states = new_states
         else:
@@ -443,7 +442,7 @@ def train_vectorized(
 
 if __name__ == "__main__":
     train_vectorized(
-        config_path="./configs/curriculum_sac.json",
-        result_dir="./results/minimal_runs/8",
+        config_path="./configs/curriculum_sac_selfplay.json",
+        result_dir="./results/sac_runs",
         num_envs=16,
     )
