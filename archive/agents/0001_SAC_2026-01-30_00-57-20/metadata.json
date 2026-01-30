@@ -1,0 +1,14 @@
+{
+  "agent_id": "0001_SAC_2026-01-30_00-57-20",
+  "archived_at": "2026-01-30T00:57:20.369811",
+  "tags": [],
+  "rating": {
+    "mu": 36.5882481852571,
+    "sigma": 1.0828529560855025,
+    "rating": 33.33968931700059,
+    "matches_played": 186
+  },
+  "checkpoint_path": "archive\\agents\\0001_SAC_2026-01-30_00-57-20\\checkpoint.pt",
+  "step": null,
+  "config_path": "archive\\agents\\0001_SAC_2026-01-30_00-57-20\\config.json"
+}

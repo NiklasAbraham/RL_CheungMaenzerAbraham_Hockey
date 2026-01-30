@@ -14,6 +14,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import hockey.hockey_env as h_env
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive, Matchmaker, RatingSystem, Rating
+from rl_hockey.common.archive.matchmaker import Opponent
 from rl_hockey.sac import SAC
 from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized
 from rl_hockey.common.training.curriculum_manager import (
@@ -30,9 +31,12 @@ from rl_hockey.common.training.opponent_manager import (
 from rl_hockey.common.evaluation.value_propagation import (
     evaluate_episodes,
     plot_value_heatmap,
-    plot_values,
+    plot_values_line,
+    sample_trajectories,
 )
 from rl_hockey.common.evaluation.winrate_evaluator import evaluate_winrate
+from datetime import datetime
+import shutil
 
 
 @dataclass
@@ -53,12 +57,11 @@ class TrainingMetrics:
     """Flexible container for all training data, indexed by global steps."""
     episodes: List[Dict[str, Any]] = field(default_factory=list) 
     updates: List[Dict[str, Any]] = field(default_factory=list)
-    q_values: List[Dict[str, Any]] = field(default_factory=list)  # value propagation
-    winrates: List[Dict[str, Any]] = field(default_factory=list)  # winrate evaluations
+    winrates: List[Dict[str, Any]] = field(default_factory=list)
 
-    def add_episode(self, step: int, reward: float, length: int, phase: Optional[str] = None):
+    def add_episode(self, step: int, rating: float, reward: float, length: int, phase: Optional[str] = None):
         """Records an episode finish at a specific global step."""
-        episode_data = {"step": step, "reward": reward, "length": length}
+        episode_data = {"step": step, "rating": rating, "reward": reward, "length": length}
         if phase:
             episode_data["phase"] = phase
         self.episodes.append(episode_data)
@@ -68,13 +71,6 @@ class TrainingMetrics:
         self.updates.append({
             "step": step,
             **metrics
-        })
-    
-    def add_q_values(self, step: int, q_vals: np.ndarray):
-        """Records Q-values for value propagation at a specific global step."""
-        self.q_values.append({
-            "step": step,
-            "values": q_vals
         })
     
     def add_winrate(self, step: int, winrate: float):
@@ -97,136 +93,10 @@ class EpisodeMetrics:
         self.length = 0
 
 
-def train_minimal(
-    episodes: int,
-    max_steps: int,
-    verbose: bool = True,
-    base_dir: str = "./results/minimal_runs",
-    num_envs: int = 1,
-):
-    """
-    Minimal training loop - SAC vs weak opponent.
-    
-    Args:
-        episodes: Number of episodes to train
-        max_steps: Maximum steps per episode
-        verbose: Print episode info
-        num_envs: Number of parallel environments (1 = single env, >1 = vectorized)
-    """
-    # Use vectorized version if num_envs > 1
-    if num_envs > 1:
-        return train_vectorized(episodes, max_steps, verbose, base_dir, num_envs)
-
-    # Environment
-    env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
-    opponent = h_env.BasicOpponent(weak=True)
-    
-    # Agent
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0] // 2
-    
-    agent = SAC(state_dim=state_dim, action_dim=action_dim, noise="pink", max_episode_steps=max_steps)
-    
-    if verbose:
-        print(f"Training SAC agent vs weak opponent")
-        print(f"State dim: {state_dim}, Action dim: {action_dim}")
-        print(f"Episodes: {episodes}, Max steps: {max_steps}\n")
-    
-    # Training loop
-    total_steps = 0
-    episode_rewards = []
-    episode_critic_losses = []
-    episode_actor_losses = []
-    
-    pbar = tqdm.tqdm(range(episodes), unit="ep")
-    for episode in pbar:
-        obs, _ = env.reset()
-        episode_reward = 0
-        episode_steps = 0
-        critic_losses = []
-        actor_losses = []
-        
-        for step in range(max_steps):
-            # Agent action
-            action = agent.act(obs.astype(np.float32))
-            
-            # Weak opponent (built-in)
-            obs_opponent = env.obs_agent_two()
-            action_opponent = opponent.act(obs_opponent)
-            
-            # Step
-            full_action = np.hstack([action, action_opponent])
-            next_obs, reward, done, trunc, info = env.step(full_action)
-            
-            # Store transition
-            agent.store_transition((obs, action, reward, next_obs, done))
-            
-            # Train (after warmup)
-            if total_steps > 10000:  # Warmup steps
-                loss_info = agent.train()
-                critic_losses.append(loss_info["critic_loss"])
-                actor_losses.append(loss_info["actor_loss"])
-            
-            # Update
-            obs = next_obs
-            episode_reward += reward
-            episode_steps += 1
-            total_steps += 1
-            
-            if done or trunc:
-                break
-        
-        avg_critic_loss = np.mean(critic_losses) if critic_losses else 0.0
-        avg_actor_loss = np.mean(actor_losses) if actor_losses else 0.0
-
-        episode_rewards.append(episode_reward)
-        episode_critic_losses.append(avg_critic_loss)
-        episode_actor_losses.append(avg_actor_loss)
-
-        pbar.set_postfix({
-            "reward": episode_reward,
-            "steps": episode_steps,
-            "critic_loss": avg_critic_loss,
-            "actor_loss": avg_actor_loss,
-            "buffer_size": agent.buffer.size
-        })
-        
-        # Save checkpoint every 1000 episodes
-        if (episode + 1) % 1000 == 0:
-            agent.save(f"{base_dir}/minimal_checkpoint_ep{episode + 1}.pt")
-            if verbose:
-                print(f"  -> Saved checkpoint at episode {episode + 1}")
-    
-    # Final save
-    agent.save(f"{base_dir}/minimal_final.pt")
-    env.close()
-    
-    if verbose:
-        print(f"\nTraining complete. Total steps: {total_steps}")
-
-    # Plot losses
-    plt.figure(figsize=(12, 6))
-    plt.plot(episode_critic_losses, label="Critic Loss")
-    plt.plot(episode_actor_losses, label="Actor Loss")
-    plt.xlabel("Episodes")
-    plt.ylabel("Loss")
-    plt.title("Training Losses")
-    plt.legend()
-    plt.savefig(f"{base_dir}/training_losses.png")
-
-    # Plot rewards
-    plt.figure(figsize=(12, 6))
-    plt.plot(episode_rewards, label="Episode Reward")
-    plt.xlabel("Episodes")
-    plt.ylabel("Reward")
-    plt.title("Episode Rewards")
-    plt.legend()
-    plt.savefig(f"{base_dir}/episode_rewards.png")
-
-
 def _make_hockey_env(mode, keep_mode):
     """Factory function for creating HockeyEnv instances (must be at module level for pickling)."""
     return h_env.HockeyEnv(mode=mode, keep_mode=keep_mode)
+
 
 def _create_opponents(num_envs: int, phase: PhaseConfig, state_dim: int, action_dim: int, rating: Optional[float] = None, matchmaker: Optional[Matchmaker] = None) -> List:
     """Create opponents based on curriculum phase or default to weak opponents."""
@@ -245,10 +115,16 @@ def _create_opponents(num_envs: int, phase: PhaseConfig, state_dim: int, action_
     return [h_env.BasicOpponent(weak=True) for _ in range(num_envs)]
 
 
-def _get_opponent_actions(opponents: List, obs_opponent: np.ndarray, phase: PhaseConfig, num_envs: int) -> np.ndarray:
-    """Get opponent actions, using curriculum opponent manager if applicable."""
-    deterministic = phase.opponent.deterministic if phase.opponent.type == "self_play" else True
-    return np.array([get_opponent_action(opponents[i], obs_opponent[i], deterministic) for i in range(num_envs)])
+def _get_opponent_actions(opponents: List[Opponent], obs_opponent: np.ndarray, num_envs: int) -> np.ndarray:
+    def get_action(opponent, obs):
+        if opponent is None:
+            return np.zeros(4)
+        elif isinstance(opponent, h_env.BasicOpponent):
+            return opponent.act(obs)
+        elif isinstance(opponent, Agent):
+            return opponent.act(obs.astype(np.float32))
+
+    return np.array([get_action(opponents[i][0], obs_opponent[i]) for i in range(num_envs)])
 
 
 def _switch_phase(
@@ -287,7 +163,7 @@ def _switch_phase(
     if training_state.rating:
         rating = training_state.rating.rating
 
-    opponents = _create_opponents(num_envs, new_phase, state_dim, action_dim, rating, matchmaker)
+    opponents = [matchmaker.get_opponent(new_phase.opponent, rating) for _ in range(num_envs)]
 
     # Clear agent buffer if specified
     if agent and new_phase.clear_buffer:
@@ -316,15 +192,29 @@ def train_vectorized(
         result_dir: Directory to save results
         num_envs: Number of parallel environments
     """
+    # TODO support for loading existing training state
+
     # Load curriculum and determine episodes
     curriculum = load_curriculum(config_path)
     total_episodes = get_total_episodes(curriculum)
 
-    training_state = TrainingState()
-    
     if verbose:
         print(f"Curriculum: {len(curriculum.phases)} phases, {total_episodes} episodes")
+
+    # Create result directory
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    result_dir = os.path.join(result_dir, timestamp)
+    os.makedirs(result_dir, exist_ok=True)
+
+    shutil.copy(config_path, os.path.join(result_dir, "config.json"))
+
+    # Setup archive
+    archive = Archive(base_dir=archive_dir)
+    matchmaker = Matchmaker(archive)
+    rating_system = RatingSystem(archive)
     
+    training_state = TrainingState()
+
     # Determine state & action dimensions
     temp_env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
     state_dim = temp_env.observation_space.shape[0]
@@ -333,10 +223,6 @@ def train_vectorized(
     
     # TODO agent loading
     agent = SAC(state_dim=state_dim, action_dim=action_dim, noise="pink")
-
-    # Setup archive
-    archive = Archive(base_dir=archive_dir)
-    matchmaker = Matchmaker(archive=archive)
 
     # Setup initial phase
     env, states, opponents = _switch_phase(
@@ -373,7 +259,7 @@ def train_vectorized(
         
         # Get opponent actions
         obs_opponent = env.obs_agent_two()
-        actions_opponent = _get_opponent_actions(opponents, obs_opponent, training_state.phase, num_envs)
+        actions_opponent = _get_opponent_actions(opponents, obs_opponent, num_envs)
         
         # Step all environments
         full_actions = np.hstack([actions, actions_opponent])
@@ -389,13 +275,14 @@ def train_vectorized(
             
             # Handle episode completion
             if dones[i] or truncs[i]:
-                # TODO update rating
-
+                # Update metrics
                 training_state.episode += 1
 
-                # Update progress bar
+                training_state.rating = rating_system.estimate_rating(training_state.rating, opponents[i][1], infos[i]["winner"])
+
                 pbar.update(1)
                 pbar.set_postfix({
+                    "rating": f"{training_state.rating.rating:.2f}",
                     "reward": f"{episode_metrics[i].reward:.2f}",
                     "length": episode_metrics[i].length,
                     "buffer": agent.buffer.size,
@@ -404,6 +291,7 @@ def train_vectorized(
 
                 training_metrics.add_episode(
                     step=training_state.step,
+                    rating=training_state.rating.rating,
                     reward=episode_metrics[i].reward,
                     length=episode_metrics[i].length,
                     phase=training_state.phase.name,
@@ -415,7 +303,9 @@ def train_vectorized(
                 if new_phase_index != training_state.phase_index:
                     switch = True
 
-                # TODO sample new opponent
+                # Sample new opponent
+                opponent, opponent_rating = matchmaker.get_opponent(training_state.phase.opponent, training_state.rating)
+                opponents[i] = (opponent, opponent_rating)
                 
         # Step or switch phase
         if switch:
@@ -447,22 +337,13 @@ def train_vectorized(
             training_state.last_checkpoint_step = training_state.step
             agent.save(f"{result_dir}/models/ep_{training_state.episode}.pt")
 
-        # Run value propagation evaluation
+        # Run evaluation
+        # TODO outsource
         if training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
             training_state.last_eval_step = training_state.step
-            q_vals = evaluate_episodes(agent)
-            training_metrics.add_q_values(step=training_state.step, q_vals=q_vals)
-            
-            # Run winrate evaluation
+
             winrate = evaluate_winrate(agent, opponent_weak=False, verbose=verbose)
             training_metrics.add_winrate(step=training_state.step, winrate=winrate)
-        
-        # TODO Run evaluation
-        # if evaluator and training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
-        #     training_state.last_eval_step = training_state.step
-        #     eval_results = evaluator.evaluate(agent, verbose=verbose)
-        #     if verbose:
-        #         print(f"\n  Evaluation results: {eval_results}")
     
     # Cleanup
     pbar.close()
@@ -472,7 +353,8 @@ def train_vectorized(
     if verbose:
         print(f"\nTraining complete. Total steps: {training_state.step}")
     
-    # TODO Plots
+    # Plotting
+    # TODO outsource
     os.makedirs(f"{result_dir}/plots", exist_ok=True)
 
     if training_metrics.episodes:
@@ -521,13 +403,27 @@ def train_vectorized(
             plt.close()    
 
     # Plot value propagation
-    if training_metrics.q_values:
-        q_vals = [qv["values"] for qv in training_metrics.q_values]
-        plot_value_heatmap(q_vals, path=f"{result_dir}/plots/value_propagation_heatmap.png")
-        indices = [0, len(q_vals)//3, 2*len(q_vals)//3, -1]
-        q_vals = [q_vals[i] for i in indices]
-        labels = [f"Step {training_metrics.q_values[i]['step']}" for i in indices]
-        plot_values(q_vals, labels, path=f"{result_dir}/plots/value_propagation_line.png")
+    opponent = h_env.BasicOpponent(weak=False)
+    
+    models_dir = f"{result_dir}/models/"
+    model_files = sorted([f for f in os.listdir(models_dir) if f.endswith(".pt")])
+
+    agent.load(os.path.join(models_dir, model_files[-1]))
+    trajectories = sample_trajectories(agent, opponent)
+
+    all_means = []
+    all_variances = []
+    for model_file in model_files:
+        agent.load(os.path.join(models_dir, model_file))
+        means, variances = evaluate_episodes(agent, trajectories)
+        all_means.append(means)
+        all_variances.append(variances)
+
+    plot_value_heatmap(all_means, path=f"{result_dir}/plots/value_propagation_heatmap.png")
+    means = [all_means[0], all_means[-1]]
+    variances = [all_variances[0], all_variances[-1]]
+    labels = ["Untrained", "Trained"]
+    plot_values_line(means, all_variances=variances, path=f"{result_dir}/plots/value_propagation_line.png", labels=labels)
     
     # Plot winrates
     if training_metrics.winrates:

@@ -4,8 +4,9 @@ from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
-    def __init__(self):
+    def __init__(self, deterministic=False):
         self.buffer = ReplayBuffer()
+        self.deterministic = deterministic
 
     def store_transition(self, transition):
         """Stores a transition in the replay buffer."""
