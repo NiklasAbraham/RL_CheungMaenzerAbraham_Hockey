@@ -7,7 +7,7 @@ import numpy as np
 
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive
-from rl_hockey.common.archive.archive import AgentMetadata
+from rl_hockey.common.archive.archive import AgentMetadata, Rating
 from rl_hockey.common.archive.rating_system import RatingSystem
 from rl_hockey.common.training.curriculum_manager import OpponentConfig
 from rl_hockey.sac.sac import SAC
@@ -23,7 +23,7 @@ class Matchmaker:
         self.archive = archive
         self.rating_system = rating_system
 
-    def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Opponent, float]:
+    def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Opponent, Rating]:
         """
         Get an opponent based on the provided configuration.
         Args:
@@ -34,12 +34,12 @@ class Matchmaker:
         """
         match config.type:
             case "basic_weak":
-                rating = 22
+                rating = Rating(24.13, 0.78)
                 if self.rating_system:
                     rating = self.rating_system.get_rating("basic_weak")
                 return h_env.BasicOpponent(weak=True), rating
             case "basic_strong":
-                rating = 24
+                rating = Rating(26.07, 0.83)
                 if self.rating_system:
                     rating = self.rating_system.get_rating("basic_strong")
                 return h_env.BasicOpponent(weak=False), rating
@@ -65,7 +65,7 @@ class Matchmaker:
         return self.get_opponent(config, rating)
 
 
-    def sample_archive_opponent(self, rating: float = None, distribution: dict[str, float] = None, skill_range: float = 50, deterministic: bool = True) -> Tuple[Opponent, str, float]:
+    def sample_archive_opponent(self, rating: float = None, distribution: dict[str, float] = None, skill_range: float = 50, deterministic: bool = True) -> Tuple[Opponent, str, Rating]:
         """"Sample an opponent from the archive based on skill distribution.
 
         Args:
@@ -126,9 +126,10 @@ class Matchmaker:
             agent = random.choice(agents) if agents else None
 
         if agent is None:
-            raise ValueError("No suitable opponent found based on the selected strategy.")
+            agents = self.archive.get_agents()
+            agent = random.choice(agents) if agents else None
         
-        return self.load_opponent(agent, deterministic), agent.agent_id, agent.rating.rating
+        return self.load_opponent(agent, deterministic), agent.agent_id, agent.rating
 
     def load_opponent(self, metadata: AgentMetadata, deterministic: bool = True) -> Opponent:
         """Load an agent from metadata checkpoint."""
