@@ -57,17 +57,23 @@ class RatingSystem:
         """Load ratings from disk."""
         agents = self.archive.get_agents()
         for agent in agents:
-            agent_id = agent["agent_id"]
-            rating_data = agent["rating"]
-            if rating_data:
-                self.ratings[agent_id] = Rating.from_dict(rating_data)
+            agent_id = agent.agent_id
+            rating = agent.rating
+            if rating:
+                self.ratings[agent_id] = rating
             else:
                 self.ratings[agent_id] = Rating()
     
-    def _save_ratings(self):
-        """Save ratings to disk."""
-        for agent_id, rating in self.ratings.items():
-            self.archive.update_agent_rating(agent_id, rating.to_dict())
+    def _save_ratings(self, agent_ids: Optional[List[str]] = None):
+        """Save ratings to disk.
+        
+        Args:
+            agent_ids: Specific agent IDs to save. If None, saves all.
+        """
+        agents_to_save = agent_ids if agent_ids else self.ratings.keys()
+        for agent_id in agents_to_save:
+            if agent_id in self.ratings:
+                self.archive.update_agent_rating(agent_id, self.ratings[agent_id])
     
     def _load_match_history(self):
         """Load match history from disk."""
@@ -101,36 +107,30 @@ class RatingSystem:
         self.ratings[agent_id] = Rating(mu=mu, sigma=sigma)
         self._save_ratings()
 
-    def estimate_rating(self, rating: dict[str, float], opponent_id: str, result: int) -> float:
+    def estimate_rating(self, rating: Rating, opponent_rating: Rating, result: int) -> float:
         """
         Estimate the expected rating after a match against an opponent.
         
         Args:
-            rating: Current rating dict of the agent
-            opponent_id: Opponent agent identifier
+            rating: Current rating of the agent
+            opponent_rating: Rating of the opponent agent
             result: Match result from agent's perspective:
                     1 = win, -1 = loss, 0 = draw
         Returns:
             Estimated rating after the match
         """
-        temp_rating = Rating.from_dict(rating)
-
-        self.initialize_agent(opponent_id)
-        opponent_rating = self.ratings[opponent_id]
-        
-        ts_rating = self.env.create_rating(mu=temp_rating.mu, sigma=temp_rating.sigma)
+        ts_agent = self.env.create_rating(mu=rating.mu, sigma=rating.sigma)
         ts_opponent = self.env.create_rating(mu=opponent_rating.mu, sigma=opponent_rating.sigma)
         
         # Simulate rating update
         if result == 1:  # Win
-            (new_ts,), _ = self.env.rate_1vs1(ts_rating, ts_opponent)
+            new_ts, _ = self.env.rate_1vs1(ts_agent, ts_opponent)
         elif result == -1:  # Loss
-            _, (new_ts,) = self.env.rate_1vs1(ts_opponent, ts_rating)
+            _, new_ts = self.env.rate_1vs1(ts_opponent, ts_agent)
         else:  # Draw
-            (new_ts,), _ = self.env.rate_1vs1(ts_rating, ts_opponent, drawn=True)
+            new_ts, _ = self.env.rate_1vs1(ts_agent, ts_opponent, drawn=True)
         
-        estimated_rating = new_ts.mu - 3*new_ts.sigma
-        return estimated_rating
+        return Rating(mu=new_ts.mu, sigma=new_ts.sigma, matches_played=rating.matches_played + 1)
     
     def update_ratings(
         self,
@@ -163,11 +163,11 @@ class RatingSystem:
         
         # Update ratings
         if result == 1:  # Agent1 won
-            (new_ts1,), (new_ts2,) = self.env.rate_1vs1(ts_rating1, ts_rating2)
+            new_ts1, new_ts2 = self.env.rate_1vs1(ts_rating1, ts_rating2)
         elif result == -1:  # Agent2 won
-            (new_ts2,), (new_ts1,) = self.env.rate_1vs1(ts_rating2, ts_rating1)
+            new_ts2, new_ts1 = self.env.rate_1vs1(ts_rating2, ts_rating1)
         else:  # Draw
-            (new_ts1,), (new_ts2,) = self.env.rate_1vs1(ts_rating1, ts_rating2, drawn=True)
+            new_ts1, new_ts2 = self.env.rate_1vs1(ts_rating1, ts_rating2, drawn=True)
         
         rating1.mu = new_ts1.mu
         rating1.sigma = new_ts1.sigma
@@ -190,7 +190,8 @@ class RatingSystem:
             }
             self.match_history.append(match_record)
             
-            self._save_ratings()
+            # Only save the two agents that were actually updated
+            self._save_ratings([agent1_id, agent2_id])
             self._save_match_history()
             
         return rating1, rating2

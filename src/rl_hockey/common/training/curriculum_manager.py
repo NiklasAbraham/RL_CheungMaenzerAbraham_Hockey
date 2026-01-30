@@ -48,6 +48,18 @@ class OpponentConfig:
     skill_range: float = 50.0  # For archive sampling
     distribution: Optional[Dict[str, float]] = None  # For archive sampling
 
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'OpponentConfig':
+        return cls(
+            type=data['type'],
+            weight=data.get('weight', 1.0),
+            checkpoint=data.get('checkpoint'),
+            deterministic=data.get('deterministic', True),
+            opponents=data.get('opponents'),
+            skill_range=data.get('skill_range'),
+            distribution=data.get('distribution')
+        )
+
 
 @dataclass
 class RewardShapingConfig:

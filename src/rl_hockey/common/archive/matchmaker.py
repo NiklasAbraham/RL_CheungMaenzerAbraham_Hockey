@@ -1,36 +1,81 @@
+import json
 import random
+from pathlib import Path
 from typing import Optional, Tuple
 import hockey.hockey_env as h_env
+import numpy as np
 
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive
+from rl_hockey.common.archive.archive import AgentMetadata
+from rl_hockey.common.archive.rating_system import RatingSystem
 from rl_hockey.common.training.curriculum_manager import OpponentConfig
+from rl_hockey.sac.sac import SAC
+from rl_hockey.common.training.curriculum_manager import load_curriculum
+
+
+Opponent = Agent | h_env.BasicOpponent
 
 
 class Matchmaker:
-    def __init__(self, archive: Optional[Archive] = None):
+    def __init__(self, archive: Optional[Archive] = None, rating_system: Optional[RatingSystem] = None):
+        """Initializes the Matchmaker."""
         self.archive = archive
+        self.rating_system = rating_system
 
-    def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Agent, float]:
+    def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Opponent, float]:
         """
         Get an opponent based on the provided configuration.
         Args:
             config (OpponentConfig): Configuration for selecting the opponent.
             rating (Optional[float]): The rating of the current agent (used for archive sampling).
         Returns:
-            Tuple[Agent, float]: A tuple containing the opponent agent and its rating.
+            Tuple[Opponent, float]: A tuple containing the opponent agent and its rating.
         """
         match config.type:
             case "basic_weak":
-                return h_env.BasicOpponent(weak=True), 0.0
+                rating = 22
+                if self.rating_system:
+                    rating = self.rating_system.get_rating("basic_weak")
+                return h_env.BasicOpponent(weak=True), rating
             case "basic_strong":
-                return h_env.BasicOpponent(weak=False), 0.0
+                rating = 24
+                if self.rating_system:
+                    rating = self.rating_system.get_rating("basic_strong")
+                return h_env.BasicOpponent(weak=False), rating
             case "archive":
-                return self._sample_archive_opponent(rating, config.distribution, config.skill_range)
+                opponent, _, rating = self.sample_archive_opponent(rating, config.distribution, config.skill_range, config.deterministic)
+                return opponent, rating
+            case "weighted_mixture":
+                pass  # Handled below
+            case _:
+                raise ValueError(f"Unknown opponent type: {config.type}")
 
-        # TODO mixture
+        # Normalize weights
+        weights = [opp.get('weight', 1.0) for opp in config.opponents]
+        total_weight = sum(weights)
+        normalized_weights = [w / total_weight for w in weights]
+        
+        # Recursively sample opponent
+        index = np.random.choice(len(config.opponents), p=normalized_weights)
+        opponent_dict = config.opponents[index]
 
-    def _sample_archive_opponent(self, rating: float,  distribution: dict[str, float] = None, skill_range: float = 50) -> dict:
+        config = OpponentConfig.from_dict(opponent_dict)
+
+        return self.get_opponent(config, rating)
+
+
+    def sample_archive_opponent(self, rating: float = None, distribution: dict[str, float] = None, skill_range: float = 50, deterministic: bool = True) -> Tuple[Opponent, str, float]:
+        """"Sample an opponent from the archive based on skill distribution.
+
+        Args:
+            rating: Current agent's rating
+            distribution: Probability distribution for sampling strategies
+            skill_range: Skill range for skill-based sampling
+            deterministic: Whether to load the opponent in deterministic mode
+        Returns:
+            A tuple of (opponent agent, opponent agent ID, opponent rating)
+        """
         if not self.archive:
             raise ValueError("Archive is not set for Matchmaker.")
 
@@ -40,6 +85,13 @@ class Matchmaker:
             "baseline": 0.1
         }
 
+        total_weight = sum(distribution.values())
+        distribution = {k: v / total_weight for k, v in distribution.items()}
+
+        if rating is None:
+            distribution["random"] += distribution.get("skill", 0)
+            distribution["skill"] = 0.0
+
         rand_value = random.random()
         cumulative = 0.0
         for strategy, prob in distribution.items():
@@ -48,14 +100,14 @@ class Matchmaker:
                 selected_strategy = strategy
                 break
         else:
-            selected_strategy = "skill"  # Fallback
+            selected_strategy = "random"  # Fallback
 
         if selected_strategy == "skill":
             agents = self.archive.get_agents(sort_by="rating")
 
             suitable_agents = []
             for agent in agents:
-                agent_rating = agent.get("rating", 0).get("rating", 0)
+                agent_rating = agent.rating.rating
                 if agent_rating > rating + skill_range:
                     continue
                 if agent_rating < rating - skill_range:
@@ -76,8 +128,32 @@ class Matchmaker:
         if agent is None:
             raise ValueError("No suitable opponent found based on the selected strategy.")
         
-        return self.load_opponent(agent), agent.rating.rating
-    
-    def load_opponent(self, agent_dict: dict):
-        # TODO (see opponent_manager.py, agent_factory.py)
-        pass
+        return self.load_opponent(agent, deterministic), agent.agent_id, agent.rating.rating
+
+    def load_opponent(self, metadata: AgentMetadata, deterministic: bool = True) -> Opponent:
+        """Load an agent from metadata checkpoint."""
+        if "baseline" in metadata.tags:
+            if metadata.agent_id == "basic_weak":
+                return h_env.BasicOpponent(weak=True)
+            elif metadata.agent_id == "basic_strong":
+                return h_env.BasicOpponent(weak=False)
+            else:
+                raise ValueError(f"Unknown baseline: {metadata.agent_id}")
+
+        env = h_env.HockeyEnv()
+        state_dim = env.observation_space.shape[0]
+        action_dim = env.action_space.shape[0] // 2
+
+        config = load_curriculum(metadata.config_path)
+        params = config.agent.hyperparameters
+
+        match config.agent.type:
+            case "SAC":
+                agent = SAC(state_dim=state_dim, action_dim=action_dim, deterministic=deterministic, **params)
+            case _:
+                # TODO Add other agent types
+                raise ValueError(f"Unknown agent type: {config.agent.type}")
+
+        agent.load(metadata.checkpoint_path)
+
+        return agent
