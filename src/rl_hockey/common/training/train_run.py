@@ -341,6 +341,7 @@ def train_run(
         agent_action_dim,
         curriculum.hyperparameters,
         device=device,
+        config_path=config_path,
     )
 
     # Log the agent network architecture
@@ -358,6 +359,9 @@ def train_run(
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
         print("")
+        logging.info("REWARD BACKPROPAGATION PARAMETERS:")
+        logging.info(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        logging.info(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
 
     if checkpoint_path is not None:
         if verbose:
@@ -613,6 +617,8 @@ def train_run(
                 action_p1 = agent.act(state)
 
             obs_agent2 = current_env.obs_agent_two()
+            if hasattr(agent, "collect_opponent_demonstrations"):
+                agent.collect_opponent_demonstrations(obs_agent2)
             deterministic_opponent = (
                 phase_config.opponent.deterministic
                 if phase_config.opponent.type == "self_play"
@@ -660,28 +666,6 @@ def train_run(
                 shaped_reward += touch_contribution
                 shaped_reward += direction_contribution
 
-                # Debug logging when shaped_reward is unusually high (potential bug indicator)
-                # Also log around episode 90, step 17 range
-                should_log = (
-                    abs(shaped_reward) > 25.0  # Unusually high reward
-                )
-
-                if should_log:
-                    logger.warning(
-                        f"[DEBUG REWARD] global_ep={global_episode}, step={t}: "
-                        f"base_reward={reward:.6f}, "
-                        f"closeness_raw={closeness_raw:.6f}, "
-                        f"touch_raw={touch_raw:.6f}, "
-                        f"direction_raw={direction_raw:.6f}, "
-                        f"weights_closeness={reward_weights['closeness']:.6f}, "
-                        f"weights_touch={reward_weights['touch']:.6f}, "
-                        f"weights_direction={reward_weights['direction']:.6f}, "
-                        f"closeness_contrib={closeness_contribution:.6f}, "
-                        f"touch_contrib={touch_contribution:.6f}, "
-                        f"direction_contrib={direction_contribution:.6f}, "
-                        f"shaped_reward={shaped_reward:.6f}, "
-                        f"reward_scale={reward_scale:.6f}"
-                    )
             else:
                 shaped_reward = reward
 
@@ -1180,6 +1164,7 @@ def _train_run_vectorized(
         agent_action_dim,
         curriculum.hyperparameters,
         device=device,
+        config_path=config_path,
     )
 
     # Log the agent network architecture
@@ -1197,6 +1182,9 @@ def _train_run_vectorized(
         print(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
         print(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
         print("")
+        logging.info("REWARD BACKPROPAGATION PARAMETERS:")
+        logging.info(f"  win_reward_bonus: {agent.buffer.win_reward_bonus}")
+        logging.info(f"  win_reward_discount: {agent.buffer.win_reward_discount}")
 
     # Enable fast mode for TDMPC2 if specified in training config
     if hasattr(agent, "set_fast_mode") and training_params.get("use_fast_mode", False):
@@ -1447,6 +1435,9 @@ def _train_run_vectorized(
 
         # Get opponent actions for each environment
         obs_agent2 = current_vec_env.obs_agent_two()
+        if hasattr(agent, "collect_opponent_demonstrations"):
+            for i in range(num_envs):
+                agent.collect_opponent_demonstrations(obs_agent2[i])
         actions_p2 = np.array(
             [
                 get_opponent_action(
@@ -2066,6 +2057,16 @@ def _curriculum_to_dict(curriculum: CurriculumConfig) -> dict:
                         "CLOSENESS_FINAL": phase.reward_shaping.CLOSENESS_FINAL,
                         "TOUCH_FINAL": phase.reward_shaping.TOUCH_FINAL,
                         "DIRECTION_FINAL": phase.reward_shaping.DIRECTION_FINAL,
+                    },
+                    "reward_bonus": None
+                    if phase.reward_bonus is None
+                    else {
+                        "N": phase.reward_bonus.N,
+                        "K": phase.reward_bonus.K,
+                        "WIN_BONUS_START": phase.reward_bonus.WIN_BONUS_START,
+                        "WIN_BONUS_FINAL": phase.reward_bonus.WIN_BONUS_FINAL,
+                        "WIN_DISCOUNT_START": phase.reward_bonus.WIN_DISCOUNT_START,
+                        "WIN_DISCOUNT_FINAL": phase.reward_bonus.WIN_DISCOUNT_FINAL,
                     },
                 }
                 for phase in curriculum.phases
