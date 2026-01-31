@@ -6,7 +6,9 @@ from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
-    def __init__(self, priority_replay: bool = False, normalize_obs: bool = False):
+    def __init__(self,  deterministic=False, priority_replay: bool = False, normalize_obs: bool = False):
+        self.deterministic = deterministic
+
         if priority_replay:
             self.buffer = PERMemory(normalize_obs=normalize_obs)
         else:
