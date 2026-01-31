@@ -1,15 +1,14 @@
 """
-Single training run with curriculum learning support.
-Entry point: run this file to start training (e.g. python src/rl_hockey/common/training/train_single_run.py).
-
-Uses JSON config file path; config_path is passed through to train_run and create_agent
-so that relative opponent paths in the config are resolved against the project root.
+Single training run with curriculum learning support - REFACTORED VERSION.
+Uses the refactored train_run implementation with cleaner, modular code.
+Can use either JSON config file or dict config.
 Supports vectorized environments for faster training.
 """
 
 import logging
 import sys
 from typing import Optional, Union
+from pathlib import Path
 
 # Configure logging (ensure it's configured before importing train_run)
 # Unbuffer stdout for immediate output in batch jobs
@@ -24,9 +23,7 @@ logging.basicConfig(
     force=True,  # Force reconfiguration if already configured
 )
 
-from rl_hockey.common.training.curriculum_manager import load_curriculum
-from rl_hockey.common.training.run_manager import RunManager
-from rl_hockey.common.training.train_run import _curriculum_to_dict, train_run
+from rl_hockey.common.training.train_run_refactored import train_run
 
 
 def train_single_run(
@@ -40,6 +37,7 @@ def train_single_run(
     device: Optional[Union[str, int]] = None,
     checkpoint_path: Optional[str] = None,
     num_envs: int = 4,
+    log_freq_episodes: int = 10,
 ):
     """
     Train a single run with optional vectorized environments.
@@ -56,27 +54,8 @@ def train_single_run(
         checkpoint_path: Continue from checkpoint
         num_envs: Number of parallel environments (1 = no vectorization, 4-8 recommended)
                     4 cores: use 2, 8 cores: use 4, 12+ cores: use 8 (max recommended)
+        log_freq_episodes: Logging frequency in episodes
     """
-    # Load curriculum to generate run_name and save config
-    curriculum = load_curriculum(config_path)
-    config_dict = _curriculum_to_dict(curriculum)
-
-    # Create RunManager to set up directory structure
-    run_manager = RunManager(base_output_dir=base_output_dir)
-
-    # Generate run_name if not provided
-    if run_name is None:
-        run_name = run_manager.generate_run_name(config_dict)
-
-    # Save config file before starting training
-    if verbose:
-        logging.info(f"Saving config file for run: {run_name}")
-    run_manager.save_config(run_name, config_dict)
-    if verbose:
-        logging.info(
-            f"Config saved to: {run_manager.get_run_directories(run_name)['config']}"
-        )
-
     return train_run(
         config_path,
         base_output_dir,
@@ -88,42 +67,35 @@ def train_single_run(
         device=device,
         checkpoint_path=checkpoint_path,
         num_envs=num_envs,
-        run_manager=run_manager,
+        log_freq_episodes=log_freq_episodes,
     )
 
 
 if __name__ == "__main__":
-    import os
-
     import torch
-
-    # Device diagnostics (help debug "skipping cudagraphs due to cpu device" etc.)
-    cuda_vis = os.environ.get("CUDA_VISIBLE_DEVICES", "not set")
-    print(f"[Device] CUDA_VISIBLE_DEVICES={cuda_vis}")
-    print(f"[Device] torch.cuda.is_available()={torch.cuda.is_available()}")
-    if torch.cuda.is_available():
-        print(f"[Device] torch.cuda.device_count()={torch.cuda.device_count()}")
 
     # Enable TF32 for better performance on Ampere+ GPUs
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_tdmpc2_opponent_simulation.json"
+    SCRIPT_DIR = Path(__file__).parent.absolute()
+
+    path_to_config = SCRIPT_DIR / "../../../../configs/curriculum_sac.json"
 
     # Auto-detect device
     if torch.cuda.is_available():
         device = "cuda:0"
-        print(f"[Device] Using GPU {device} ({torch.cuda.get_device_name(0)})")
+        print(f"CUDA available: Using GPU {device} ({torch.cuda.get_device_name(0)})")
     else:
         device = "cpu"
-        print(
-            "[Device] Using CPU (no GPU). TD-MPC2 repo expects GPU; use sbatch on a GPU partition."
-        )
+        print("CUDA not available: Using CPU")
 
     # Get num_envs from environment variable if set, otherwise use default
+    import os
+
     num_envs = int(
-        os.environ.get("NUM_ENVS", "1")
-    )  # Default to 4 for parallel environments
+        os.environ.get("NUM_ENVS", "24")
+    ) # Default to 24 envs if not set
 
     train_single_run(
         path_to_config,
@@ -132,4 +104,4 @@ if __name__ == "__main__":
         num_envs=num_envs,
     )
 
-    # nohup python -u src/rl_hockey/common/training/train_single_run.py > results/tdmpc2_runs/train_single_run.log 2>&1 &
+    # nohup python -u src/rl_hockey/common/training/train_single_run_refactored.py > results/sac_runs/train_single_run_refactored.log 2>&1 &

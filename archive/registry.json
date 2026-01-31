@@ -1,0 +1,45 @@
+{
+  "basic_weak": {
+    "agent_id": "basic_weak",
+    "archived_at": "2026-01-01T00:00:00.000000",
+    "tags": [
+      "baseline"
+    ],
+    "rating": {
+      "mu": 24.133653602062672,
+      "sigma": 0.7799664431727927,
+      "rating": 21.793754272544295,
+      "matches_played": 210
+    },
+    "directory": "",
+    "step": null
+  },
+  "basic_strong": {
+    "agent_id": "basic_strong",
+    "archived_at": "2026-01-01T00:00:00.000000",
+    "tags": [
+      "baseline"
+    ],
+    "rating": {
+      "mu": 26.069146327826306,
+      "sigma": 0.8270225443760761,
+      "rating": 23.588078694698076,
+      "matches_played": 204
+    },
+    "directory": "",
+    "step": null
+  },
+  "0001_SAC_2026-01-30_00-57-20": {
+    "agent_id": "0001_SAC_2026-01-30_00-57-20",
+    "archived_at": "2026-01-30T00:57:20.369811",
+    "tags": [],
+    "rating": {
+      "mu": 36.5882481852571,
+      "sigma": 1.0828529560855025,
+      "rating": 33.33968931700059,
+      "matches_played": 186
+    },
+    "directory": "archive\\agents\\0001_SAC_2026-01-30_00-57-20",
+    "step": null
+  }
+}
