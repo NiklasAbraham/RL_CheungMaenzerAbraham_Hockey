@@ -65,7 +65,6 @@ def profile_single_action(
     device = agent.device
     obs = torch.randn(obs_dim).to(device)
 
-    # Warmup
     for _ in range(num_warmup):
         _ = agent.act(obs.cpu().numpy())
 
@@ -113,7 +112,6 @@ def profile_batch_action(
     device = agent.device
     obs_batch = torch.randn(batch_size, obs_dim).to(device)
 
-    # Warmup
     for _ in range(num_warmup):
         _ = agent.act_batch(obs_batch.cpu().numpy())
 
@@ -156,7 +154,6 @@ def profile_planning_step(
     device = agent.device
     obs = torch.randn(obs_dim).to(device)
 
-    # Warmup
     z = agent.encoder(obs.unsqueeze(0))
     for _ in range(num_warmup):
         _ = agent.planner.plan(z.squeeze(0), return_mean=True)
@@ -210,7 +207,6 @@ def profile_model_forward_passes(
     latents_batch = torch.randn(batch_size, latent_dim).to(device)
     actions_batch = torch.randn(batch_size, action_dim).to(device)
 
-    # Warmup
     for _ in range(10):
         _ = agent.encoder(obs.unsqueeze(0))
         _ = agent.dynamics(latent.unsqueeze(0), action.unsqueeze(0))
@@ -389,34 +385,25 @@ def profile_training_step(
     if hasattr(agent, "policy"):
         agent.policy.train()
 
-    # Fill buffer with dummy data for sampling
-    # TD-MPC2 requires sequences, so we need to create episodes
-    # Each episode needs at least horizon+1 transitions
     action_dim = agent.action_dim
     horizon = agent.horizon if hasattr(agent, "horizon") else 5
     episodes_needed = max(batch_size // 4, 10)  # At least 10 episodes
-    transitions_per_episode = horizon + 5  # Make episodes longer than horizon
-    
-    # Clear buffer first
+    transitions_per_episode = horizon + 5
     if hasattr(agent.buffer, "clear"):
         agent.buffer.clear()
     
-    # Store episodes (sequences of transitions ending with done=True)
     for ep in range(episodes_needed):
         for step in range(transitions_per_episode):
             obs = torch.randn(obs_dim).cpu().numpy()
             action = torch.randn(action_dim).cpu().numpy()
             reward = np.random.randn()
             next_obs = torch.randn(obs_dim).cpu().numpy()
-            # Mark last transition in episode as done
             done = (step == transitions_per_episode - 1)
             agent.buffer.store((obs, action, reward, next_obs, done))
 
-    # Warmup
     for _ in range(num_warmup):
         _ = agent.train(steps=1)
 
-    # Profile with detailed memory and transfer tracking
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,

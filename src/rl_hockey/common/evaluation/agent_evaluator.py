@@ -1,3 +1,4 @@
+import logging
 import multiprocessing as mp
 import os
 from pathlib import Path
@@ -14,6 +15,8 @@ from rl_hockey.common.utils import (
     get_discrete_action_dim,
     set_cuda_device,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def find_config_from_model_path(model_path: str) -> Optional[str]:
@@ -59,6 +62,15 @@ def infer_fineness_from_action_dim(
     return None
 
 
+def is_decoy_policy_checkpoint(checkpoint: Dict[str, Any]) -> bool:
+    """Return True if the checkpoint is from a DecoyPolicy (has decoy-specific keys)."""
+    return (
+        "network_state_dict" in checkpoint
+        and "hidden_layers" in checkpoint
+        and "config" not in checkpoint
+    )
+
+
 def load_agent_params_from_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
     """
     Load agent parameters from checkpoint file.
@@ -66,16 +78,24 @@ def load_agent_params_from_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
     """
     try:
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
-        params = {}
+        params = dict(checkpoint) if isinstance(checkpoint, dict) else {}
 
         if "action_dim" in checkpoint:
             params["action_dim"] = checkpoint["action_dim"]
         if "state_dim" in checkpoint:
             params["state_dim"] = checkpoint["state_dim"]
+        if "obs_dim" in checkpoint:
+            params["obs_dim"] = checkpoint["obs_dim"]
         if "config" in checkpoint:
             params["config"] = checkpoint["config"]
         if "hidden_dim" in checkpoint:
             params["hidden_dim"] = checkpoint["hidden_dim"]
+        if "hidden_layers" in checkpoint:
+            params["hidden_layers"] = checkpoint["hidden_layers"]
+        if "learning_rate" in checkpoint:
+            params["learning_rate"] = checkpoint["learning_rate"]
+        if "buffer_max_size" in checkpoint:
+            params["buffer_max_size"] = checkpoint["buffer_max_size"]
 
         return params
     except Exception:
@@ -96,19 +116,21 @@ def _pool_initializer():
             pass  # If all else fails, let it use current directory
 
 
-def run_single_game(args: Tuple) -> Dict[str, Any]:
-    """
-    Run a single game between an agent and a weak opponent.
+# Worker-local agent cache (set by _init_eval_worker, used by run_single_game in parallel mode)
+_worker_agent = None
+_worker_action_fineness = None
+_worker_is_discrete = None
 
-    Args:
-        args: Tuple containing agent path, agent configuration dictionary, weak opponent flag, maximum steps, random seed, and device
-    Returns:
-        Dictionary containing game results
-    """
-    agent_path, agent_config_dict, weak_opponent, max_steps, seed, device = args
 
-    # Verify checkpoint file exists before trying to load
-    # Note: agent_path should already be absolute from the parent process
+def _load_agent_for_eval(
+    agent_path: str,
+    agent_config_dict: Dict[str, Any],
+    device: Optional[Union[str, int]],
+) -> Tuple[Any, Optional[int], bool]:
+    """
+    Create agent, load checkpoint, put in eval mode. Used once per worker or once for sequential eval.
+    Returns (agent, action_fineness, is_discrete).
+    """
     if not os.path.exists(agent_path):
         current_cwd = "unknown"
         try:
@@ -120,10 +142,7 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
             f"Current working directory: {current_cwd}\n"
             f"File is absolute: {os.path.isabs(agent_path)}"
         )
-
     set_cuda_device(device)
-    np.random.seed(seed)
-
     env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
     action_fineness = agent_config_dict.get("hyperparameters", {}).get(
         "action_fineness", None
@@ -131,14 +150,13 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
     state_dim, action_dim, is_discrete = get_action_space_info(
         env, agent_config_dict["type"], fineness=action_fineness
     )
-
+    env.close()
     agent_config = AgentConfig(
         type=agent_config_dict["type"],
         hyperparameters=agent_config_dict["hyperparameters"],
     )
     agent = create_agent(agent_config, state_dim, action_dim, {})
     agent.load(agent_path)
-
     if hasattr(agent, "q_network"):
         agent.q_network.eval()
     if hasattr(agent, "q_network_target"):
@@ -147,18 +165,33 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
         agent.actor.eval()
     if hasattr(agent, "critic1") and hasattr(agent.critic1, "eval"):
         agent.critic1.eval()
-    # For TD3
     if hasattr(agent, "actor_target") and hasattr(agent.actor_target, "eval"):
         agent.actor_target.eval()
     if hasattr(agent, "critic") and hasattr(agent.critic, "eval"):
         agent.critic.eval()
     if hasattr(agent, "critic_target") and hasattr(agent.critic_target, "eval"):
         agent.critic_target.eval()
+    if hasattr(agent, "network") and hasattr(agent.network, "eval"):
+        agent.network.eval()
+    return agent, action_fineness, is_discrete
+
+
+def _run_one_game(
+    agent: Any,
+    action_fineness: Optional[int],
+    is_discrete: bool,
+    weak_opponent: bool,
+    max_steps: int,
+    seed: int,
+) -> Dict[str, Any]:
+    """Run a single game with an already-loaded agent. Creates env, runs episode, returns result."""
+    np.random.seed(seed)
+    env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
     opponent = h_env.BasicOpponent(weak=weak_opponent)
     state, _ = env.reset()
     obs_agent2 = env.obs_agent_two()
     total_reward = 0
-
+    step = 0
     for step in range(max_steps):
         if is_discrete:
             discrete_action = agent.act(state.astype(np.float32), deterministic=True)
@@ -178,11 +211,41 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
         obs_agent2 = env.obs_agent_two()
         if done or trunc:
             break
-
     winner = info.get("winner", 0)
     env.close()
-
     return {"winner": winner, "reward": total_reward, "steps": step + 1}
+
+
+def _init_eval_worker(
+    agent_path: str,
+    agent_config_dict: Dict[str, Any],
+    device: Optional[Union[str, int]],
+) -> None:
+    """Load agent once per worker and store in module-level variables."""
+    global _worker_agent, _worker_action_fineness, _worker_is_discrete
+    _pool_initializer()
+    _worker_agent, _worker_action_fineness, _worker_is_discrete = _load_agent_for_eval(
+        agent_path, agent_config_dict, device
+    )
+
+
+def run_single_game(args: Tuple) -> Dict[str, Any]:
+    """
+    Run a single game. In parallel mode, args = (weak_opponent, max_steps, seed) and the agent
+    is taken from the worker cache (set by _init_eval_worker). In sequential mode this is not used;
+    the caller uses _load_agent_for_eval once and _run_one_game in a loop.
+    """
+    weak_opponent, max_steps, seed = args
+    if _worker_agent is None:
+        raise RuntimeError("Worker agent not initialized; use Pool with initializer=_init_eval_worker")
+    return _run_one_game(
+        _worker_agent,
+        _worker_action_fineness,
+        _worker_is_discrete,
+        weak_opponent,
+        max_steps,
+        seed,
+    )
 
 
 def evaluate_agent(
@@ -212,11 +275,24 @@ def evaluate_agent(
     Returns:
         Dictionary containing evaluation results
     """
+    logger.info(f"Starting agent evaluation: {agent_path}")
+    logger.info(
+        f"Configuration: num_games={num_games}, weak_opponent={weak_opponent}, max_steps={max_steps}"
+    )
+
+    # Save current working directory early so we can resolve relative paths before any chdir
+    original_cwd = None
+    try:
+        original_cwd = os.getcwd()
+    except (OSError, FileNotFoundError):
+        original_cwd = None
+
     # Auto-detect config_path if not provided
     if config_path is None:
         detected_config = find_config_from_model_path(agent_path)
         if detected_config is not None:
             config_path = detected_config
+            logger.info(f"Auto-detected config path: {config_path}")
 
     # Load config if available
     if config_path is not None:
@@ -225,49 +301,63 @@ def evaluate_agent(
             "type": curriculum.agent.type,
             "hyperparameters": curriculum.agent.hyperparameters,
         }
+        logger.info(f"Loaded agent config: type={agent_config_dict['type']}")
 
     # If still no config, try to load from checkpoint and infer parameters
     if agent_config_dict is None:
         checkpoint_params = load_agent_params_from_checkpoint(agent_path)
 
-        # Try to infer agent type from checkpoint or default to DDDQN
-        # Check if checkpoint has q_network (DDDQN) or actor (SAC/PPO)
-        agent_type = "DDDQN"  # Default fallback
-        if "config" in checkpoint_params:
-            agent_type = checkpoint_params["config"].get("type", "DDDQN")
+        # Detect DecoyPolicy checkpoints (they have network_state_dict + hidden_layers, no config)
+        if is_decoy_policy_checkpoint(checkpoint_params):
+            agent_type = "DecoyPolicy"
+            hyperparameters = {
+                "hidden_layers": checkpoint_params.get("hidden_layers", [256, 256]),
+                "learning_rate": checkpoint_params.get("learning_rate", 3e-4),
+                "buffer_max_size": checkpoint_params.get("buffer_max_size", 100_000),
+            }
+            agent_config_dict = {"type": agent_type, "hyperparameters": hyperparameters}
+            logger.info("Inferred agent type from checkpoint: DecoyPolicy")
+        else:
+            # Try to infer agent type from checkpoint or default to DDDQN
+            # Check if checkpoint has q_network (DDDQN) or actor (SAC/PPO)
+            agent_type = "DDDQN"  # Default fallback
+            if "config" in checkpoint_params:
+                agent_type = checkpoint_params["config"].get("type", "DDDQN")
 
-        # Try to infer action_fineness from action_dim
-        action_fineness = None
-        if "action_dim" in checkpoint_params:
-            action_dim = checkpoint_params["action_dim"]
-            # Try both keep_mode=True and keep_mode=False
-            action_fineness = infer_fineness_from_action_dim(action_dim, keep_mode=True)
-            if action_fineness is None:
+            # Try to infer action_fineness from action_dim
+            action_fineness = None
+            if "action_dim" in checkpoint_params:
+                action_dim = checkpoint_params["action_dim"]
+                # Try both keep_mode=True and keep_mode=False
                 action_fineness = infer_fineness_from_action_dim(
-                    action_dim, keep_mode=False
+                    action_dim, keep_mode=True
                 )
+                if action_fineness is None:
+                    action_fineness = infer_fineness_from_action_dim(
+                        action_dim, keep_mode=False
+                    )
 
-        # Build hyperparameters dict
-        hyperparameters = {}
-        if action_fineness is not None:
-            hyperparameters["action_fineness"] = action_fineness
+            # Build hyperparameters dict
+            hyperparameters = {}
+            if action_fineness is not None:
+                hyperparameters["action_fineness"] = action_fineness
 
-        # Add other hyperparameters from checkpoint config if available
-        if "config" in checkpoint_params:
-            checkpoint_config = checkpoint_params["config"]
-            # Copy relevant hyperparameters
-            for key in [
-                "hidden_dim",
-                "target_update_freq",
-                "eps",
-                "eps_min",
-                "eps_decay",
-                "use_huber_loss",
-            ]:
-                if key in checkpoint_config:
-                    hyperparameters[key] = checkpoint_config[key]
+            # Add other hyperparameters from checkpoint config if available
+            if "config" in checkpoint_params:
+                checkpoint_config = checkpoint_params["config"]
+                # Copy relevant hyperparameters
+                for key in [
+                    "hidden_dim",
+                    "target_update_freq",
+                    "eps",
+                    "eps_min",
+                    "eps_decay",
+                    "use_huber_loss",
+                ]:
+                    if key in checkpoint_config:
+                        hyperparameters[key] = checkpoint_config[key]
 
-        agent_config_dict = {"type": agent_type, "hyperparameters": hyperparameters}
+            agent_config_dict = {"type": agent_type, "hyperparameters": hyperparameters}
 
     # Final check: if action_fineness is still missing, try to infer from checkpoint
     if agent_config_dict.get("hyperparameters", {}).get("action_fineness") is None:
@@ -286,9 +376,24 @@ def evaluate_agent(
                     action_fineness
                 )
 
+    # Resolve opponent simulation paths to absolute so they work after cwd change or in workers
+    hyperparams = agent_config_dict.get("hyperparameters", {})
+    opp_sim = hyperparams.get("opponent_simulation")
+    if opp_sim and opp_sim.get("enabled") and opp_sim.get("opponent_agents"):
+        base_dir = original_cwd if original_cwd is not None else os.path.curdir
+        for opp_info in opp_sim["opponent_agents"]:
+            if "path" in opp_info and not os.path.isabs(opp_info["path"]):
+                opp_info["path"] = os.path.normpath(
+                    os.path.join(base_dir, opp_info["path"])
+                )
+                logger.debug(
+                    "Resolved opponent path to %s", opp_info["path"]
+                )
+
     # Override device to CPU if requested
     if use_cpu_for_eval:
         device = "cpu"
+        logger.info("Forcing CPU usage for evaluation")
 
     if num_parallel is None:
         # Limit parallel processes to avoid GPU memory exhaustion
@@ -309,13 +414,7 @@ def evaluate_agent(
             # CPU evaluation: can use more processes
             num_parallel = min(mp.cpu_count(), num_games)
 
-    # Save current working directory and convert agent_path to absolute path BEFORE changing directories
-    # This ensures worker processes can find the checkpoint file even after we change cwd
-    original_cwd = None
-    try:
-        original_cwd = os.getcwd()
-    except (OSError, FileNotFoundError):
-        original_cwd = None
+    logger.info(f"Using device: {device}, parallel processes: {num_parallel}")
 
     # Convert agent_path to absolute path BEFORE changing directories
     # This ensures worker processes can find the checkpoint file even after we change cwd
@@ -352,20 +451,55 @@ def evaluate_agent(
         pass
 
     seeds = np.random.randint(0, 2**31, size=num_games)
-    args_list = [
-        (agent_path, agent_config_dict, weak_opponent, max_steps, int(seed), device)
-        for seed in seeds
+    game_args_list = [
+        (weak_opponent, max_steps, int(seed)) for seed in seeds
     ]
 
+    logger.info(f"Starting {num_games} game(s)...")
     results = []
     try:
         if num_parallel > 1:
-            # Use initializer to set a safe working directory for worker processes
-            # This prevents FileNotFoundError when multiprocessing spawns workers
-            with mp.Pool(processes=num_parallel, initializer=_pool_initializer) as pool:
-                results = pool.map(run_single_game, args_list)
+            with mp.Pool(
+                processes=num_parallel,
+                initializer=_init_eval_worker,
+                initargs=(agent_path, agent_config_dict, device),
+            ) as pool:
+                completed = 0
+                for result in pool.imap(run_single_game, game_args_list):
+                    results.append(result)
+                    completed += 1
+                    if (
+                        completed % max(1, num_games // 10) == 0
+                        or completed == num_games
+                    ):
+                        logger.info(
+                            f"Progress: {completed}/{num_games} games completed"
+                        )
+                        wins_so_far = sum(1 for r in results if r["winner"] == 1)
+                        logger.info(
+                            f"  Current stats: {wins_so_far} wins, {completed - wins_so_far} non-wins"
+                        )
         else:
-            results = [run_single_game(args) for args in args_list]
+            agent, action_fineness, is_discrete = _load_agent_for_eval(
+                agent_path, agent_config_dict, device
+            )
+            for i, (_, max_s, seed) in enumerate(game_args_list, 1):
+                result = _run_one_game(
+                    agent, action_fineness, is_discrete,
+                    weak_opponent, max_s, seed,
+                )
+                results.append(result)
+                winner_str = (
+                    "win"
+                    if result["winner"] == 1
+                    else ("loss" if result["winner"] == -1 else "draw")
+                )
+                logger.info(
+                    f"Game {i}/{num_games} completed: {winner_str}, reward={result['reward']:.2f}, steps={result['steps']}"
+                )
+                wins_so_far = sum(1 for r in results if r["winner"] == 1)
+                if i % 10 == 0 or i == num_games:
+                    logger.info(f"  Progress: {wins_so_far}/{i} wins so far")
     finally:
         # Restore original working directory if we changed it
         if original_cwd is not None:
@@ -374,6 +508,8 @@ def evaluate_agent(
             except (OSError, FileNotFoundError):
                 pass
 
+    logger.info(f"All {num_games} games completed")
+
     wins = sum(1 for r in results if r["winner"] == 1)
     losses = sum(1 for r in results if r["winner"] == -1)
     draws = sum(1 for r in results if r["winner"] == 0)
@@ -381,6 +517,15 @@ def evaluate_agent(
     mean_reward = np.mean(rewards)
     std_reward = np.std(rewards)
     win_rate = wins / num_games if num_games > 0 else 0.0
+
+    logger.info("=" * 60)
+    logger.info("Evaluation Results Summary:")
+    logger.info(f"  Wins: {wins}")
+    logger.info(f"  Losses: {losses}")
+    logger.info(f"  Draws: {draws}")
+    logger.info(f"  Win Rate: {win_rate:.2%}")
+    logger.info(f"  Mean Reward: {mean_reward:.2f} ± {std_reward:.2f}")
+    logger.info("=" * 60)
 
     return {
         "wins": wins,
@@ -404,11 +549,11 @@ if __name__ == "__main__":
     # Now config_path can be None - it will auto-detect from model path
     print(
         evaluate_agent(
-            agent_path="results/hyperparameter_runs/2026-01-03_18-24-14/run_lr1e04_bs256_h512_512_512_31fb74b2_0002/2026-01-03_18-24-17/models/run_lr1e04_bs256_h512_512_512_31fb74b2_0002.pt",
+            agent_path="results/tdmpc2_runs/2026-01-30_17-16-40/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260130_171640_ep001800.pt",
             config_path=None,
-            num_games=250,
+            num_games=100,
             weak_opponent=False,
-            max_steps=250,
-            num_parallel=None,
+            max_steps=500,
+            num_parallel=1,
         )
     )

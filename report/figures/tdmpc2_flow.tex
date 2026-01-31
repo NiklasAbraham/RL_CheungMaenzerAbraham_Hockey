@@ -1,0 +1,126 @@
+\documentclass[border=0.5mm]{standalone}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,shapes}
+\usepackage{pgfornament}
+\usepackage{tikz-3dplot}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{amscd}
+% Define variables for the diagram
+\def\xsep{5.85}
+\def\imgwidth{2.5cm}
+
+\begin{document}
+
+\begin{tikzpicture}[
+  vec/.style = {minimum width=0.6cm, minimum height=1.8cm},
+  enc/.style = {draw, trapezium, trapezium angle=70,
+                minimum width=1.5cm, minimum height=0.8cm, fill=green!20},
+  env/.style = {minimum width=\imgwidth, minimum height=\imgwidth},
+  worldmodel/.style = {draw, rounded corners=3pt, minimum width=2cm, minimum height=1.2cm, align=center},
+  dynamics/.style = {draw, rounded corners=3pt, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  rewardbox/.style = {draw, rounded corners=2pt, fill=orange!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  qbox/.style = {draw, rounded corners=2pt, fill=blue!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  termbox/.style = {draw, rounded corners=2pt, fill=green!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  actionbox/.style = {draw, rounded corners=2pt, fill=purple!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  font=\sffamily,% sans-serif for a clean diagram look
+  >=Stealth
+]
+
+% Column 1: s_t with encoder and image
+\node[vec, inner sep=0pt] (v1) at (0,0) {\(\left[\begin{array}{c} z_{11} \\ z_{12} \\ \vdots \\ z_{1n}\end{array}\right]\)};
+\node[above=2pt of v1] {\(\vec{z}_{t} \in \mathbb{R}^{512}\)};
+
+\node[enc, below=of v1] (e1) {encoder};
+\draw[<-, very thick] ([yshift=-0.25cm]v1.south) -- (e1);
+
+\node[env, below=of e1, yshift=0.45cm] (h1)
+      {\includegraphics[width=\imgwidth]{hockey_env_step.png}};
+\draw[-, very thick] (e1) -- (h1);
+
+\node[below=4pt of h1, font=\LARGE] {$s_t$};
+
+% Column 2: s_{t+1} with encoder and image
+\node[vec, inner sep=0pt] (v2) at (\xsep,0) {\(\left[\begin{array}{c} z_{21} \\ z_{22} \\ \vdots \\ z_{2n} \end{array}\right]\)};
+\node[above=2pt of v2] {\(\vec{z}_{t+1} \in \mathbb{R}^{512}\)};
+
+% Between v1 and v2: world model and dynamics
+
+% Individual colored boxes for each world model head
+\node[rewardbox, font=\footnotesize] (wm1_r) at (\xsep/2, 1.28cm) {\(R(\vec{z}, a) \rightarrow r\)};
+\node[qbox, below=4pt of wm1_r, font=\footnotesize] (wm1_q) {\(Q(\vec{z}, a) \rightarrow q\)};
+\node[dynamics, below=4pt of wm1_q, font=\footnotesize, fill=yellow!35] (dyn1) {\(d(\vec{z}, a) \rightarrow \vec{z}_{t+1}\)};
+\node[actionbox, below=4pt of dyn1, font=\footnotesize] (wm1_p) {\(p(\vec{z}, a) \rightarrow \hat{a}_{t+1}\)};
+%\node[termbox, below=4pt of wm1_p, font=\footnotesize] (wm1_t) {\(T(z) \rightarrow T\)};
+
+% Light gray background around all world model heads (in background layer)
+\begin{pgfonlayer}{background}
+  % Bold arrow from v1 to v2 (latent space flow) - behind boxes
+  \draw[->, very thick, line width=2pt] (v1.east) -- (v2.west);
+  % Gray background drawn after arrow to cover it
+  \node[fit=(wm1_r) (wm1_q) (wm1_p) (dyn1), 
+        rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm1_bg) {};
+\end{pgfonlayer}
+
+\node[enc, below=of v2] (e2) {encoder};
+\draw[<-, very thick] ([yshift=-0.25cm]v2.south) -- (e2);
+
+\node[env, below=of e2, yshift=0.45cm] (h2)
+      {\includegraphics[width=\imgwidth]{hockey_env_step.png}};
+\draw[-, very thick] (e2) -- (h2);
+
+\node[below=4pt of h2, font=\LARGE] {$s_{t+1}$};
+
+% Column 3: just vector
+\node[vec, inner sep=0pt] (v3) at (2*\xsep,0) {\(\left[\begin{array}{c} z_{31} \\ z_{32} \\ \vdots \\ z_{3n} \end{array}\right]\)};
+\node[above=2pt of v3] {\(\vec{z}_{t+2} \in \mathbb{R}^{512}\)};
+
+% Between v2 and v3: world model and dynamics
+% Individual colored boxes for each world model head
+\node[rewardbox, font=\footnotesize] (wm2_r) at (1.5*\xsep, 1.28cm) {\(R(\vec{z}_{t+1}, a) \rightarrow r\)};
+\node[qbox, below=4pt of wm2_r, font=\footnotesize] (wm2_q) {\(Q(\vec{z}_{t+1}, a) \rightarrow q\)};
+\node[dynamics, below=4pt of wm2_q, font=\footnotesize, fill=yellow!35] (dyn2) {\(d(\vec{z}_{t+1}, a) \rightarrow \vec{z}_{t+2}\)};
+\node[actionbox, below=4pt of dyn2, font=\footnotesize] (wm2_p) {\(p(\vec{z}_{t+1}, a) \rightarrow \hat{a}_{t+2}\)};
+%\node[termbox, below=4pt of wm2_p, font=\footnotesize] (wm2_t) {\(T(z) \rightarrow T\)};
+
+
+% Light gray background around all world model heads (in background layer)
+\begin{pgfonlayer}{background}
+  % Bold arrow from v2 to v3 (latent space flow) - behind boxes
+  \draw[->, very thick, line width=2pt] (v2.east) -- (v3.west);
+  % Gray background drawn after arrow to cover it
+  \node[fit=(wm2_r) (wm2_q) (wm2_p) (dyn2), 
+        rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm2_bg) {};
+\end{pgfonlayer}
+
+% Legend, shifted down by 2.5cm and left by 3cm relative to previous placement
+\node[fill=white, rounded corners=4pt, minimum width=3cm, minimum height=4.5cm, 
+      right=1.5cm of v3, yshift=-4.5cm, xshift=-6cm, align=left, font=\footnotesize] (legend) {};
+      
+% Legend entries with colored boxes
+\node[rewardbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_r) at ([xshift=0.3cm, yshift=1.2cm]legend.west) {};
+\node[right=2pt of leg_r, anchor=west] {Reward Network};
+
+\node[qbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_q) at ([xshift=0.3cm, yshift=0.6cm]legend.west) {};
+\node[right=2pt of leg_q, anchor=west] {Q-Network Ensemble};
+
+\node[draw, rounded corners=2pt, fill=yellow!35, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_d) at ([xshift=0.3cm, yshift=0cm]legend.west) {};
+\node[right=2pt of leg_d, anchor=west] {Latent Dynamics Network};
+
+\node[actionbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_p) at ([xshift=0.3cm, yshift=-0.6cm]legend.west) {};
+\node[right=2pt of leg_p, anchor=west] {Policy Network};
+
+\node[termbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (leg_t) at ([xshift=0.3cm, yshift=-1.2cm]legend.west) {};
+\node[right=2pt of leg_t, anchor=west] {Encoder Network};
+
+\end{tikzpicture}
+\end{document}

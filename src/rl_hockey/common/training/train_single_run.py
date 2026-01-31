@@ -1,6 +1,9 @@
 """
 Single training run with curriculum learning support.
-Can use either JSON config file or dict config.
+Entry point: run this file to start training (e.g. python src/rl_hockey/common/training/train_single_run.py).
+
+Uses JSON config file path; config_path is passed through to train_run and create_agent
+so that relative opponent paths in the config are resolved against the project root.
 Supports vectorized environments for faster training.
 """
 
@@ -105,7 +108,7 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    path_to_config = "configs/curriculum_sac.json"
+    path_to_config = "configs/curriculum_tdmpc2_opponent_simulation.json"
 
     # Auto-detect device
     if torch.cuda.is_available():

@@ -1,7 +1,4 @@
-"""
-Plotting function for TD-MPC2 episode logs.
-Reads all episode log CSV files (including checkpoints) and creates comprehensive plots.
-"""
+"""Plot TD-MPC2 episode logs from CSV (including checkpoints)."""
 
 import csv
 import re
@@ -36,8 +33,6 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
                 else 0.0,
                 "losses": {},
             }
-
-            # Extract all loss columns
             for key, value in row.items():
                 if (
                     key
@@ -63,13 +58,9 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
 def find_all_episode_log_files(csvs_dir: Path, run_name: str) -> List[Path]:
     """Find all episode log CSV files for a run (including checkpoints)."""
     log_files = []
-
-    # Main episode logs file
     main_file = csvs_dir / f"{run_name}_episode_logs.csv"
     if main_file.exists():
         log_files.append(main_file)
-
-    # Checkpoint episode logs files (pattern: {run_name}_ep{episode}_episode_logs.csv)
     pattern = f"{run_name}_ep*_episode_logs.csv"
     checkpoint_files = sorted(csvs_dir.glob(pattern))
     log_files.extend(checkpoint_files)
@@ -85,10 +76,7 @@ def combine_episode_logs(log_files: List[Path]) -> List[Dict[str, Any]]:
         logs = load_episode_logs_from_csv(log_file)
         for log in logs:
             episode_num = log["episode"]
-            # Keep the latest entry if there are duplicates
             all_logs[episode_num] = log
-
-    # Sort by episode number
     sorted_logs = [all_logs[ep] for ep in sorted(all_logs.keys())]
     return sorted_logs
 
@@ -96,14 +84,7 @@ def combine_episode_logs(log_files: List[Path]) -> List[Dict[str, Any]]:
 def plot_episode_logs(
     folder_path: str, window_size: int = 10, save_path: Optional[Path] = None
 ):
-    """
-    Plot episode logs including all loss types.
-
-    Args:
-        folder_path: Path to the run folder (e.g., "results/tdmpc2_runs/2026-01-18_12-24-23")
-        window_size: Window size for moving average
-        save_path: Optional custom path for saving plot
-    """
+    """Plot episode logs (rewards, shaped reward, losses)."""
     folder = Path(folder_path)
 
     if not folder.exists():
@@ -115,53 +96,43 @@ def plot_episode_logs(
     if not csvs_dir.exists():
         raise ValueError(f"Could not find csvs directory in {folder_path}")
 
-    # Find all episode log CSV files to determine run name
     episode_log_files = list(csvs_dir.glob("*_episode_logs.csv"))
 
     if not episode_log_files:
         raise ValueError(f"No episode log files found in {csvs_dir}")
 
-    # Extract run name from the first file (remove _episode_logs.csv or _ep*_episode_logs.csv)
     first_file = episode_log_files[0]
-    filename = first_file.stem  # Get filename without extension
-
-    # Remove checkpoint suffix if present (e.g., _ep001500_episode_logs)
-    # Pattern: _ep followed by digits, then _episode_logs
+    filename = first_file.stem
     match = re.search(r"_ep\d+_episode_logs$", filename)
     if match:
-        # Remove _epXXXXX_episode_logs suffix
         run_name = filename[: match.start()]
     else:
-        # Just remove _episode_logs suffix
         run_name = filename.replace("_episode_logs", "")
-
-    # Find all episode log files for this run
     log_files = find_all_episode_log_files(csvs_dir, run_name)
 
     if not log_files:
         print(f"Warning: No episode log files found for run {run_name}")
         return
 
-    # Combine logs from all files
     episode_logs = combine_episode_logs(log_files)
 
     if not episode_logs:
         print(f"Warning: No episode logs loaded for run {run_name}")
         return
 
-    # Extract data
     episodes = [log["episode"] for log in episode_logs]
     rewards = [log["reward"] for log in episode_logs]
     shaped_rewards = [log["shaped_reward"] for log in episode_logs]
 
-    # Extract all loss types
     all_loss_keys = set()
     for log in episode_logs:
         all_loss_keys.update(log["losses"].keys())
 
-    sorted_loss_keys = sorted(all_loss_keys)
-
-    # Prepare loss data (only episodes that have training)
+    opponent_loss_keys = sorted(
+        [k for k in all_loss_keys if "opponent" in k.lower() and "cloning" in k.lower()]
+    )
+    other_loss_keys = sorted([k for k in all_loss_keys if k not in opponent_loss_keys])
+    sorted_loss_keys = other_loss_keys + opponent_loss_keys
     loss_data = {key: [] for key in sorted_loss_keys}
     loss_episodes = {key: [] for key in sorted_loss_keys}
 
@@ -276,9 +247,14 @@ def plot_episode_logs(
         axes[ax_idx].legend()
         axes[ax_idx].grid(True, alpha=0.3)
 
-    # Plot each loss type with reward overlay
-    colors = plt.cm.tab10(np.linspace(0, 1, len(sorted_loss_keys)))
-    for i, loss_key in enumerate(sorted_loss_keys):
+    # Plot each loss type
+    colors = plt.cm.tab10(np.linspace(0, 1, len(other_loss_keys)))
+    opponent_colors = plt.cm.Reds(
+        np.linspace(0.4, 0.9, max(1, len(opponent_loss_keys)))
+    )
+
+    # Plot other losses
+    for i, loss_key in enumerate(other_loss_keys):
         if not plot_rewards_only:
             ax_idx += 1
         if ax_idx >= len(axes):
@@ -303,6 +279,39 @@ def plot_episode_logs(
             axes[ax_idx].set_xlabel("Episode")
             axes[ax_idx].set_ylabel("Loss")
             axes[ax_idx].set_title(f"{loss_key} per Episode")
+            axes[ax_idx].legend()
+            axes[ax_idx].grid(True, alpha=0.3)
+
+    # Plot opponent cloning losses (combine in one plot if multiple opponents)
+    if opponent_loss_keys:
+        if not plot_rewards_only:
+            ax_idx += 1
+        if ax_idx < len(axes):
+            for i, loss_key in enumerate(opponent_loss_keys):
+                loss_values = loss_data[loss_key]
+                loss_eps = loss_episodes[loss_key]
+
+                if loss_values:
+                    moving_avg_losses = _moving_average(loss_values, window_size)
+                    # Extract opponent ID from loss key (e.g., "opponent_0_cloning_loss" -> "Opponent 0")
+                    opponent_label = loss_key.replace("opponent_", "Opponent ").replace(
+                        "_cloning_loss", ""
+                    )
+
+                    axes[ax_idx].plot(
+                        loss_eps, loss_values, alpha=0.2, color=opponent_colors[i]
+                    )
+                    axes[ax_idx].plot(
+                        loss_eps,
+                        moving_avg_losses,
+                        label=opponent_label,
+                        color=opponent_colors[i],
+                        linewidth=2,
+                    )
+
+            axes[ax_idx].set_xlabel("Episode")
+            axes[ax_idx].set_ylabel("Cloning Loss (MSE)")
+            axes[ax_idx].set_title("Opponent Cloning Losses per Episode")
             axes[ax_idx].legend()
             axes[ax_idx].grid(True, alpha=0.3)
 
@@ -341,8 +350,20 @@ if __name__ == "__main__":
     # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
     # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
 
-    folder_path_1 = "results/tdmpc2_runs/2026-01-23_21-00-09"
+    folder_path_1 = "results/tdmpc2_runs/2026-01-25_11-40-04"
+    folder_path_2 = "results/tdmpc2_runs/2026-01-25_18-56-52"
+    folder_path_3 = "results/tdmpc2_runs/2026-01-26_16-37-13"
+    folder_path_4 = "results/tdmpc2_runs/2026-01-30_10-50-21"
+    folder_path_5 = "results/tdmpc2_runs/2026-01-30_10-51-35"
+    folder_path_6 = "results/tdmpc2_runs/2026-01-30_13-00-35"
+    folder_path_7 = "results/tdmpc2_runs/2026-01-30_17-16-40"
 
     window_size = 20
 
     plot_episode_logs(folder_path_1, window_size=window_size)
+    plot_episode_logs(folder_path_2, window_size=window_size)
+    plot_episode_logs(folder_path_3, window_size=window_size)
+    plot_episode_logs(folder_path_4, window_size=window_size)
+    plot_episode_logs(folder_path_5, window_size=window_size)
+    plot_episode_logs(folder_path_6, window_size=window_size)
+    plot_episode_logs(folder_path_7, window_size=window_size)

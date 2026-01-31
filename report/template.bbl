@@ -1,0 +1,17 @@
+\begin{thebibliography}{1}
+
+\bibitem{hansen2024tdmpc2scalablerobustworld}
+N.~Hansen, H.~Su, and X.~Wang.
+\newblock Td-mpc2: Scalable, robust world models for continuous control, 2024.
+
+\bibitem{hockeyenv_github}
+G.~Martius.
+\newblock Hockey environment.
+\newblock \url{https://github.com/martius-lab/hockey-env}, 2023.
+
+\bibitem{williams2015modelpredictivepathintegral}
+G.~Williams, A.~Aldrich, and E.~Theodorou.
+\newblock Model predictive path integral control using covariance variable
+  importance sampling, 2015.
+
+\end{thebibliography}
