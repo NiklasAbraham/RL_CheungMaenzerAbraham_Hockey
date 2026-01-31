@@ -2,29 +2,21 @@
   "curriculum": {
     "phases": [
       {
-        "name": "easy",
+        "name": "strong",
         "episodes": 20000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.80},
-            {"type": "basic_strong", "weight": 0.20}
-          ]
+          "type": "basic_strong"
         },
         "reward_shaping": null,
         "clear_buffer": false
       },
       {
-        "name": "hard",
+        "name": "archive",
         "episodes": 60000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.10},
-            {"type": "basic_strong", "weight": 0.90}
-          ]
+          "type": "archive"
         },
         "reward_shaping": null,
         "clear_buffer": false
@@ -52,6 +44,7 @@
       "learn_alpha": true,
       "noise": "pink",
       "max_episode_steps": 250
-    }
+    },
+    "checkpoint_path": "results\\sac_runs\\2026-01-30_04-57-49\\models\\final.pt"
   }
 }
