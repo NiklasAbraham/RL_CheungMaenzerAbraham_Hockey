@@ -1,0 +1,50 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "strong",
+        "episodes": 20000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "basic_strong"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "archive",
+        "episodes": 60000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.001,
+    "batch_size": 256
+  },
+  "training": {
+    "max_episode_steps": 250,
+    "updates_per_step": 1,
+    "warmup_steps": 10000,
+    "reward_scale": 0.5,
+    "checkpoint_frequency": 500000,
+    "eval_frequency": 500000
+  },
+  "agent": {
+    "type": "SAC",
+    "hyperparameters": {
+      "discount": 0.99,
+      "tau": 0.005,
+      "alpha": 0.2,
+      "learn_alpha": true,
+      "noise": "pink",
+      "max_episode_steps": 250
+    },
+    "checkpoint_path": "results\\sac_runs\\2026-01-30_04-57-49\\models\\final.pt"
+  }
+}

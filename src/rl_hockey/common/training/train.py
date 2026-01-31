@@ -15,6 +15,7 @@ import hockey.hockey_env as h_env
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive, Matchmaker, RatingSystem, Rating
 from rl_hockey.common.archive.matchmaker import Opponent
+from rl_hockey.common.training.agent_factory import create_agent
 from rl_hockey.sac import SAC
 from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized
 from rl_hockey.common.training.curriculum_manager import (
@@ -189,7 +190,6 @@ def train_vectorized(
         archive_dir: Directory for agent archive
         num_envs: Number of parallel environments
     """
-    # TODO support for loading existing training state
 
     # Load curriculum and determine episodes
     curriculum = load_curriculum(config_path)
@@ -212,15 +212,19 @@ def train_vectorized(
     
     training_state = TrainingState()
 
-    # Determine state & action dimensions
+    # Create agent
     temp_env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
     state_dim = temp_env.observation_space.shape[0]
     action_dim = temp_env.action_space.shape[0] // 2
     temp_env.close()
     
-    # TODO agent loading
-    agent = SAC(state_dim=state_dim, action_dim=action_dim, noise="pink")
-    agent.load("results/minimal_runs/8/models/final.pt")
+    agent = create_agent(
+        curriculum.agent,
+        state_dim=state_dim,
+        action_dim=action_dim,
+        common_hyperparams=curriculum.hyperparameters,
+        deterministic=False,
+    )
 
     # Setup initial phase
     env, states, opponents = _switch_phase(
@@ -235,16 +239,6 @@ def train_vectorized(
         verbose=verbose,
     )
     switch = False
-    
-    # TODO Initialize evaluator
-    # evaluator = None
-    # if eval_frequency > 0:
-    #     evaluator = Evaluator(
-    #         env_fn=partial(_make_hockey_env, mode=h_env.Mode.NORMAL, keep_mode=True),
-    #         num_eval_episodes=num_eval_episodes,
-    #         max_steps=max_steps,
-    #         eval_frequency=eval_frequency,
-    #     )
 
     # Setup metrics
     training_metrics = TrainingMetrics()
@@ -332,6 +326,7 @@ def train_vectorized(
         training_state.step += num_envs
 
         # Save model checkpoint
+        # TODO when to add to archive?
         if training_state.step - curriculum.training.checkpoint_frequency >= training_state.last_checkpoint_step:
             training_state.last_checkpoint_step = training_state.step
             agent.save(f"{result_dir}/models/ep_{training_state.episode}.pt")
@@ -439,6 +434,7 @@ def train_vectorized(
         plt.legend()
         plt.savefig(f"{result_dir}/plots/winrates.png")
         plt.close()
+
 
 if __name__ == "__main__":
     train_vectorized(

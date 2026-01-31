@@ -12,6 +12,7 @@ from rl_hockey.common.archive.rating_system import RatingSystem
 from rl_hockey.common.training.curriculum_manager import OpponentConfig
 from rl_hockey.sac.sac import SAC
 from rl_hockey.common.training.curriculum_manager import load_curriculum
+from rl_hockey.common.training.agent_factory import create_agent
 
 
 Opponent = Agent | h_env.BasicOpponent
@@ -146,15 +147,12 @@ class Matchmaker:
         action_dim = env.action_space.shape[0] // 2
 
         config = load_curriculum(metadata.config_path)
-        params = config.agent.hyperparameters
 
-        match config.agent.type:
-            case "SAC":
-                agent = SAC(state_dim=state_dim, action_dim=action_dim, deterministic=deterministic, **params)
-            case _:
-                # TODO Add other agent types
-                raise ValueError(f"Unknown agent type: {config.agent.type}")
-
-        agent.load(metadata.checkpoint_path)
-
-        return agent
+        return create_agent(
+            agent_config=config.agent,
+            state_dim=state_dim,
+            action_dim=action_dim,
+            common_hyperparams=config.hyperparameters,
+            checkpoint_path=metadata.checkpoint_path,
+            deterministic=deterministic
+        )

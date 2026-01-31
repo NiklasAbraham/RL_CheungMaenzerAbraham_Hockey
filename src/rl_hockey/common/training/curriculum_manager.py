@@ -86,6 +86,7 @@ class PhaseConfig:
 class AgentConfig:
     type: str  # "DDDQN", "SAC", "TD3"
     hyperparameters: Dict[str, Any]
+    checkpoint_path: Optional[str] = None
 
 
 @dataclass
@@ -169,7 +170,8 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
     agent_dict = config_dict['agent']
     agent_config = AgentConfig(
         type=agent_dict['type'],
-        hyperparameters=agent_dict.get('hyperparameters', {})
+        hyperparameters=agent_dict.get('hyperparameters', {}),
+        checkpoint_path=agent_dict.get('checkpoint_path')
     )
 
     training_dict = config_dict['training']
