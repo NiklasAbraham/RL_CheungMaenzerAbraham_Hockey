@@ -42,6 +42,8 @@ def create_agent(
     state_dim: int,
     action_dim: int,
     common_hyperparams: dict,
+    checkpoint_path: Optional[str] = None,
+    deterministic: bool = False,
     device: str = None,
 ) -> Agent:
     agent_hyperparams = agent_config.hyperparameters.copy()
@@ -52,9 +54,12 @@ def create_agent(
         }
     )
 
+    # FIXME handle deterministic flag for other agent types
+
+    agent = None
     if agent_config.type == "DDDQN":
         hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256])
-        return DDDQN(
+        agent = DDDQN(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=hidden_dim,
@@ -63,7 +68,7 @@ def create_agent(
     elif agent_config.type == "DDQN_PER":
         hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256])
         use_per = agent_hyperparams.pop("use_per", True)
-        return DDQN_PER(
+        agent = DDQN_PER(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=hidden_dim,
@@ -71,7 +76,12 @@ def create_agent(
             **agent_hyperparams,
         )
     elif agent_config.type == "SAC":
-        return SAC(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
+        agent = SAC(
+            state_dim=state_dim,
+            action_dim=action_dim,
+            deterministic=deterministic,
+            **agent_hyperparams
+        )
     elif agent_config.type == "TDMPC2":
         # TD-MPC2 specific parameters
         latent_dim = agent_hyperparams.pop("latent_dim", 512)
@@ -99,7 +109,7 @@ def create_agent(
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        return TDMPC2(
+        agent = TDMPC2(
             obs_dim=state_dim,
             action_dim=action_dim,
             latent_dim=latent_dim,
@@ -222,3 +232,10 @@ def create_agent(
         return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
     else:
         raise ValueError(f"Unknown agent type: {agent_config.type}")
+
+    if checkpoint_path is not None:
+        agent.load(checkpoint_path)
+    elif agent_config.checkpoint_path is not None:
+        agent.load(agent_config.checkpoint_path)
+
+    return agent

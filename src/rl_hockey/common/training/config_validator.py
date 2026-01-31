@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict, Any, List
+import os
 
 
 VALID_ENV_MODES = ["NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE"]
