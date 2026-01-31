@@ -59,7 +59,7 @@ class TD3(Agent):
 
         self.total_it = 0
 
-    def act(self, state, deterministic=False):
+    def act(self, state, deterministic=False, t0=None, **kwargs):
         with torch.no_grad():
             state = torch.FloatTensor(state).unsqueeze(0).to(DEVICE)
             action = self.actor(state).squeeze(0).cpu().numpy()
@@ -70,7 +70,7 @@ class TD3(Agent):
 
             return action
         
-    def act_batch(self, states, deterministic=False):
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             states = torch.from_numpy(states).to(DEVICE)

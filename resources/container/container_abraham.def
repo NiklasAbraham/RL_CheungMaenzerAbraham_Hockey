@@ -37,6 +37,7 @@ from: ubuntu:24.04
     pip install torchviz
     pip install omegaconf
     pip install psutil
+    pip install tqdm
     pip install imageio imageio-ffmpeg
 
     # Install hockey environment (must be done separately as it's from git)

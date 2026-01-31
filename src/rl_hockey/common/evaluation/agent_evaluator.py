@@ -237,7 +237,9 @@ def run_single_game(args: Tuple) -> Dict[str, Any]:
     """
     weak_opponent, max_steps, seed = args
     if _worker_agent is None:
-        raise RuntimeError("Worker agent not initialized; use Pool with initializer=_init_eval_worker")
+        raise RuntimeError(
+            "Worker agent not initialized; use Pool with initializer=_init_eval_worker"
+        )
     return _run_one_game(
         _worker_agent,
         _worker_action_fineness,
@@ -386,9 +388,7 @@ def evaluate_agent(
                 opp_info["path"] = os.path.normpath(
                     os.path.join(base_dir, opp_info["path"])
                 )
-                logger.debug(
-                    "Resolved opponent path to %s", opp_info["path"]
-                )
+                logger.debug("Resolved opponent path to %s", opp_info["path"])
 
     # Override device to CPU if requested
     if use_cpu_for_eval:
@@ -451,9 +451,7 @@ def evaluate_agent(
         pass
 
     seeds = np.random.randint(0, 2**31, size=num_games)
-    game_args_list = [
-        (weak_opponent, max_steps, int(seed)) for seed in seeds
-    ]
+    game_args_list = [(weak_opponent, max_steps, int(seed)) for seed in seeds]
 
     logger.info(f"Starting {num_games} game(s)...")
     results = []
@@ -485,8 +483,12 @@ def evaluate_agent(
             )
             for i, (_, max_s, seed) in enumerate(game_args_list, 1):
                 result = _run_one_game(
-                    agent, action_fineness, is_discrete,
-                    weak_opponent, max_s, seed,
+                    agent,
+                    action_fineness,
+                    is_discrete,
+                    weak_opponent,
+                    max_s,
+                    seed,
                 )
                 results.append(result)
                 winner_str = (
@@ -549,7 +551,7 @@ if __name__ == "__main__":
     # Now config_path can be None - it will auto-detect from model path
     print(
         evaluate_agent(
-            agent_path="results/tdmpc2_runs/2026-01-30_17-16-40/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260130_171640_ep001800.pt",
+            agent_path="results/tdmpc2_runs_test/2026-01-31_19-19-57/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260131_191957_ep000400.pt",
             config_path=None,
             num_games=100,
             weak_opponent=False,

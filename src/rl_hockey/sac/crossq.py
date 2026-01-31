@@ -67,7 +67,7 @@ class SAC(Agent):
             case _:
                 raise ValueError(f"Unknown noise type: {self.config['noise']}")
 
-    def act(self, state, deterministic=False):
+    def act(self, state, deterministic=False, t0=None, **kwargs):
         with torch.no_grad():
             state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
 
