@@ -36,7 +36,7 @@ PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 cd "$PROJECT_DIR"
 
 # Player 1 (recorded agent): SAC reference bot
-export MODEL_PATH="$PROJECT_DIR/resources/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt"
+export MODEL_PATH="$PROJECT_DIR/results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt"
 
 # Player 2 (opponent): your TD-MPC2 agent. Path may be deeper on the cluster, e.g.:
 #   results/tdmpc2_runs/DATE/run_name/models/MODEL.pt
