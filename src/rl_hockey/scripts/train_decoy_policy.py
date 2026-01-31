@@ -34,12 +34,12 @@ CONFIG = {
         {
             "type": "TDMPC2",
             "weight": 0.25,
-            "path": "resources/reference_bots/TDMPC2/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt",
+            "path": "results/reference_bots/TDMPC2/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt",
         },
         {
             "type": "SAC",
             "weight": 0.25,
-            "path": "resources/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
+            "path": "results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
         },
     ],
     "decoy": {
