@@ -13,9 +13,9 @@
 - calibrate agents in archive using `calibrate.py`
 - running rating estimated during training (doesn't affect opponent ratings)
 - agent config supports `checkpoint` to continue training from a saved model
+- phase config supports `clear_buffer` to toggle replay buffer clearing at start of phase
 
 ## To implement
 
-- agent loading for other agents
 - use deterministic flag in agent.act
-- combine logging (Niklas)
+- combine plotting (Niklas)
