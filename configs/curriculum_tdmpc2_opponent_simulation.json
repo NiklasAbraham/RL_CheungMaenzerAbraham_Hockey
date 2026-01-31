@@ -2,18 +2,6 @@
   "curriculum": {
     "phases": [
       {
-        "name": "integration_phase",
-        "episodes": 3000,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.55},
-            {"type": "basic_strong", "weight": 0.45}
-          ]
-        }
-      },
-      {
         "name": "full_competency",
         "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
@@ -70,7 +58,7 @@
           },
           {
             "type": "DECOYPOLICY",
-            "path": "results/decoy_policies/decoy_policy_20260130_125510/models/decoy_policy_ep008250.pt"
+            "path": "results/reference_bots/DecoyPolicy/decoy_policy_20260130_125510/models/decoy_policy_final.pt"
           }
         ]
       }

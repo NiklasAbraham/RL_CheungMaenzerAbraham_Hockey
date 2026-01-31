@@ -496,7 +496,9 @@ class TDMPC2(Agent):
                 if a.dim() == 1:
                     a = a.unsqueeze(0)
             dynamics_model = (
-                self.dynamics_wrapper if self.dynamics_wrapper is not None else self.dynamics
+                self.dynamics_wrapper
+                if self.dynamics_wrapper is not None
+                else self.dynamics
             )
             z = dynamics_model(z, a)
 
@@ -601,7 +603,9 @@ class TDMPC2(Agent):
             stats["q_policy_mean"] = sum(q_values_policy) / len(q_values_policy)
 
             dynamics_model = (
-                self.dynamics_wrapper if self.dynamics_wrapper is not None else self.dynamics
+                self.dynamics_wrapper
+                if self.dynamics_wrapper is not None
+                else self.dynamics
             )
             z_next_pred = dynamics_model(z.unsqueeze(0), action.unsqueeze(0)).squeeze(0)
             latent_change = z_next_pred - z
@@ -1333,9 +1337,7 @@ class TDMPC2(Agent):
                         self.opponent_cloning_networks[opponent_id][
                             "optimizer"
                         ].load_state_dict(states["optimizer"])
-                        logger.info(
-                            f"Loaded opponent cloning network {opponent_id}"
-                        )
+                        logger.info(f"Loaded opponent cloning network {opponent_id}")
                     except Exception as e:
                         logger.warning(
                             f"Failed to load opponent cloning network {opponent_id}: {e}"
@@ -1364,11 +1366,11 @@ class TDMPC2(Agent):
 
     def store_opponent_action(self, obs, opponent_action, opponent_id):
         """Store opponent demonstration (obs, action) pair in the corresponding buffer.
-        
+
         Use this only when the acting opponent is one of your loaded reference bots.
         Prefer collect_opponent_demonstrations(obs) to fill all buffers in parallel
         regardless of who the training opponent is.
-        
+
         Args:
             obs: Observation (numpy array or torch tensor)
             opponent_action: Action taken by opponent (numpy array or torch tensor)
@@ -1376,33 +1378,33 @@ class TDMPC2(Agent):
         """
         if not self.opponent_simulation_enabled:
             return
-        
+
         if opponent_id not in self.opponent_cloning_buffers:
             logger.warning(
                 f"Opponent {opponent_id} has no cloning buffer, cannot store action"
             )
             return
-        
+
         self.opponent_cloning_buffers[opponent_id].add(obs, opponent_action)
 
     def collect_opponent_demonstrations(self, obs_agent2):
         """Run each loaded reference opponent on the given observation and store
         (obs, action) in that opponent's cloning buffer.
-        
+
         Call this every environment step with the opponent's observation (obs_agent2).
         Buffers fill regardless of who the actual training opponent is; we simulate
         what each reference opponent would do at this step in parallel.
-        
+
         Args:
             obs_agent2: Observation from opponent's perspective (numpy or torch),
                 shape (obs_dim,) or (1, obs_dim).
         """
         if not self.opponent_simulation_enabled:
             return
-        
+
         if not self.loaded_opponent_agents or not self.opponent_cloning_buffers:
             return
-        
+
         obs = obs_agent2
         if isinstance(obs, torch.Tensor):
             obs_np = obs.cpu().numpy()
@@ -1410,22 +1412,19 @@ class TDMPC2(Agent):
         else:
             obs_np = np.asarray(obs, dtype=np.float32)
             obs_flat = obs_np.reshape(-1) if obs_np.size > 0 else obs_np
-        
+
         for opponent_id in list(self.opponent_cloning_buffers.keys()):
             if opponent_id not in self.loaded_opponent_agents:
                 continue
-            
+
             opponent_agent = self.loaded_opponent_agents[opponent_id]["agent"]
-            
+
             with torch.inference_mode():
                 if hasattr(opponent_agent, "policy") and hasattr(
                     opponent_agent, "encoder"
                 ):
                     obs_batch = (
-                        torch.from_numpy(obs_np)
-                        .float()
-                        .reshape(1, -1)
-                        .to(self.device)
+                        torch.from_numpy(obs_np).float().reshape(1, -1).to(self.device)
                     )
                     with torch.amp.autocast("cuda", enabled=False):
                         z = opponent_agent.encoder(obs_batch)
@@ -1433,9 +1432,7 @@ class TDMPC2(Agent):
                     action = action[0].cpu().numpy()
                 elif hasattr(opponent_agent, "act_batch"):
                     batch = obs_flat.reshape(1, -1)
-                    action_batch = opponent_agent.act_batch(
-                        batch, deterministic=True
-                    )
+                    action_batch = opponent_agent.act_batch(batch, deterministic=True)
                     action = np.asarray(action_batch[0], dtype=np.float32)
                 elif hasattr(opponent_agent, "act"):
                     action = np.asarray(
@@ -1444,7 +1441,7 @@ class TDMPC2(Agent):
                     )
                 else:
                     continue
-                
+
                 self.opponent_cloning_buffers[opponent_id].add(obs_flat, action)
 
     def _train_opponent_cloning(self):
@@ -1500,9 +1497,13 @@ class TDMPC2(Agent):
             cloning_optimizer = cloning_info["optimizer"]
 
             try:
-                obs_all, action_all = cloning_buffer.sample(self.opponent_cloning_samples)
+                obs_all, action_all = cloning_buffer.sample(
+                    self.opponent_cloning_samples
+                )
             except RuntimeError as e:
-                logger.warning(f"Failed to sample from opponent {opponent_id} buffer: {e}")
+                logger.warning(
+                    f"Failed to sample from opponent {opponent_id} buffer: {e}"
+                )
                 continue
 
             with torch.no_grad():
@@ -1516,7 +1517,9 @@ class TDMPC2(Agent):
             actual_minibatch_size = min(minibatch_size, num_samples)
 
             for step_idx in range(self.opponent_cloning_steps):
-                perm = torch.randperm(num_samples, device=self.device)[:actual_minibatch_size]
+                perm = torch.randperm(num_samples, device=self.device)[
+                    :actual_minibatch_size
+                ]
                 latent_mb = latent_all[perm]
                 target_mb = action_all[perm]
 
@@ -1540,9 +1543,7 @@ class TDMPC2(Agent):
             p.requires_grad = requires_grad
 
         if not cloning_losses:
-            logger.warning(
-                "No opponent cloning losses computed - check buffer filling"
-            )
+            logger.warning("No opponent cloning losses computed - check buffer filling")
 
         return cloning_losses
 

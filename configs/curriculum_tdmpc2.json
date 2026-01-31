@@ -2,30 +2,6 @@
   "curriculum": {
     "phases": [
       {
-        "name": "integration_phase_shaping",
-        "episodes": 300,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.55},
-            {"type": "basic_strong", "weight": 0.45}
-          ]
-        }
-      },
-      {
-        "name": "integration_phase",
-        "episodes": 2700,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.55},
-            {"type": "basic_strong", "weight": 0.45}
-          ]
-        }
-      },
-      {
         "name": "full_competency",
         "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
@@ -58,7 +34,7 @@
       },
       "num_q": 5,
       "gamma": 0.99,
-      "horizon": 8,
+      "horizon": 16,
       "num_samples": 512,
       "num_iterations": 6,
       "temperature": 0.5,
