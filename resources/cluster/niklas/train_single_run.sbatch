@@ -53,13 +53,4 @@ singularity exec \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export NUM_ENVS=$NUM_ENVS && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run.py'"
-
-# Alternative: Run with custom parameters by modifying train_single_run.py
-# Or uncomment and modify the following line to pass parameters directly:
-# singularity run \
-#     --nv \
-#     --bind "$PROJECT_DIR:$PROJECT_DIR" \
-#     --pwd "$PROJECT_DIR" \
-#     "$SINGULARITY_IMAGE" \
-#     python3 -c "from rl_hockey.common.training.train_single_run import train_single_run; train_single_run('configs/curriculum_simple.json', base_output_dir='results/runs', run_name='cluster_run', num_envs=24, device='cuda:0')"
+    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export NUM_ENVS=$NUM_ENVS && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run_refactored_niklas.py'"

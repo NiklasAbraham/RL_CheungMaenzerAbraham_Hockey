@@ -52,7 +52,7 @@ class DecoyPolicy(Agent):
 
         self.training_step = 0
 
-    def act(self, state, deterministic=False):
+    def act(self, state, deterministic=False, t0=None, **kwargs):
         """Returns the action for a given state according to the current policy."""
         with torch.no_grad():
             state_tensor = torch.FloatTensor(state).unsqueeze(0).to(DEVICE)

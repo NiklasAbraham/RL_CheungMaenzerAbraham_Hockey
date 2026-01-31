@@ -6,36 +6,6 @@
 #### Jobs
 
 
-##### 1969941 - 2026-01-22_22-05-49
-- simple fucking run of the current repo state nothing exiting
-- no backprop reward shaping calssic boring things
-- Horizon 18
---> fucked because 18! and config error 
-
-
-##### 1970116 - 2026-01-22_22-35-14
-- run with minimla reward shaping
-- curretn state of repo and then with simple reward prop
-- Horizon 18
---> fucked because 18! and config error
-
-
-##### 1971497 - 2026-01-23_08-49-02
-- run with minimal reward shaping
-- run with backward prop
-
-##### 1971498 - 2026-01-23_08-51-48
-- run without shaping and back prop
-
-##### 1971519 - killed
-- run with backprop aber ohne reward shaping
-
-##### 1971525
-- more loggign , shorter horizion 5
-
-##### 1972025 
-- entire poliy change rolled back with the tanh, might be the ciritla fucking issue
-
 #### Architecture of TDMPC-2 
 
 ```

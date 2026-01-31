@@ -7,8 +7,8 @@ Supports vectorized environments for faster training.
 
 import logging
 import sys
-from typing import Optional, Union
 from pathlib import Path
+from typing import Optional, Union
 
 # Configure logging (ensure it's configured before importing train_run)
 # Unbuffer stdout for immediate output in batch jobs
@@ -93,9 +93,7 @@ if __name__ == "__main__":
     # Get num_envs from environment variable if set, otherwise use default
     import os
 
-    num_envs = int(
-        os.environ.get("NUM_ENVS", "24")
-    ) # Default to 24 envs if not set
+    num_envs = int(os.environ.get("NUM_ENVS", "24"))  # Default to 24 envs if not set
 
     train_single_run(
         path_to_config,

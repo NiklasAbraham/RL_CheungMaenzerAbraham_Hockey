@@ -48,7 +48,7 @@ class DDDQN(Agent):
 
         self.training_steps = 0
 
-    def act(self, state, deterministic=False):
+    def act(self, state, deterministic=False, t0=None, **kwargs):
         with torch.no_grad():
             state_tensor = torch.from_numpy(state).float().to(DEVICE)
             if state_tensor.dim() == 1:
@@ -67,7 +67,7 @@ class DDDQN(Agent):
 
             return action
 
-    def act_batch(self, states, deterministic=False, **kwargs):
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             state_tensor = torch.from_numpy(states).float().to(DEVICE)
