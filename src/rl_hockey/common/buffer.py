@@ -865,3 +865,137 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.sum_tree = SumSegmentTree(tree_capacity)
         self.min_tree = MinSegmentTree(tree_capacity)
         self.max_priority = 1.0
+
+
+class OpponentCloningBuffer:
+    """Buffer for storing opponent demonstrations (obs, action) for behavior cloning.
+    
+    Each opponent gets its own buffer to store (observation, opponent_action) pairs
+    collected during episode rollouts. Used for training cloning networks without
+    recomputing opponent actions every training step.
+    """
+
+    def __init__(
+        self,
+        max_size=50000,
+        obs_dim=None,
+        action_dim=None,
+        use_torch_tensors=True,
+        device="cuda",
+    ):
+        """Initialize opponent cloning buffer.
+        
+        Args:
+            max_size: Maximum number of (obs, action) pairs to store
+            obs_dim: Observation dimension (initialized lazily if None)
+            action_dim: Action dimension (initialized lazily if None)
+            use_torch_tensors: Use torch tensors for storage
+            device: Device to store buffer on
+        """
+        self.max_size = max_size
+        self.obs_dim = obs_dim
+        self.action_dim = action_dim
+        self.current_idx = 0
+        self.size = 0
+        self.use_torch_tensors = use_torch_tensors
+        self.device = device if isinstance(device, str) else (
+            device.type if hasattr(device, "type") else "cpu"
+        )
+
+        self.obs = None
+        self.action = None
+
+    def add(self, obs, action):
+        """Add a single (obs, action) pair.
+        
+        Args:
+            obs: Observation (numpy array or torch tensor)
+            action: Opponent action (numpy array or torch tensor)
+        """
+        if self.obs is None:
+            if isinstance(obs, torch.Tensor):
+                obs_shape = obs.shape[-1] if obs.dim() > 0 else 1
+            else:
+                obs_shape = len(obs) if obs.ndim > 0 else 1
+            if isinstance(action, torch.Tensor):
+                action_shape = action.shape[-1] if action.dim() > 0 else 1
+            else:
+                action_shape = len(action) if action.ndim > 0 else 1
+
+            self.obs_dim = obs_shape
+            self.action_dim = action_shape
+
+            if self.use_torch_tensors:
+                device_kwargs = {"device": self.device} if self.device != "cpu" else {}
+                self.obs = torch.empty(
+                    (self.max_size, self.obs_dim), dtype=torch.float32, **device_kwargs
+                )
+                self.action = torch.empty(
+                    (self.max_size, self.action_dim), dtype=torch.float32, **device_kwargs
+                )
+            else:
+                self.obs = np.empty((self.max_size, self.obs_dim), dtype=np.float32)
+                self.action = np.empty((self.max_size, self.action_dim), dtype=np.float32)
+
+        if self.use_torch_tensors:
+            if isinstance(obs, np.ndarray):
+                obs = torch.from_numpy(obs).float()
+            if isinstance(action, np.ndarray):
+                action = torch.from_numpy(action).float()
+            self.obs[self.current_idx] = obs.to(self.device)
+            self.action[self.current_idx] = action.to(self.device)
+        else:
+            if isinstance(obs, torch.Tensor):
+                obs = obs.cpu().numpy()
+            if isinstance(action, torch.Tensor):
+                action = action.cpu().numpy()
+            self.obs[self.current_idx] = obs
+            self.action[self.current_idx] = action
+
+        self.current_idx = (self.current_idx + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
+
+    def add_batch(self, obs_batch, action_batch):
+        """Add a batch of (obs, action) pairs.
+        
+        Args:
+            obs_batch: Batch of observations (B, obs_dim)
+            action_batch: Batch of actions (B, action_dim)
+        """
+        batch_size = obs_batch.shape[0]
+        for i in range(batch_size):
+            self.add(obs_batch[i], action_batch[i])
+
+    def sample(self, batch_size):
+        """Sample random batch of (obs, action) pairs.
+        
+        Args:
+            batch_size: Number of samples to return
+            
+        Returns:
+            tuple: (obs, action) with shapes (batch_size, obs_dim), (batch_size, action_dim)
+        """
+        if self.size == 0:
+            raise RuntimeError("OpponentCloningBuffer is empty, cannot sample")
+
+        indices = np.random.randint(0, self.size, size=batch_size)
+
+        if self.use_torch_tensors:
+            obs = self.obs[indices]
+            action = self.action[indices]
+        else:
+            obs = torch.from_numpy(self.obs[indices]).float().to(self.device)
+            action = torch.from_numpy(self.action[indices]).float().to(self.device)
+
+        return obs, action
+
+    def clear(self):
+        """Clear the buffer."""
+        self.current_idx = 0
+        self.size = 0
+        self.obs = None
+        self.action = None
+
+    def __len__(self):
+        """Return current buffer size."""
+        return self.size

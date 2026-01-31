@@ -340,6 +340,7 @@ def train_run(
         agent_action_dim,
         curriculum.hyperparameters,
         device=device,
+        config_path=config_path,
     )
 
     # Log the agent network architecture
@@ -371,7 +372,9 @@ def train_run(
     # Helper function to initialize reward bonus (defined early for use before main loop)
     def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
         """Initialize reward bonus parameters based on episode number."""
-        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(
+            curriculum_config, episode
+        )
         if phase_cfg.reward_bonus is not None:
             rb = phase_cfg.reward_bonus
             N, K = rb.N, rb.K
@@ -380,12 +383,16 @@ def train_run(
                 win_discount = rb.WIN_DISCOUNT_START
             elif phase_local_ep < N + K:
                 alpha = (phase_local_ep - N) / K
-                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
-                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                win_bonus = (
+                    rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                )
+                win_discount = (
+                    rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                )
             else:
                 win_bonus = rb.WIN_BONUS_FINAL
                 win_discount = rb.WIN_DISCOUNT_FINAL
-            
+
             if hasattr(agent_ref, "buffer"):
                 if hasattr(agent_ref.buffer, "win_reward_bonus"):
                     agent_ref.buffer.win_reward_bonus = win_bonus
@@ -459,7 +466,7 @@ def train_run(
 
     def get_reward_bonus_values(episode_idx, phase_config):
         """Get the reward bonus parameters for a given episode within a phase.
-        
+
         Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
         reward_bonus config exists for this phase.
         """
@@ -484,7 +491,8 @@ def train_run(
             alpha = (episode_idx - N) / K
             return {
                 "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
-                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha)
+                + WIN_DISCOUNT_FINAL * alpha,
             }
         else:
             return {
@@ -604,6 +612,8 @@ def train_run(
                 action_p1 = agent.act(state, t0=(t == 0))
 
             obs_agent2 = current_env.obs_agent_two()
+            if hasattr(agent, "collect_opponent_demonstrations"):
+                agent.collect_opponent_demonstrations(obs_agent2)
             deterministic_opponent = (
                 phase_config.opponent.deterministic
                 if phase_config.opponent.type == "self_play"
@@ -644,51 +654,10 @@ def train_run(
                 shaped_reward += touch_contribution
                 shaped_reward += direction_contribution
 
-                # Debug logging when shaped_reward is unusually high (potential bug indicator)
-                # Also log around episode 90, step 17 range
-                should_log = (
-                    abs(shaped_reward) > 25.0  # Unusually high reward
-                )
-
-                if should_log:
-                    logger.warning(
-                        f"[DEBUG REWARD] global_ep={global_episode}, step={t}: "
-                        f"base_reward={reward:.6f}, "
-                        f"closeness_raw={closeness_raw:.6f}, "
-                        f"touch_raw={touch_raw:.6f}, "
-                        f"direction_raw={direction_raw:.6f}, "
-                        f"weights_closeness={reward_weights['closeness']:.6f}, "
-                        f"weights_touch={reward_weights['touch']:.6f}, "
-                        f"weights_direction={reward_weights['direction']:.6f}, "
-                        f"closeness_contrib={closeness_contribution:.6f}, "
-                        f"touch_contrib={touch_contribution:.6f}, "
-                        f"direction_contrib={direction_contribution:.6f}, "
-                        f"shaped_reward={shaped_reward:.6f}, "
-                        f"reward_scale={reward_scale:.6f}"
-                    )
             else:
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
-
-            # Debug logging for scaled reward (after scaling)
-            should_log_scaled = (
-                abs(scaled_reward) > 25.0  # Unusually high reward
-                or (
-                    global_episode >= 89
-                    and global_episode <= 91
-                    and t >= 15
-                    and t <= 19
-                )
-            )
-
-            if should_log_scaled:
-                logger.warning(
-                    f"[DEBUG SCALED] global_ep={global_episode}, step={t}: "
-                    f"scaled_reward={scaled_reward:.6f}, "
-                    f"done={done}, "
-                    f"winner={info.get('winner', None)}"
-                )
 
             # Track scaled rewards for backprop calculation
             episode_scaled_rewards.append(scaled_reward)
@@ -1150,6 +1119,7 @@ def _train_run_vectorized(
         agent_action_dim,
         curriculum.hyperparameters,
         device=device,
+        config_path=config_path,
     )
 
     # Log the agent network architecture
@@ -1189,7 +1159,9 @@ def _train_run_vectorized(
     # Helper function to initialize reward bonus (defined early for use before main loop)
     def _init_reward_bonus_from_config(episode, curriculum_config, agent_ref):
         """Initialize reward bonus parameters based on episode number."""
-        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(curriculum_config, episode)
+        phase_idx, phase_local_ep, phase_cfg = get_phase_for_episode(
+            curriculum_config, episode
+        )
         if phase_cfg.reward_bonus is not None:
             rb = phase_cfg.reward_bonus
             N, K = rb.N, rb.K
@@ -1198,12 +1170,16 @@ def _train_run_vectorized(
                 win_discount = rb.WIN_DISCOUNT_START
             elif phase_local_ep < N + K:
                 alpha = (phase_local_ep - N) / K
-                win_bonus = rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
-                win_discount = rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                win_bonus = (
+                    rb.WIN_BONUS_START * (1 - alpha) + rb.WIN_BONUS_FINAL * alpha
+                )
+                win_discount = (
+                    rb.WIN_DISCOUNT_START * (1 - alpha) + rb.WIN_DISCOUNT_FINAL * alpha
+                )
             else:
                 win_bonus = rb.WIN_BONUS_FINAL
                 win_discount = rb.WIN_DISCOUNT_FINAL
-            
+
             if hasattr(agent_ref, "buffer"):
                 if hasattr(agent_ref.buffer, "win_reward_bonus"):
                     agent_ref.buffer.win_reward_bonus = win_bonus
@@ -1290,7 +1266,7 @@ def _train_run_vectorized(
 
     def get_reward_bonus_values(episode_idx, phase_config):
         """Get the reward bonus parameters for a given episode within a phase.
-        
+
         Returns a dict with 'win_bonus' and 'win_discount' values, or None if no
         reward_bonus config exists for this phase.
         """
@@ -1315,7 +1291,8 @@ def _train_run_vectorized(
             alpha = (episode_idx - N) / K
             return {
                 "win_bonus": WIN_BONUS_START * (1 - alpha) + WIN_BONUS_FINAL * alpha,
-                "win_discount": WIN_DISCOUNT_START * (1 - alpha) + WIN_DISCOUNT_FINAL * alpha,
+                "win_discount": WIN_DISCOUNT_START * (1 - alpha)
+                + WIN_DISCOUNT_FINAL * alpha,
             }
         else:
             return {
@@ -1410,6 +1387,9 @@ def _train_run_vectorized(
 
         # Get opponent actions for each environment
         obs_agent2 = current_vec_env.obs_agent_two()
+        if hasattr(agent, "collect_opponent_demonstrations"):
+            for i in range(num_envs):
+                agent.collect_opponent_demonstrations(obs_agent2[i])
         actions_p2 = np.array(
             [
                 get_opponent_action(
@@ -1505,25 +1485,6 @@ def _train_run_vectorized(
                 shaped_reward = reward
 
             scaled_reward = shaped_reward * reward_scale
-
-            # Debug logging for scaled reward (after scaling)
-            should_log_scaled = (
-                abs(scaled_reward) > 25.0  # Unusually high reward
-                or (
-                    completed_episodes >= 89
-                    and completed_episodes <= 91
-                    and episode_steps[i] >= 15
-                    and episode_steps[i] <= 19
-                )
-            )
-
-            if should_log_scaled:
-                logger.warning(
-                    f"[DEBUG SCALED] env={i}, completed_ep={completed_episodes}, step={episode_steps[i]}: "
-                    f"scaled_reward={scaled_reward:.6f}, "
-                    f"done={done}, "
-                    f"winner={info.get('winner', None)}"
-                )
 
             # Track scaled rewards for backprop calculation
             episode_scaled_rewards[i].append(scaled_reward)
@@ -1776,7 +1737,7 @@ def _train_run_vectorized(
                     reward_weights = get_reward_weights(
                         new_phase_local_episode, new_phase_config
                     )
-                    
+
                     # Update reward bonus parameters for the next episode
                     bonus_values = get_reward_bonus_values(
                         new_phase_local_episode, new_phase_config

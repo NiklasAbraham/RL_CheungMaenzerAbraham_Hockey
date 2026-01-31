@@ -10,6 +10,7 @@ from rl_hockey.DDDQN import DDDQN, DDQN_PER
 from rl_hockey.sac.sac import SAC
 from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
 from rl_hockey.TD_MPC2_repo.tdmpc2_repo_wrapper import TDMPC2RepoWrapper
+from rl_hockey.Decoy_Policy.decoy_policy import DecoyPolicy
 
 
 def get_action_space_info(
@@ -29,6 +30,10 @@ def get_action_space_info(
         # TDMPC2 uses continuous actions, but also needs discretized action space for hockey
         action_dim = 4 if env.keep_mode else 3
         is_discrete = False
+    elif agent_type == "DecoyPolicy":
+        # DecoyPolicy uses continuous actions
+        action_dim = 4 if env.keep_mode else 3
+        is_discrete = False
     else:
         # continuous action space with 3 or 4 dimensions depending on keep_mode
         action_dim = 3 if not env.keep_mode else 4
@@ -43,6 +48,7 @@ def create_agent(
     action_dim: int,
     common_hyperparams: dict,
     device: str = None,
+    config_path: str = None,
 ) -> Agent:
     agent_hyperparams = agent_config.hyperparameters.copy()
     agent_hyperparams.update(
@@ -93,6 +99,35 @@ def create_agent(
         win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
         win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
 
+        # Opponent simulation (optional nested config)
+        opponent_sim = agent_hyperparams.pop("opponent_simulation", None)
+        opponent_simulation_enabled = False
+        opponent_cloning_frequency = 5000
+        opponent_cloning_steps = 100
+        opponent_cloning_samples = 1000
+        opponent_agents = []
+        if opponent_sim is not None and opponent_sim.get("enabled", False):
+            opponent_simulation_enabled = True
+            opponent_cloning_frequency = opponent_sim.get("cloning_frequency", 5000)
+            opponent_cloning_steps = opponent_sim.get("cloning_steps", 100)
+            opponent_cloning_samples = opponent_sim.get("cloning_samples", 1000)
+            opponent_agents = opponent_sim.get("opponent_agents", [])
+            
+            # Resolve relative paths to absolute paths
+            if opponent_agents and config_path:
+                import os
+                config_dir = os.path.dirname(os.path.abspath(config_path))
+                # Get project root (config is in configs/, so go up one level)
+                project_root = os.path.dirname(config_dir)
+                
+                for opponent_info in opponent_agents:
+                    if "path" in opponent_info:
+                        path = opponent_info["path"]
+                        # If path is relative, resolve it relative to project root
+                        if not os.path.isabs(path):
+                            opponent_info["path"] = os.path.join(project_root, path)
+                            print(f"Resolved opponent path: {path} -> {opponent_info['path']}")
+
         # Use provided device or default to CPU/CUDA
         if device is None:
             import torch
@@ -123,6 +158,11 @@ def create_agent(
             n_step=n_step,
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,
+            opponent_simulation_enabled=opponent_simulation_enabled,
+            opponent_cloning_frequency=opponent_cloning_frequency,
+            opponent_cloning_steps=opponent_cloning_steps,
+            opponent_cloning_samples=opponent_cloning_samples,
+            opponent_agents=opponent_agents,
         )
     elif agent_config.type == "TDMPC2_REPO":
         # TD-MPC2 reference repo wrapper specific parameters
@@ -220,5 +260,15 @@ def create_agent(
         )
     elif agent_config.type == "TD3":
         return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
+    elif agent_config.type == "DecoyPolicy":
+        hidden_layers = agent_hyperparams.pop("hidden_layers", [256, 256])
+        buffer_max_size = agent_hyperparams.pop("buffer_max_size", 100_000)
+        return DecoyPolicy(
+            obs_dim=state_dim,
+            action_dim=action_dim,
+            hidden_layers=hidden_layers,
+            learning_rate=agent_hyperparams.get("learning_rate", 3e-4),
+            buffer_max_size=buffer_max_size,
+        )
     else:
         raise ValueError(f"Unknown agent type: {agent_config.type}")
