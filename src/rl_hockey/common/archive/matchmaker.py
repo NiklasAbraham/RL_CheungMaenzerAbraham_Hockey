@@ -24,6 +24,8 @@ class Matchmaker:
         self.archive = archive
         self.rating_system = rating_system
 
+        self.loaded_agents: dict[str, Agent] = {}
+
     def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Opponent, Rating]:
         """
         Get an opponent based on the provided configuration.
@@ -141,14 +143,18 @@ class Matchmaker:
                 return h_env.BasicOpponent(weak=False)
             else:
                 raise ValueError(f"Unknown baseline: {metadata.agent_id}")
+            
+        if metadata.agent_id in self.loaded_agents:
+            return self.loaded_agents[metadata.agent_id]
 
         env = h_env.HockeyEnv()
         state_dim = env.observation_space.shape[0]
         action_dim = env.action_space.shape[0] // 2
+        env.close()
 
         config = load_curriculum(metadata.config_path)
 
-        return create_agent(
+        agent = create_agent(
             agent_config=config.agent,
             state_dim=state_dim,
             action_dim=action_dim,
@@ -156,3 +162,7 @@ class Matchmaker:
             checkpoint_path=metadata.checkpoint_path,
             deterministic=deterministic
         )
+
+        self.loaded_agents[metadata.agent_id] = agent
+
+        return agent
