@@ -1,4 +1,4 @@
-# TD-MPC2 implementation
+"""TD-MPC2 agent."""
 
 import copy
 import logging
@@ -12,7 +12,8 @@ if torch.cuda.is_available():
     torch.set_float32_matmul_precision("high")
 
 from rl_hockey.common.agent import Agent
-from rl_hockey.common.buffer import TDMPC2ReplayBuffer
+from rl_hockey.common.buffer import OpponentCloningBuffer, TDMPC2ReplayBuffer
+from rl_hockey.TD_MPC2.model_dynamics_opponent import DynamicsOpponent
 from rl_hockey.TD_MPC2.model_dynamics_simple import DynamicsSimple
 from rl_hockey.TD_MPC2.model_encoder import Encoder
 from rl_hockey.TD_MPC2.model_init import (
@@ -23,6 +24,7 @@ from rl_hockey.TD_MPC2.model_init import (
     init_reward,
     init_termination,
 )
+from rl_hockey.TD_MPC2.model_opponent_cloning import OpponentCloning
 from rl_hockey.TD_MPC2.model_policy import Policy
 from rl_hockey.TD_MPC2.model_q_ensemble import QEnsemble
 from rl_hockey.TD_MPC2.model_reward import Reward
@@ -35,14 +37,56 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 logger = logging.getLogger(__name__)
 
 
-def _load_state_dict_compat(model, state_dict, strict=True):
-    """Load state_dict into model, handling torch.compile key mismatch.
+class DynamicsWithOpponentWrapper(torch.nn.Module):
+    """Wraps DynamicsOpponent with opponent cloning; predicts opponent actions and samples opponent per forward."""
 
-    Checkpoints saved from non-compiled models use keys like 'mlp.0.weight'.
-    Compiled models (OptimizedModule) expect '_orig_mod.mlp.0.weight'.
-    - Compiled model + plain keys: load into model._orig_mod.
-    - Non-compiled model + prefixed keys: strip '_orig_mod.' and load into model.
-    """
+    def __init__(
+        self, dynamics_opponent, opponent_cloning_networks, current_opponent_id=0
+    ):
+        super().__init__()
+        self.dynamics_opponent = dynamics_opponent
+        self.opponent_cloning_networks = opponent_cloning_networks
+        self.current_opponent_id = current_opponent_id
+        self.opponent_ids = (
+            list(opponent_cloning_networks.keys()) if opponent_cloning_networks else []
+        )
+        self.force_opponent_id = None
+
+    def forward(self, latent, action):
+        if self.force_opponent_id is not None:
+            opponent_id = self.force_opponent_id
+        elif self.opponent_ids:
+            opponent_id = self.opponent_ids[
+                torch.randint(0, len(self.opponent_ids), (1,)).item()
+            ]
+        else:
+            opponent_id = None
+
+        if opponent_id is not None and opponent_id in self.opponent_cloning_networks:
+            cloning_network = self.opponent_cloning_networks[opponent_id]["network"]
+            with torch.no_grad():
+                opponent_action = cloning_network.mean_action(latent)
+        else:
+            opponent_action = torch.zeros_like(action)
+        return self.dynamics_opponent(latent, action, opponent_action)
+
+    def set_current_opponent(self, opponent_id):
+        """Force a specific opponent for non-planning rollouts."""
+        self.force_opponent_id = opponent_id
+
+    def clear_forced_opponent(self):
+        self.force_opponent_id = None
+
+    def update_opponent_networks(self, opponent_cloning_networks):
+        """Refresh cloning networks after load."""
+        self.opponent_cloning_networks = opponent_cloning_networks
+        self.opponent_ids = (
+            list(opponent_cloning_networks.keys()) if opponent_cloning_networks else []
+        )
+
+
+def _load_state_dict_compat(model, state_dict, strict=True):
+    """Load state_dict; handle torch.compile _orig_mod key prefix."""
     if not state_dict:
         return None
     first_key = next(iter(state_dict.keys()))
@@ -94,13 +138,24 @@ class TDMPC2(Agent):
         win_reward_bonus=10.0,
         win_reward_discount=0.92,
         use_amp=True,
+        opponent_simulation_enabled=False,
+        opponent_cloning_frequency=5000,
+        opponent_cloning_steps=20,
+        opponent_cloning_samples=512,
+        opponent_agents=None,
     ):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.latent_dim = latent_dim
 
-        # Handle hidden_dim dict, filling in missing network types with defaults
+        self.opponent_simulation_enabled = opponent_simulation_enabled
+        self.opponent_cloning_frequency = opponent_cloning_frequency
+        self.opponent_cloning_steps = opponent_cloning_steps
+        self.opponent_cloning_samples = opponent_cloning_samples
+        self.opponent_agents = opponent_agents if opponent_agents is not None else []
+        self.training_step_counter = 0
+
         if hidden_dim is None:
             default_hidden_dim = [256, 256, 256]
             hidden_dim = {
@@ -157,7 +212,6 @@ class TDMPC2(Agent):
         self.n_step = n_step
         self.use_amp = use_amp and torch.cuda.is_available()
 
-        # Initialize GradScaler for mixed precision training
         if self.use_amp:
             self.scaler = torch.amp.GradScaler("cuda")
         else:
@@ -194,12 +248,22 @@ class TDMPC2(Agent):
             self.hidden_dim_dict["encoder"],
             simnorm_temperature=simnorm_temperature,
         ).to(self.device)
-        self.dynamics = DynamicsSimple(
-            latent_dim,
-            action_dim,
-            self.hidden_dim_dict["dynamics"],
-            simnorm_temperature=simnorm_temperature,
-        ).to(self.device)
+
+        if self.opponent_simulation_enabled:
+            self.dynamics = DynamicsOpponent(
+                latent_dim,
+                action_dim,
+                action_opponent_dim=action_dim,
+                hidden_dim=self.hidden_dim_dict["dynamics"],
+                simnorm_temperature=simnorm_temperature,
+            ).to(self.device)
+        else:
+            self.dynamics = DynamicsSimple(
+                latent_dim,
+                action_dim,
+                self.hidden_dim_dict["dynamics"],
+                simnorm_temperature=simnorm_temperature,
+            ).to(self.device)
         self.reward = Reward(
             latent_dim,
             action_dim,
@@ -241,7 +305,13 @@ class TDMPC2(Agent):
         init_q_ensemble(self.q_ensemble)
         init_policy(self.policy)
 
-        # Use fused Adam if available (PyTorch 2.0+) for faster optimizer steps
+        self.opponent_cloning_networks = {}
+        self.opponent_cloning_buffers = {}
+        self.loaded_opponent_agents = {}
+        self.dynamics_wrapper = None
+        if self.opponent_simulation_enabled:
+            self._initialize_opponent_simulation()
+
         fused_available = "fused" in torch.optim.Adam.__init__.__code__.co_varnames
         optimizer_kwargs = {"lr": self.lr, "capturable": True}
         if fused_available and torch.cuda.is_available():
@@ -269,8 +339,21 @@ class TDMPC2(Agent):
 
         self.scale = RunningScale(tau=self.tau).to(self.device)
 
+        if self.opponent_simulation_enabled:
+            if self.dynamics_wrapper is None:
+                self.dynamics_wrapper = DynamicsWithOpponentWrapper(
+                    self.dynamics, self.opponent_cloning_networks, current_opponent_id=0
+                )
+            else:
+                self.dynamics_wrapper.update_opponent_networks(
+                    self.opponent_cloning_networks
+                )
+            dynamics_for_planner = self.dynamics_wrapper
+        else:
+            dynamics_for_planner = self.dynamics
+
         self.planner = MPPIPlannerSimplePaper(
-            self.dynamics,
+            dynamics_for_planner,
             self.reward,
             self.termination,
             self.target_q_ensemble,
@@ -299,8 +382,6 @@ class TDMPC2(Agent):
         )
 
         batch_size = self.config.get("batch_size", 256)
-        # Buffer storage device: default to CPU for larger capacity and negligible transfer overhead
-        # Set buffer_device="cuda" only if profiling shows transfer is a bottleneck (unlikely)
         buffer_device = self.config.get("buffer_device", "cpu")
         self.buffer = TDMPC2ReplayBuffer(
             max_size=capacity,
@@ -309,7 +390,9 @@ class TDMPC2(Agent):
             use_torch_tensors=True,
             device=self.device,  # Where sampled batches go (for training)
             buffer_device=buffer_device,  # Where episode data is stored
-            pin_memory=(buffer_device == "cpu"),  # Pin memory for faster CPU->GPU transfer
+            pin_memory=(
+                buffer_device == "cpu"
+            ),  # Pin memory for faster CPU->GPU transfer
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,
         )
@@ -384,28 +467,19 @@ class TDMPC2(Agent):
         self.planner.to(self.device)
 
     def store_transition(self, transition, winner=None):
-        """Store a transition in the replay buffer.
-
-        Args:
-            transition: (state, action, reward, next_state, done)
-            winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
-                Used for reward shaping in winning episodes.
-        """
+        """Store transition in replay buffer. winner used for reward shaping."""
         self.buffer.store(transition, winner=winner)
 
     @torch.no_grad()
-    def rollout_dynamics_multi_step(self, z0, action_sequence, max_horizon):
-        """
-        Roll out the dynamics model from z0 using the given action sequence.
-        Returns predicted latent states at 1, 2, ..., max_horizon steps ahead.
+    def rollout_dynamics_multi_step(
+        self, z0, action_sequence, max_horizon, opponent_id=None
+    ):
+        """Roll out dynamics from z0; returns {1: z_1, ..., max_horizon: z_h}. opponent_id forces opponent if set."""
+        if opponent_id is not None and self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.set_current_opponent(opponent_id)
+        elif self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.clear_forced_opponent()
 
-        z0: (latent_dim,) numpy or tensor
-        action_sequence: list of (action_dim,) arrays, length >= max_horizon
-        max_horizon: int
-
-        Returns:
-            dict[int, np.ndarray]: {1: z_1, 2: z_2, ..., max_horizon: z_h}
-        """
         if isinstance(z0, np.ndarray):
             z = torch.FloatTensor(z0).to(self.device).unsqueeze(0)
         else:
@@ -421,13 +495,20 @@ class TDMPC2(Agent):
                 a = a.to(self.device)
                 if a.dim() == 1:
                     a = a.unsqueeze(0)
-            z = self.dynamics(z, a)
+            dynamics_model = (
+                self.dynamics_wrapper if self.dynamics_wrapper is not None else self.dynamics
+            )
+            z = dynamics_model(z, a)
+
             out[h] = z.squeeze(0).cpu().numpy()
         return out
 
     @torch.no_grad()
-    def act(self, obs, deterministic=False, t0=False):
-        """Select action using MPC planning."""
+    def act(self, obs, deterministic=False, t0=False, opponent_id=None):
+        """Select action via MPC. opponent_id ignored; planning samples opponents per trajectory."""
+        if self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.clear_forced_opponent()
+
         obs = torch.FloatTensor(obs).to(self.device)
 
         with torch.amp.autocast("cuda", enabled=self.use_amp):
@@ -445,8 +526,12 @@ class TDMPC2(Agent):
         prev_latent=None,
         prev_predicted_next_latent=None,
         t0=False,
+        opponent_id=None,
     ):
-        """Select action using MPC planning and collect statistics."""
+        """Select action via MPC and return stats. opponent_id ignored."""
+        if self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.clear_forced_opponent()
+
         obs_tensor = torch.FloatTensor(obs).to(self.device)
         obs_batch = obs_tensor.unsqueeze(0)
 
@@ -515,7 +600,10 @@ class TDMPC2(Agent):
             stats["q_policy_max"] = max(q_values_policy)
             stats["q_policy_mean"] = sum(q_values_policy) / len(q_values_policy)
 
-            z_next_pred = self.dynamics(z.unsqueeze(0), action.unsqueeze(0)).squeeze(0)
+            dynamics_model = (
+                self.dynamics_wrapper if self.dynamics_wrapper is not None else self.dynamics
+            )
+            z_next_pred = dynamics_model(z.unsqueeze(0), action.unsqueeze(0)).squeeze(0)
             latent_change = z_next_pred - z
             stats["dynamics_latent_change_norm"] = latent_change.norm().item()
             stats["dynamics_latent_change_mean"] = latent_change.mean().item()
@@ -593,8 +681,11 @@ class TDMPC2(Agent):
         return action.cpu().numpy(), stats
 
     @torch.no_grad()
-    def act_batch(self, obs_batch, deterministic=False, t0s=None):
-        """Select actions for batch of observations."""
+    def act_batch(self, obs_batch, deterministic=False, t0s=None, opponent_id=None):
+        """Select actions for batch. opponent_id ignored."""
+        if self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.clear_forced_opponent()
+
         obs_batch = torch.FloatTensor(obs_batch).to(self.device)
         num_envs = obs_batch.shape[0]
 
@@ -641,8 +732,20 @@ class TDMPC2(Agent):
             "grad_norm_policy": [],
         }
 
+        cloning_losses = {}
+        if self.opponent_simulation_enabled and self.opponent_cloning_frequency > 0:
+            if (
+                self.training_step_counter % self.opponent_cloning_frequency == 0
+                and self.training_step_counter > 0
+            ):
+                logger.info(
+                    f"Training opponent cloning networks at step {self.training_step_counter}"
+                )
+                cloning_losses = self._train_opponent_cloning()
+                all_losses.update(cloning_losses)
+
         for _ in range(steps):
-            # Mark step boundary for CUDAGraphs (like reference repo)
+            self.training_step_counter += 1
             if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
 
@@ -680,17 +783,12 @@ class TDMPC2(Agent):
                         batch_size_actual, horizon + 1, self.latent_dim
                     )
 
-                    # Pre-compute TD targets BEFORE the loop (like reference repo)
-                    # This batches all target computations
                     with torch.no_grad():
-                        next_z = z_seq[:, 1:].detach()  # (batch, horizon, latent)
-                        # Compute TD targets for all timesteps at once
+                        next_z = z_seq[:, 1:].detach()
                         td_targets = self._compute_td_targets(
                             next_z, rewards_seq, dones_seq, horizon
                         )
 
-                    # Latent rollout - SEQUENTIAL (autoregressive, like reference repo)
-                    # This is necessary because zs is used for policy update
                     zs = torch.empty(
                         horizon + 1,
                         batch_size_actual,
@@ -701,58 +799,80 @@ class TDMPC2(Agent):
                     zs[0] = z_pred
                     consistency_loss = 0.0
 
-                    # Pre-compute lambda weights (avoid recomputation)
                     lambda_weights = self.lambda_coef ** torch.arange(
                         horizon, device=self.device, dtype=torch.float32
                     )
 
-                    # Sequential dynamics rollout (like reference repo)
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
                         z_target = z_seq[:, t + 1].detach()
 
                         with torch.amp.autocast("cuda", enabled=self.use_amp):
-                            z_next_pred = self.dynamics(z_pred, a_t)
+                            if self.opponent_simulation_enabled:
+                                if self.opponent_cloning_networks:
+                                    opponent_id = 0
+                                    if opponent_id in self.opponent_cloning_networks:
+                                        cloning_network = (
+                                            self.opponent_cloning_networks[opponent_id][
+                                                "network"
+                                            ]
+                                        )
+                                        with torch.no_grad():
+                                            opponent_action_t = (
+                                                cloning_network.mean_action(z_pred)
+                                            )
+                                    else:
+                                        opponent_action_t = torch.zeros_like(a_t)
+                                else:
+                                    opponent_action_t = torch.zeros_like(a_t)
+                                z_next_pred = self.dynamics(
+                                    z_pred, a_t, opponent_action_t
+                                )
+                            else:
+                                z_next_pred = self.dynamics(z_pred, a_t)
                         zs[t + 1] = z_next_pred
 
-                        # Consistency loss with pre-computed weight
-                        consistency_loss = consistency_loss + lambda_weights[t] * F.mse_loss(
-                            z_next_pred, z_target
-                        )
+                        consistency_loss = consistency_loss + lambda_weights[
+                            t
+                        ] * F.mse_loss(z_next_pred, z_target)
 
                         z_pred = z_next_pred
 
                     consistency_loss = consistency_loss / horizon
 
-                    # === BATCHED PREDICTIONS (like reference repo) ===
-                    # After building zs, do batched reward and Q predictions
-                    _zs = zs[:-1]  # (horizon, batch, latent) - states 0 to H-1
-                    _zs_flat = _zs.reshape(-1, self.latent_dim)  # (horizon*batch, latent)
-                    _actions_flat = actions_seq.permute(1, 0, 2).reshape(-1, self.action_dim)  # (horizon*batch, action)
+                    _zs = zs[:-1]
+                    _zs_flat = _zs.reshape(-1, self.latent_dim)
+                    _actions_flat = actions_seq.permute(1, 0, 2).reshape(
+                        -1, self.action_dim
+                    )
 
                     with torch.amp.autocast("cuda", enabled=self.use_amp):
-                        # Batched reward prediction
-                        reward_preds = self.reward(_zs_flat, _actions_flat)  # (horizon*batch, num_bins)
-                        # Batched Q prediction
-                        q_preds_all = self.q_ensemble(_zs_flat, _actions_flat)  # list of (horizon*batch, num_bins)
+                        reward_preds = self.reward(_zs_flat, _actions_flat)
+                        q_preds_all = self.q_ensemble(_zs_flat, _actions_flat)
 
-                    # Compute reward loss with lambda weighting
-                    rewards_flat = rewards_seq.permute(1, 0, 2).reshape(-1, 1)  # (horizon*batch, 1)
+                    rewards_flat = rewards_seq.permute(1, 0, 2).reshape(-1, 1)
                     reward_loss_per_sample = soft_ce(
                         reward_preds, rewards_flat, self.num_bins, self.vmin, self.vmax
-                    )  # (horizon*batch,)
-                    reward_loss_per_step = reward_loss_per_sample.reshape(horizon, batch_size_actual).mean(dim=1)
-                    reward_loss = (lambda_weights * reward_loss_per_step).sum() / horizon
+                    )
+                    reward_loss_per_step = reward_loss_per_sample.reshape(
+                        horizon, batch_size_actual
+                    ).mean(dim=1)
+                    reward_loss = (
+                        lambda_weights * reward_loss_per_step
+                    ).sum() / horizon
 
-                    # Compute value loss with lambda weighting
-                    td_targets_flat = td_targets.permute(1, 0, 2).reshape(-1, 1)  # (horizon*batch, 1)
+                    td_targets_flat = td_targets.permute(1, 0, 2).reshape(-1, 1)
                     value_loss = 0.0
                     for q_pred in q_preds_all:
                         value_loss_per_sample = soft_ce(
                             q_pred, td_targets_flat, self.num_bins, self.vmin, self.vmax
                         )
-                        value_loss_per_step = value_loss_per_sample.reshape(horizon, batch_size_actual).mean(dim=1)
-                        value_loss = value_loss + (lambda_weights * value_loss_per_step).sum()
+                        value_loss_per_step = value_loss_per_sample.reshape(
+                            horizon, batch_size_actual
+                        ).mean(dim=1)
+                        value_loss = (
+                            value_loss + (lambda_weights * value_loss_per_step).sum()
+                        )
                     value_loss = value_loss / (horizon * self.num_q)
                     zs_bh = zs[1:].permute(1, 0, 2).reshape(-1, self.latent_dim)
                     with torch.amp.autocast("cuda", enabled=self.use_amp):
@@ -780,47 +900,32 @@ class TDMPC2(Agent):
 
             self.optimizer.zero_grad()
 
-            # Use scaler for mixed precision backward pass
             if self.scaler is not None:
                 self.scaler.scale(total_loss).backward()
-
-                # Unscale gradients before computing norms
                 self.scaler.unscale_(self.optimizer)
-
-                # Compute gradient norms efficiently using _grad_norm helper
                 grad_norm_encoder = self._grad_norm(self.encoder.parameters())
                 grad_norm_dynamics = self._grad_norm(self.dynamics.parameters())
                 grad_norm_reward = self._grad_norm(self.reward.parameters())
                 grad_norm_termination = self._grad_norm(self.termination.parameters())
                 grad_norm_q_ensemble = self._grad_norm(self.q_ensemble.parameters())
-
-                # Apply gradient clipping once for all model params
                 torch.nn.utils.clip_grad_norm_(
                     self._model_params, max_norm=self.grad_clip_norm
                 )
-
                 self.scaler.step(self.optimizer)
                 self.scaler.update()
             else:
                 total_loss.backward()
-
-                # Compute gradient norms efficiently using _grad_norm helper
                 grad_norm_encoder = self._grad_norm(self.encoder.parameters())
                 grad_norm_dynamics = self._grad_norm(self.dynamics.parameters())
                 grad_norm_reward = self._grad_norm(self.reward.parameters())
                 grad_norm_termination = self._grad_norm(self.termination.parameters())
                 grad_norm_q_ensemble = self._grad_norm(self.q_ensemble.parameters())
-
-                # Apply gradient clipping once for all model params
                 torch.nn.utils.clip_grad_norm_(
                     self._model_params, max_norm=self.grad_clip_norm
                 )
                 self.optimizer.step()
 
             self.optimizer.zero_grad(set_to_none=True)
-
-            # Mark step boundary for CUDAGraphs to enable fast path
-            # This ensures all backward operations are complete before next forward pass
             if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
 
@@ -899,41 +1004,16 @@ class TDMPC2(Agent):
 
     @torch.no_grad()
     def _compute_td_targets(self, next_z, rewards_seq, dones_seq, horizon):
-        """
-        Compute TD targets for all timesteps at once (like reference repo).
-
-        This batches the target computation instead of doing it inside the loop.
-
-        Args:
-            next_z: (batch, horizon, latent_dim) - encoded next observations
-            rewards_seq: (batch, horizon, 1) - rewards
-            dones_seq: (batch, horizon, 1) - termination flags
-            horizon: int - planning horizon
-
-        Returns:
-            td_targets: (batch, horizon, 1) - TD targets for each timestep
-        """
+        """Compute TD targets for all timesteps; batched."""
         batch_size = next_z.shape[0]
-
-        # For n_step=1: simple 1-step TD targets
-        # For n_step>1: would need more complex handling at episode boundaries
         if self.n_step == 1:
-            # Flatten for batched computation
-            next_z_flat = next_z.reshape(-1, self.latent_dim)  # (batch*horizon, latent)
-
+            next_z_flat = next_z.reshape(-1, self.latent_dim)
             with torch.amp.autocast("cuda", enabled=self.use_amp):
-                # Get policy actions for all next states
                 next_actions, _, _, _ = self.policy.sample(next_z_flat)
-                # Get target Q-values for all next states
                 target_q_flat = self.target_q_ensemble.min(next_z_flat, next_actions)
-
             target_q = target_q_flat.reshape(batch_size, horizon, 1)
-
-            # TD target: r + gamma * (1 - done) * Q(s', a')
             td_targets = rewards_seq + self.gamma * (1.0 - dones_seq) * target_q
         else:
-            # n-step returns: compute for each timestep
-            # This is more complex due to variable-length returns at episode boundaries
             td_targets = torch.empty(
                 batch_size, horizon, 1, device=self.device, dtype=rewards_seq.dtype
             )
@@ -957,12 +1037,7 @@ class TDMPC2(Agent):
         return td_targets
 
     def _init_detached_q_ensemble(self):
-        """
-        Initialize detached Q-ensemble.
-
-        Detachment is handled via stateless functional_call in _update_policy,
-        so this is intentionally a no-op aside from keeping the API stable.
-        """
+        """No-op; detachment done in _update_policy via functional_call."""
         return
 
     def _grad_norm(self, parameters):
@@ -987,11 +1062,8 @@ class TDMPC2(Agent):
         return functional_call(self.q_ensemble, {**params, **buffers}, (latent, action))
 
     def _update_policy(self, zs):
-        """Update policy to maximize Q-values + entropy."""
+        """Update policy to maximize Q + entropy."""
         self.pi_optimizer.zero_grad()
-
-        # Mark step boundary for CUDAGraphs before forward pass
-        # This helps CUDAGraphs use the fast path by ensuring clean state
         if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
             torch.compiler.cudagraph_mark_step_begin()
 
@@ -1003,9 +1075,10 @@ class TDMPC2(Agent):
             actions, log_probs, _, scaled_entropies = self.policy.sample(zs_flat)
             q_logits_all = self._q_ensemble_detached(zs_flat, actions)
 
-            # Batch two_hot_inv: stack logits and apply once instead of per-Q loop
-            q_logits_stacked = torch.stack(q_logits_all, dim=0)  # (num_q, batch, num_bins)
-            q_values = two_hot_inv(q_logits_stacked, self.num_bins, self.vmin, self.vmax)
+            q_logits_stacked = torch.stack(q_logits_all, dim=0)
+            q_values = two_hot_inv(
+                q_logits_stacked, self.num_bins, self.vmin, self.vmax
+            )
             qs_flat = q_values.mean(dim=0)
             qs = qs_flat.reshape(num_states, batch_size, 1)
 
@@ -1025,14 +1098,9 @@ class TDMPC2(Agent):
                 * rho
             ).mean()
 
-        # Use scaler for mixed precision backward pass
         if self.scaler is not None:
             self.scaler.scale(pi_loss).backward()
-
-            # Unscale gradients before computing norm
             self.scaler.unscale_(self.pi_optimizer)
-
-            # Compute gradient norm using helper, then clip
             grad_norm_policy = self._grad_norm(self.policy.parameters())
             torch.nn.utils.clip_grad_norm_(
                 self.policy.parameters(), max_norm=self.grad_clip_norm
@@ -1050,8 +1118,6 @@ class TDMPC2(Agent):
             self.pi_optimizer.step()
 
         self.pi_optimizer.zero_grad(set_to_none=True)
-
-        # Mark step boundary after policy update completes
         if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
             torch.compiler.cudagraph_mark_step_begin()
 
@@ -1066,33 +1132,59 @@ class TDMPC2(Agent):
 
     def save(self, path):
         """Save agent"""
-        torch.save(
-            {
-                "encoder": self.encoder.state_dict(),
-                "dynamics": self.dynamics.state_dict(),
-                "reward": self.reward.state_dict(),
-                "termination": self.termination.state_dict(),
-                "q_ensemble": self.q_ensemble.state_dict(),
-                "policy": self.policy.state_dict(),
-                "optimizer": self.optimizer.state_dict(),
-                "pi_optimizer": self.pi_optimizer.state_dict(),
-                "scale": self.scale.state_dict(),
-                "config": self.config,
-                "obs_dim": self.obs_dim,
-                "action_dim": self.action_dim,
-                "latent_dim": self.latent_dim,
-                "hidden_dim": self.hidden_dim,
-                "num_q": self.num_q,
-                "num_bins": self.num_bins,
-                "vmin": self.vmin,
-                "vmax": self.vmax,
-            },
-            path,
-        )
+        checkpoint = {
+            "encoder": self.encoder.state_dict(),
+            "dynamics": self.dynamics.state_dict(),
+            "reward": self.reward.state_dict(),
+            "termination": self.termination.state_dict(),
+            "q_ensemble": self.q_ensemble.state_dict(),
+            "policy": self.policy.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "pi_optimizer": self.pi_optimizer.state_dict(),
+            "scale": self.scale.state_dict(),
+            "config": self.config,
+            "obs_dim": self.obs_dim,
+            "action_dim": self.action_dim,
+            "latent_dim": self.latent_dim,
+            "hidden_dim": self.hidden_dim,
+            "num_q": self.num_q,
+            "num_bins": self.num_bins,
+            "vmin": self.vmin,
+            "vmax": self.vmax,
+            "opponent_simulation_enabled": self.opponent_simulation_enabled,
+            "training_step_counter": self.training_step_counter,
+        }
+        if self.opponent_simulation_enabled:
+            checkpoint["opponent_cloning_frequency"] = self.opponent_cloning_frequency
+            checkpoint["opponent_cloning_steps"] = self.opponent_cloning_steps
+            checkpoint["opponent_cloning_samples"] = self.opponent_cloning_samples
+            checkpoint["opponent_agents"] = self.opponent_agents
+            opponent_cloning_states = {}
+            for opponent_id, cloning_info in self.opponent_cloning_networks.items():
+                opponent_cloning_states[opponent_id] = {
+                    "network": cloning_info["network"].state_dict(),
+                    "optimizer": cloning_info["optimizer"].state_dict(),
+                }
+            checkpoint["opponent_cloning_networks"] = opponent_cloning_states
+
+        torch.save(checkpoint, path)
 
     def load(self, path):
         """Load agent"""
         checkpoint = torch.load(path, map_location="cpu")
+        checkpoint_opponent_simulation = checkpoint.get(
+            "opponent_simulation_enabled", False
+        )
+        if checkpoint_opponent_simulation and not self.opponent_simulation_enabled:
+            logger.warning(
+                "Checkpoint was trained with opponent simulation, but current agent has it disabled. "
+                "Opponent cloning networks will not be loaded."
+            )
+        elif not checkpoint_opponent_simulation and self.opponent_simulation_enabled:
+            logger.warning(
+                "Checkpoint was trained without opponent simulation, but current agent has it enabled. "
+                "Opponent cloning networks will be initialized from scratch."
+            )
 
         checkpoint_num_bins = checkpoint.get("num_bins") or checkpoint.get(
             "config", {}
@@ -1130,7 +1222,10 @@ class TDMPC2(Agent):
             load_result = _load_state_dict_compat(
                 self.reward, checkpoint["reward"], strict=False
             )
-            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
+            missing_keys, unexpected_keys = (
+                load_result.missing_keys,
+                load_result.unexpected_keys,
+            )
             if missing_keys:
                 logger.debug(f"Reward model missing keys (expected): {missing_keys}")
             if unexpected_keys:
@@ -1154,7 +1249,10 @@ class TDMPC2(Agent):
             load_result = _load_state_dict_compat(
                 self.q_ensemble, checkpoint["q_ensemble"], strict=False
             )
-            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
+            missing_keys, unexpected_keys = (
+                load_result.missing_keys,
+                load_result.unexpected_keys,
+            )
             if missing_keys:
                 logger.debug(f"Q ensemble missing keys (expected): {missing_keys}")
             if unexpected_keys:
@@ -1185,7 +1283,10 @@ class TDMPC2(Agent):
             load_result = _load_state_dict_compat(
                 self.target_q_ensemble, checkpoint["q_ensemble"], strict=False
             )
-            missing_keys, unexpected_keys = load_result.missing_keys, load_result.unexpected_keys
+            missing_keys, unexpected_keys = (
+                load_result.missing_keys,
+                load_result.unexpected_keys,
+            )
             if missing_keys:
                 logger.debug(
                     f"Target Q ensemble missing keys (expected): {missing_keys}"
@@ -1196,21 +1297,430 @@ class TDMPC2(Agent):
             _load_state_dict_compat(self.target_q_ensemble, checkpoint["q_ensemble"])
 
         self._init_detached_q_ensemble()
+        if "training_step_counter" in checkpoint:
+            self.training_step_counter = checkpoint["training_step_counter"]
+        if checkpoint_opponent_simulation and self.opponent_simulation_enabled:
+            if "opponent_cloning_networks" in checkpoint:
+                opponent_cloning_states = checkpoint["opponent_cloning_networks"]
+                hidden_dim = self.hidden_dim_dict.get("policy", [256, 256, 256])
+                fused_available = (
+                    "fused" in torch.optim.Adam.__init__.__code__.co_varnames
+                )
+                optimizer_kwargs = {"lr": self.lr, "eps": 1e-5, "capturable": True}
+                if fused_available and torch.cuda.is_available():
+                    optimizer_kwargs["fused"] = True
+                for opponent_id, states in opponent_cloning_states.items():
+                    if opponent_id not in self.opponent_cloning_networks:
+                        cloning_network = OpponentCloning(
+                            latent_dim=self.latent_dim,
+                            action_dim=self.action_dim,
+                            hidden_dim=hidden_dim,
+                            log_std_min=self.log_std_min,
+                            log_std_max=self.log_std_max,
+                        ).to(self.device)
+                        cloning_optimizer = torch.optim.Adam(
+                            cloning_network.parameters(), **optimizer_kwargs
+                        )
+                        self.opponent_cloning_networks[opponent_id] = {
+                            "network": cloning_network,
+                            "optimizer": cloning_optimizer,
+                        }
+                    try:
+                        _load_state_dict_compat(
+                            self.opponent_cloning_networks[opponent_id]["network"],
+                            states["network"],
+                        )
+                        self.opponent_cloning_networks[opponent_id][
+                            "optimizer"
+                        ].load_state_dict(states["optimizer"])
+                        logger.info(
+                            f"Loaded opponent cloning network {opponent_id}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Failed to load opponent cloning network {opponent_id}: {e}"
+                        )
+            if self.dynamics_wrapper is not None:
+                self.dynamics_wrapper.update_opponent_networks(
+                    self.opponent_cloning_networks
+                )
+            else:
+                self.dynamics_wrapper = DynamicsWithOpponentWrapper(
+                    self.dynamics, self.opponent_cloning_networks, current_opponent_id=0
+                )
+                self.planner.dynamics = self.dynamics_wrapper
+
+    def set_current_opponent(self, opponent_id):
+        """Force opponent for rollouts; planning still samples randomly."""
+        if self.dynamics_wrapper is not None:
+            self.dynamics_wrapper.set_current_opponent(opponent_id)
+            logger.info(
+                f"Forced opponent to {opponent_id} (note: planning uses random sampling)"
+            )
+        else:
+            logger.warning(
+                "Opponent simulation not enabled, cannot set current opponent"
+            )
+
+    def store_opponent_action(self, obs, opponent_action, opponent_id):
+        """Store opponent demonstration (obs, action) pair in the corresponding buffer.
+        
+        Use this only when the acting opponent is one of your loaded reference bots.
+        Prefer collect_opponent_demonstrations(obs) to fill all buffers in parallel
+        regardless of who the training opponent is.
+        
+        Args:
+            obs: Observation (numpy array or torch tensor)
+            opponent_action: Action taken by opponent (numpy array or torch tensor)
+            opponent_id: ID of the opponent (int)
+        """
+        if not self.opponent_simulation_enabled:
+            return
+        
+        if opponent_id not in self.opponent_cloning_buffers:
+            logger.warning(
+                f"Opponent {opponent_id} has no cloning buffer, cannot store action"
+            )
+            return
+        
+        self.opponent_cloning_buffers[opponent_id].add(obs, opponent_action)
+
+    def collect_opponent_demonstrations(self, obs_agent2):
+        """Run each loaded reference opponent on the given observation and store
+        (obs, action) in that opponent's cloning buffer.
+        
+        Call this every environment step with the opponent's observation (obs_agent2).
+        Buffers fill regardless of who the actual training opponent is; we simulate
+        what each reference opponent would do at this step in parallel.
+        
+        Args:
+            obs_agent2: Observation from opponent's perspective (numpy or torch),
+                shape (obs_dim,) or (1, obs_dim).
+        """
+        if not self.opponent_simulation_enabled:
+            return
+        
+        if not self.loaded_opponent_agents or not self.opponent_cloning_buffers:
+            return
+        
+        obs = obs_agent2
+        if isinstance(obs, torch.Tensor):
+            obs_np = obs.cpu().numpy()
+            obs_flat = obs_np.reshape(-1) if obs_np.size > 0 else obs_np
+        else:
+            obs_np = np.asarray(obs, dtype=np.float32)
+            obs_flat = obs_np.reshape(-1) if obs_np.size > 0 else obs_np
+        
+        for opponent_id in list(self.opponent_cloning_buffers.keys()):
+            if opponent_id not in self.loaded_opponent_agents:
+                continue
+            
+            opponent_agent = self.loaded_opponent_agents[opponent_id]["agent"]
+            
+            with torch.inference_mode():
+                if hasattr(opponent_agent, "policy") and hasattr(
+                    opponent_agent, "encoder"
+                ):
+                    obs_batch = (
+                        torch.from_numpy(obs_np)
+                        .float()
+                        .reshape(1, -1)
+                        .to(self.device)
+                    )
+                    with torch.amp.autocast("cuda", enabled=False):
+                        z = opponent_agent.encoder(obs_batch)
+                        action = opponent_agent.policy.mean_action(z)
+                    action = action[0].cpu().numpy()
+                elif hasattr(opponent_agent, "act_batch"):
+                    batch = obs_flat.reshape(1, -1)
+                    action_batch = opponent_agent.act_batch(
+                        batch, deterministic=True
+                    )
+                    action = np.asarray(action_batch[0], dtype=np.float32)
+                elif hasattr(opponent_agent, "act"):
+                    action = np.asarray(
+                        opponent_agent.act(obs_flat, deterministic=True),
+                        dtype=np.float32,
+                    )
+                else:
+                    continue
+                
+                self.opponent_cloning_buffers[opponent_id].add(obs_flat, action)
+
+    def _train_opponent_cloning(self):
+        """Train cloning networks using stored opponent demonstrations.
+
+        Uses OpponentCloningBuffer for each opponent which stores (obs, action) pairs
+        collected during episode rollouts. Samples from buffer, encodes once, then
+        runs multiple gradient steps on minibatches. No opponent forward passes needed.
+        """
+        if not self.opponent_simulation_enabled:
+            logger.warning("Opponent simulation not enabled, skipping cloning training")
+            return {}
+
+        if not self.opponent_cloning_networks:
+            logger.warning(
+                "No opponent cloning networks available, skipping cloning training"
+            )
+            return {}
+
+        if not self.opponent_cloning_buffers:
+            logger.warning(
+                "No opponent cloning buffers available, skipping cloning training"
+            )
+            return {}
+
+        encoder_requires_grad = [p.requires_grad for p in self.encoder.parameters()]
+        for p in self.encoder.parameters():
+            p.requires_grad = False
+
+        cloning_losses = {}
+        minibatch_size = 256
+
+        logger.info(
+            f"Training {len(self.opponent_cloning_networks)} opponent cloning network(s)"
+        )
+
+        for opponent_id, cloning_info in self.opponent_cloning_networks.items():
+            if opponent_id not in self.opponent_cloning_buffers:
+                logger.warning(
+                    f"Opponent {opponent_id} has no cloning buffer, skipping"
+                )
+                continue
+
+            cloning_buffer = self.opponent_cloning_buffers[opponent_id]
+            if len(cloning_buffer) < self.opponent_cloning_samples:
+                logger.warning(
+                    f"Opponent {opponent_id} buffer has insufficient samples "
+                    f"({len(cloning_buffer)} < {self.opponent_cloning_samples}), skipping"
+                )
+                continue
+
+            cloning_network = cloning_info["network"]
+            cloning_optimizer = cloning_info["optimizer"]
+
+            try:
+                obs_all, action_all = cloning_buffer.sample(self.opponent_cloning_samples)
+            except RuntimeError as e:
+                logger.warning(f"Failed to sample from opponent {opponent_id} buffer: {e}")
+                continue
+
+            with torch.no_grad():
+                with torch.amp.autocast("cuda", enabled=self.use_amp):
+                    latent_all = self.encoder(obs_all)
+            latent_all = latent_all.float()
+
+            total_loss = 0.0
+            n_steps = 0
+            num_samples = latent_all.shape[0]
+            actual_minibatch_size = min(minibatch_size, num_samples)
+
+            for step_idx in range(self.opponent_cloning_steps):
+                perm = torch.randperm(num_samples, device=self.device)[:actual_minibatch_size]
+                latent_mb = latent_all[perm]
+                target_mb = action_all[perm]
+
+                with torch.amp.autocast("cuda", enabled=False):
+                    cloned_actions = cloning_network.mean_action(latent_mb)
+                loss = F.mse_loss(cloned_actions, target_mb.to(cloned_actions.dtype))
+                cloning_optimizer.zero_grad()
+                loss.backward()
+                cloning_optimizer.step()
+                total_loss += loss.item()
+                n_steps += 1
+
+            avg_loss = total_loss / n_steps if n_steps > 0 else 0.0
+            cloning_losses[f"opponent_{opponent_id}_cloning_loss"] = avg_loss
+            logger.info(
+                f"  -> Opponent {opponent_id}: loss={avg_loss:.6f}, "
+                f"buffer_size={len(cloning_buffer)}, steps={n_steps}"
+            )
+
+        for p, requires_grad in zip(self.encoder.parameters(), encoder_requires_grad):
+            p.requires_grad = requires_grad
+
+        if not cloning_losses:
+            logger.warning(
+                "No opponent cloning losses computed - check buffer filling"
+            )
+
+        return cloning_losses
+
+    def _initialize_opponent_simulation(self):
+        """Load opponent agents and create cloning networks."""
+        if not self.opponent_agents:
+            logger.info(
+                "Opponent simulation enabled but no opponent agents specified; "
+                "cloning networks will be created from checkpoint when loading."
+            )
+            return
+
+        for i, opponent_info in enumerate(self.opponent_agents):
+            opponent_type = opponent_info.get("type")
+            opponent_path = opponent_info.get("path")
+
+            if not opponent_type or not opponent_path:
+                logger.warning(f"Opponent {i} missing type or path, skipping")
+                continue
+
+            try:
+                opponent_agent = self._load_opponent_agent(opponent_type, opponent_path)
+                self.loaded_opponent_agents[i] = {
+                    "type": opponent_type,
+                    "agent": opponent_agent,
+                    "path": opponent_path,
+                }
+                cloning_network = OpponentCloning(
+                    latent_dim=self.latent_dim,
+                    action_dim=self.action_dim,
+                    hidden_dim=self.hidden_dim_dict.get("policy", [256, 256, 256]),
+                    log_std_min=self.log_std_min,
+                    log_std_max=self.log_std_max,
+                ).to(self.device)
+                init_policy(cloning_network)
+                fused_available = (
+                    "fused" in torch.optim.Adam.__init__.__code__.co_varnames
+                )
+                optimizer_kwargs = {"lr": self.lr, "eps": 1e-5, "capturable": True}
+                if fused_available and torch.cuda.is_available():
+                    optimizer_kwargs["fused"] = True
+
+                cloning_optimizer = torch.optim.Adam(
+                    cloning_network.parameters(), **optimizer_kwargs
+                )
+
+                self.opponent_cloning_networks[i] = {
+                    "network": cloning_network,
+                    "optimizer": cloning_optimizer,
+                }
+
+                cloning_buffer = OpponentCloningBuffer(
+                    max_size=50000,
+                    obs_dim=self.obs_dim,
+                    action_dim=self.action_dim,
+                    use_torch_tensors=True,
+                    device=self.device,
+                )
+                self.opponent_cloning_buffers[i] = cloning_buffer
+
+                logger.info(
+                    f"Successfully initialized opponent {i}: type={opponent_type}, path={opponent_path}"
+                )
+
+            except Exception as e:
+                logger.error(
+                    f"Failed to initialize opponent {i} (type={opponent_type}, path={opponent_path}): {e}"
+                )
+                import traceback
+
+                logger.error(f"Traceback: {traceback.format_exc()}")
+
+        logger.info("Opponent simulation initialization complete:")
+        logger.info(
+            f"  - Cloning networks created: {len(self.opponent_cloning_networks)}"
+        )
+        logger.info(
+            f"  - Cloning buffers created: {len(self.opponent_cloning_buffers)}"
+        )
+        logger.info(f"  - Opponent agents loaded: {len(self.loaded_opponent_agents)}")
+        if len(self.loaded_opponent_agents) == 0:
+            logger.warning("  No opponents successfully loaded.")
+
+    def _load_opponent_agent(self, opponent_type, opponent_path):
+        """Load opponent from disk; for TDMPC2, match checkpoint hyperparameters."""
+        if opponent_type.upper() == "TDMPC2":
+            import torch
+
+            from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
+
+            checkpoint = torch.load(
+                opponent_path, map_location=self.device, weights_only=False
+            )
+            config = checkpoint.get("config", {})
+            latent_dim = checkpoint.get("latent_dim") or config.get("latent_dim", 512)
+            hidden_dim = checkpoint.get("hidden_dim") or config.get("hidden_dim")
+            num_q = checkpoint.get("num_q") or config.get("num_q", 5)
+            horizon = checkpoint.get("horizon") or config.get("horizon", 5)
+            gamma = checkpoint.get("gamma") or config.get("gamma", 0.99)
+
+            logger.info(
+                f"Creating opponent TDMPC2 with latent_dim={latent_dim}, hidden_dim={hidden_dim}"
+            )
+            agent = TDMPC2(
+                obs_dim=self.obs_dim,
+                action_dim=self.action_dim,
+                latent_dim=latent_dim,
+                hidden_dim=hidden_dim,
+                num_q=num_q,
+                horizon=horizon,
+                gamma=gamma,
+                device=self.device,
+                opponent_simulation_enabled=False,
+            )
+            agent.load(opponent_path)
+            if hasattr(agent, "eval"):
+                agent.eval()
+            elif hasattr(agent, "encoder"):
+                agent.encoder.eval()
+                if hasattr(agent, "dynamics"):
+                    agent.dynamics.eval()
+                if hasattr(agent, "policy"):
+                    agent.policy.eval()
+            return agent
+        elif opponent_type.upper() == "SAC":
+            from rl_hockey.sac.sac import SAC
+
+            agent = SAC(
+                state_dim=self.obs_dim,
+                action_dim=self.action_dim,
+            )
+            agent.load(opponent_path)
+            if hasattr(agent, "eval"):
+                agent.eval()
+            elif hasattr(agent, "actor"):
+                agent.actor.eval()
+            return agent
+        elif opponent_type.upper() == "TD3":
+            from rl_hockey.td3.td3 import TD3
+
+            agent = TD3(
+                state_dim=self.obs_dim,
+                action_dim=self.action_dim,
+            )
+            agent.load(opponent_path)
+            if hasattr(agent, "eval"):
+                agent.eval()
+            elif hasattr(agent, "actor"):
+                agent.actor.eval()
+            return agent
+        elif opponent_type.upper() == "DECOYPOLICY":
+            from rl_hockey.Decoy_Policy.decoy_policy import DecoyPolicy
+
+            agent = DecoyPolicy(
+                obs_dim=self.obs_dim,
+                action_dim=self.action_dim,
+            )
+            agent.load(opponent_path)
+            if hasattr(agent, "network"):
+                agent.network.eval()
+            return agent
+        else:
+            raise ValueError(f"Unknown opponent type: {opponent_type}")
 
     def log_architecture(self):
-        """Log network architecture."""
+        """Log agent architecture and config."""
 
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
         lines = []
         lines.append("=" * 80)
-        lines.append("TD-MPC2 AGENT ARCHITECTURE")
+        lines.append("TD-MPC2 agent architecture")
         lines.append("=" * 80)
-        lines.append(f"Observation Dimension: {self.obs_dim}")
-        lines.append(f"Action Dimension: {self.action_dim}")
-        lines.append(f"Latent Dimension: {self.latent_dim}")
-        lines.append("Hidden Dimensions (per network):")
+        lines.append(f"Observation dim: {self.obs_dim}")
+        lines.append(f"Action dim: {self.action_dim}")
+        lines.append(f"Latent dim: {self.latent_dim}")
+        lines.append("Hidden dims (per network):")
         for network_type, hidden_dims in self.hidden_dim_dict.items():
             lines.append(f"  {network_type}: {hidden_dims}")
         lines.append(f"Device: {self.device}")
@@ -1221,53 +1731,36 @@ class TDMPC2(Agent):
             lines.append(f"  {key}: {value}")
         lines.append("")
 
-        lines.append("MODEL-BASED RL COMPONENTS:")
+        lines.append("Model-based components:")
         lines.append("")
-
-        lines.append("1. ENCODER NETWORK:")
-        lines.append("   Maps observations to latent state representations")
+        lines.append("1. Encoder:")
         lines.append(str(self.encoder))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.encoder):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.encoder):,}")
         lines.append("")
-
-        lines.append("2. DYNAMICS MODEL:")
-        lines.append("   Predicts next latent state given current state and action")
+        lines.append("2. Dynamics:")
         lines.append(str(self.dynamics))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.dynamics):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.dynamics):,}")
         lines.append("")
-
-        lines.append("3. REWARD MODEL:")
-        lines.append("   Predicts reward given latent state and action")
+        lines.append("3. Reward:")
         lines.append(str(self.reward))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.reward):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.reward):,}")
         lines.append("")
-
-        lines.append("3a. TERMINATION MODEL:")
-        lines.append(
-            "   Predicts termination probability given latent state and action"
-        )
+        lines.append("3a. Termination:")
         lines.append(str(self.termination))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.termination):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.termination):,}")
         lines.append("")
-
-        lines.append("4. Q ENSEMBLE:")
-        lines.append(f"   {self.num_q} Q-networks for value estimation")
+        lines.append(f"4. Q ensemble ({self.num_q} heads):")
         lines.append(str(self.q_ensemble))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.q_ensemble):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.q_ensemble):,}")
         lines.append("")
-
-        lines.append("5. TARGET Q ENSEMBLE:")
-        lines.append("   Target network for stable Q-learning")
-        lines.append("   Same architecture as Q Ensemble")
+        lines.append("5. Target Q ensemble:")
         lines.append(
-            f"   Trainable Parameters: {count_parameters(self.target_q_ensemble):,}"
+            f"   trainable parameters: {count_parameters(self.target_q_ensemble):,}"
         )
         lines.append("")
-
-        lines.append("6. POLICY NETWORK:")
-        lines.append("   Learns to mimic the MPC planner for fast inference")
+        lines.append("6. Policy:")
         lines.append(str(self.policy))
-        lines.append(f"   Trainable Parameters: {count_parameters(self.policy):,}")
+        lines.append(f"   trainable parameters: {count_parameters(self.policy):,}")
         lines.append("")
 
         model_params = (
@@ -1283,10 +1776,8 @@ class TDMPC2(Agent):
             + count_parameters(self.target_q_ensemble)
         )
 
-        lines.append("PARAMETER SUMMARY:")
-        lines.append(
-            f"  World Model (Encoder + Dynamics + Reward + Termination + Q): {model_params:,}"
-        )
+        lines.append("Parameter summary:")
+        lines.append(f"  World model: {model_params:,}")
         lines.append(f"  Policy Network: {count_parameters(self.policy):,}")
         lines.append(
             f"  Target Q Network: {count_parameters(self.target_q_ensemble):,}"
@@ -1294,7 +1785,7 @@ class TDMPC2(Agent):
         lines.append(f"  TOTAL TRAINABLE PARAMETERS: {total_params:,}")
         lines.append("")
 
-        lines.append("OPTIMIZERS:")
+        lines.append("Optimizers:")
         lines.append(
             f"  World Model + Q Optimizer: {self.optimizer.__class__.__name__} (LR: {self.lr})"
         )
@@ -1303,8 +1794,7 @@ class TDMPC2(Agent):
         )
         lines.append("")
 
-        lines.append("MPC PLANNER:")
-        lines.append("  Type: MPPI (Model Predictive Path Integral)")
+        lines.append("MPPI planner:")
         lines.append(f"  Horizon: {self.horizon}")
         lines.append(f"  Samples per iteration: {self.num_samples}")
         lines.append(f"  Planning iterations: {self.num_iterations}")
@@ -1312,6 +1802,42 @@ class TDMPC2(Agent):
         if hasattr(self, "fast_mode"):
             lines.append(f"  Fast Mode: {self.fast_mode} (use policy network only)")
         lines.append("")
+
+        if self.opponent_simulation_enabled:
+            lines.append("Opponent simulation:")
+            lines.append("  Enabled: True")
+            lines.append(
+                f"  Cloning Frequency: {self.opponent_cloning_frequency} training steps"
+            )
+            lines.append(
+                f"  Cloning Training Steps: {self.opponent_cloning_steps} gradient steps per update"
+            )
+            lines.append(
+                f"  Cloning Samples: {self.opponent_cloning_samples} observations per batch"
+            )
+            lines.append(f"  Number of Opponents: {len(self.opponent_agents)}")
+
+            if self.opponent_agents:
+                lines.append("  Opponent Agents:")
+                for i, opp_info in enumerate(self.opponent_agents):
+                    opp_type = opp_info.get("type", "Unknown")
+                    opp_path = opp_info.get("path", "No path")
+                    lines.append(f"    [{i}] Type: {opp_type}")
+                    lines.append(f"        Path: {opp_path}")
+            if self.opponent_cloning_networks:
+                total_cloning_params = sum(
+                    count_parameters(info["network"])
+                    for info in self.opponent_cloning_networks.values()
+                )
+                lines.append(
+                    f"  Total Cloning Network Parameters: {total_cloning_params:,}"
+                )
+
+            lines.append("  (MPPI samples opponent per trajectory)")
+            lines.append("")
+        else:
+            lines.append("Opponent simulation: disabled")
+            lines.append("")
 
         lines.append("=" * 80)
 

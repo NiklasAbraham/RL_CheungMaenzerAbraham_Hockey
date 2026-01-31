@@ -166,4 +166,14 @@ EXCLUDE_PATTERNS
 
 %runscript
     . /venv/bin/activate
+    
+    # Install rl_hockey package if not already installed (needed for opponent loading)
+    # Try to find setup.py in common bind-mount locations
+    for search_dir in /workspace "$PWD" "$HOME/RL_CheungMaenzerAbraham_Hockey"; do
+        if [ -d "$search_dir" ] && [ -f "$search_dir/setup.py" ]; then
+            echo "Installing rl_hockey package from $search_dir..."
+            pip install -e "$search_dir" --quiet 2>/dev/null && echo "✓ rl_hockey package installed" && break
+        fi
+    done
+    
     "$@"

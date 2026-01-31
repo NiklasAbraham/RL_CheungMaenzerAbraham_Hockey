@@ -39,7 +39,6 @@ class DynamicsOpponent(nn.Module):
         )
 
     def forward(self, latent, action, action_opponent):
-        """Forward pass through dynamics model."""
         x = torch.cat([latent, action, action_opponent], dim=-1)
         z_after_linear = self.net(x)
         latent_next = self.simnorm(z_after_linear)

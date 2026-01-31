@@ -1,4 +1,4 @@
-# MPPI planner from TD-MPC2.
+"""MPPI planner for TD-MPC2."""
 
 import torch
 import torch.nn as nn
