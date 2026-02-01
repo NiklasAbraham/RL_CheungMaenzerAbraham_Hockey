@@ -345,18 +345,10 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
 
 
 if __name__ == "__main__":
-    # folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
-    # folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
-    # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
-    # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
-
-    folder_path_1 = "results/tdmpc2_runs/2026-01-25_11-40-04"
-    folder_path_2 = "results/tdmpc2_runs/2026-01-25_18-56-52"
-    folder_path_3 = "results/tdmpc2_runs/2026-01-26_16-37-13"
-    folder_path_4 = "results/tdmpc2_runs/2026-01-30_10-50-21"
-    folder_path_5 = "results/tdmpc2_runs/2026-01-30_10-51-35"
-    folder_path_6 = "results/tdmpc2_runs/2026-01-30_13-00-35"
-    folder_path_7 = "results/tdmpc2_runs/2026-01-30_17-16-40"
+    folder_path_1 = "results/tdmpc2_runs/2026-01-31_11-50-00"  # 94 -> 16
+    folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"  # 93 -> 16
+    folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"  # 92 -> 8
+    folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"  # 103 -> 8 aber opponents
 
     window_size = 20
 
@@ -364,6 +356,3 @@ if __name__ == "__main__":
     plot_episode_logs(folder_path_2, window_size=window_size)
     plot_episode_logs(folder_path_3, window_size=window_size)
     plot_episode_logs(folder_path_4, window_size=window_size)
-    plot_episode_logs(folder_path_5, window_size=window_size)
-    plot_episode_logs(folder_path_6, window_size=window_size)
-    plot_episode_logs(folder_path_7, window_size=window_size)

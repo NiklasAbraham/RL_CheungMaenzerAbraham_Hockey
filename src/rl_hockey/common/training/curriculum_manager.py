@@ -47,6 +47,7 @@ class OpponentConfig:
     opponents: Optional[List[Dict[str, Any]]] = None  # For weighted_mixture
     skill_range: float = 50.0  # For archive sampling
     distribution: Optional[Dict[str, float]] = None  # For archive sampling
+    agent_type: Optional[str] = None  # Agent type for loading checkpoints: "SAC", "TD3", "TDMPC2", "DECOYPOLICY", etc.
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'OpponentConfig':
@@ -57,7 +58,8 @@ class OpponentConfig:
             deterministic=data.get('deterministic', True),
             opponents=data.get('opponents'),
             skill_range=data.get('skill_range'),
-            distribution=data.get('distribution')
+            distribution=data.get('distribution'),
+            agent_type=data.get('agent_type')
         )
 
 
@@ -174,7 +176,8 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             deterministic=opponent_dict.get('deterministic', True),
             opponents=opponent_dict.get('opponents'),
             skill_range=opponent_dict.get('skill_range', 50),
-            distribution=opponent_dict.get('distribution')
+            distribution=opponent_dict.get('distribution'),
+            agent_type=opponent_dict.get('agent_type')
         )
         
         reward_shaping_dict = phase_dict.get('reward_shaping')

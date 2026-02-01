@@ -81,11 +81,14 @@ if __name__ == "__main__":
     if torch.cuda.is_available():
         torch.set_float32_matmul_precision("high")
 
-    SCRIPT_DIR = Path(__file__).parent.absolute()
-
+    # Resolve config path relative to project root (parent of src/)
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    PROJECT_ROOT = SCRIPT_DIR.parents[
+        3
+    ]  # training -> common -> rl_hockey -> src -> project
     path_to_config = (
-        SCRIPT_DIR / "../../../../configs/curriculum_tdmpc2_opponent_simulation.json"
-    )
+        PROJECT_ROOT / "configs" / "curriculum_tdmpc2_mixed_opponents.json"
+    ).resolve()
 
     # Auto-detect device
     if torch.cuda.is_available():
