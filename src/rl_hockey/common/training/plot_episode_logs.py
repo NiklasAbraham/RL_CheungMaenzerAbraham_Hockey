@@ -159,7 +159,7 @@ def _first_complete_episode(
 def plot_episode_logs(
     folder_path: str,
     run_name: Optional[str] = None,
-    window_size: int = 10,
+    window_size: int = 30,
     skip_warmup: bool = True,
     plot_flat_losses: bool = False,
 ) -> Optional[Path]:
@@ -204,7 +204,6 @@ def plot_episode_logs(
     rewards = [log.get("reward") for log in episode_logs]
     shaped_rewards = [log.get("shaped_reward") for log in episode_logs]
     backprop_rewards = [log.get("backprop_reward") for log in episode_logs]
-    total_gradient_steps = [log.get("total_gradient_steps") for log in episode_logs]
 
     episodes_by_metric, values_by_metric = _collect_metric_series(episode_logs)
     all_metric_keys = sorted(values_by_metric.keys())
@@ -223,7 +222,6 @@ def plot_episode_logs(
         rewards = [rewards[i] for i in keep]
         shaped_rewards = [shaped_rewards[i] for i in keep]
         backprop_rewards = [backprop_rewards[i] for i in keep]
-        total_gradient_steps = [total_gradient_steps[i] for i in keep]
         for key in sorted_metric_keys:
             eps_list = episodes_by_metric[key]
             vals_list = values_by_metric[key]
@@ -238,8 +236,6 @@ def plot_episode_logs(
     if any(s is not None for s in shaped_rewards):
         n_plots += 1
     if any(b is not None for b in backprop_rewards):
-        n_plots += 1
-    if any(g is not None for g in total_gradient_steps):
         n_plots += 1
     n_plots += len(sorted_metric_keys)
     if n_plots == 0:
@@ -295,15 +291,6 @@ def plot_episode_logs(
         axes[ax_idx].set_ylabel("Backprop Reward")
         axes[ax_idx].set_title("Backprop Reward per Episode")
         axes[ax_idx].legend()
-        axes[ax_idx].grid(True, alpha=0.3)
-        ax_idx += 1
-
-    if any(g is not None for g in total_gradient_steps):
-        g_vals = _safe_float_list(total_gradient_steps)
-        axes[ax_idx].plot(episodes, g_vals, color="gray", linewidth=1.5)
-        axes[ax_idx].set_xlabel("Episode")
-        axes[ax_idx].set_ylabel("Steps")
-        axes[ax_idx].set_title("Total Gradient Steps")
         axes[ax_idx].grid(True, alpha=0.3)
         ax_idx += 1
 

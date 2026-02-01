@@ -6,6 +6,18 @@
 #### Jobs
 
 
+#### Snapshot Niklas 01.02 14:55
+
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+           1980432      week hockey_s  stud421  R      11:49      1 tcml-node37   -> jannik SAC test by Niklas
+           1980366      week hockey_s  stud421  R    4:59:44      1 tcml-node37   -> new niklas with jannick and the self play starting at episode 3000
+           1980103      week hockey_s  stud421  R 1-02:18:05      1 tcml-node37   -> old niklas version with oppponent
+           1980094      week hockey_s  stud421  R 1-03:05:05      1 tcml-node37   -> Horizion, without opponent
+           1980093      week hockey_s  stud421  R 1-03:05:15      1 tcml-node37   -> Horizion, without opponent
+           1980092      week hockey_s  stud421  R 1-03:05:27      1 tcml-node37   -> Horizion, without opponent
+
+
+
 #### Architecture of TDMPC-2 
 
 ```
