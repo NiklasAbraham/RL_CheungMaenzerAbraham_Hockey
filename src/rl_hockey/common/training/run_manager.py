@@ -198,6 +198,21 @@ class RunManager:
             self.save_episode_logs_csv(
                 checkpoint_name, episode_logs, checkpoint_csv_path
             )
+            
+            # Generate plots for the checkpoint
+            try:
+                from rl_hockey.common.training.plot_episode_logs import plot_episode_logs
+                plot_episode_logs(
+                    str(self.base_output_dir),
+                    run_name=checkpoint_name,
+                    window_size=10,
+                    skip_warmup=True,
+                    plot_flat_losses=False,
+                )
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"Failed to generate plots for checkpoint {checkpoint_name}: {e}")
 
     def get_checkpoint_path(self, run_name: str, episode: int) -> Path:
         """Get checkpoint path for a specific episode."""

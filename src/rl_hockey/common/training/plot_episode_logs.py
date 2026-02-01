@@ -415,7 +415,7 @@ def plot_run_folder(
 if __name__ == "__main__":
     folder_path = "results/tdmpc2_runs_test/2026-01-31_19-19-57"
     run_name = None
-    window_size = 10
+    window_size = 80
     plot_episode_logs(
         folder_path,
         run_name=run_name,
