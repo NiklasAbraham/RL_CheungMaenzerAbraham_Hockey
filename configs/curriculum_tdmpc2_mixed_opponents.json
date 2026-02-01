@@ -11,6 +11,14 @@
         "name": "mixed_opponents",
         "episodes": 7000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
+        "reward_bonus": {
+          "N": 100,
+          "K": 2000,
+          "WIN_BONUS_START": 10.0,
+          "WIN_BONUS_FINAL": 1.0,
+          "WIN_DISCOUNT_START": 0.92,
+          "WIN_DISCOUNT_FINAL": 0.92
+        },
         "opponent": {
           "type": "weighted_mixture",
           "opponents": [

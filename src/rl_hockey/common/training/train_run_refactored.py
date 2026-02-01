@@ -16,6 +16,7 @@ import numpy as np
 from rl_hockey.common import utils
 from rl_hockey.common.evaluation.agent_evaluator import evaluate_agent
 from rl_hockey.common.evaluation.value_propagation import evaluate_episodes
+from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.training.agent_factory import create_agent, get_action_space_info
 from rl_hockey.common.training.config_validator import validate_config
 from rl_hockey.common.training.curriculum_manager import (
@@ -31,7 +32,6 @@ from rl_hockey.common.training.opponent_manager import (
 )
 from rl_hockey.common.training.plot_episode_logs import plot_episode_logs
 from rl_hockey.common.training.run_manager import RunManager
-from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.utils import (
     discrete_to_continuous_action_with_fineness,
     get_resource_usage,
@@ -65,7 +65,9 @@ class EpisodeStats:
     shaped_reward: float = 0.0
     steps: int = 0
     losses: Dict[str, float] = None
-    episode_rewards: Optional[List[float]] = None  # step rewards (scaled) for backprop_reward
+    episode_rewards: Optional[List[float]] = (
+        None  # step rewards (scaled) for backprop_reward
+    )
     winner: int = 0  # 1 agent win, -1 loss, 0 draw
 
     def __post_init__(self):
@@ -95,7 +97,9 @@ class TrainingState:
     # Resource logging (per episode; logs only, not saved)
     episode_resource_cpu_list: List[float] = None
     episode_resource_gpu_list: List[float] = None
-    episode_resource_history: List[tuple] = None  # (cpu_avg, gpu_avg) per episode, last N
+    episode_resource_history: List[tuple] = (
+        None  # (cpu_avg, gpu_avg) per episode, last N
+    )
 
     def __post_init__(self):
         if self.rewards is None:
@@ -446,7 +450,8 @@ def run_evaluation(
         # Save plots and CSVs
         run_manager.save_evaluation_plot(run_name, state.evaluation_results)
         run_manager.save_evaluation_csv(run_name, state.evaluation_results)
-        run_manager.save_value_propagation_plot(run_name, state.q_values)
+        if hasattr(run_manager, "save_value_propagation_plot") and state.q_values:
+            run_manager.save_value_propagation_plot(run_name, state.q_values)
 
         if verbose:
             print(
@@ -526,9 +531,13 @@ def complete_episode(
         state.episode_resource_gpu_list.clear()
 
     # Resource logging: every N episodes (e.g. every 10 episodes)
-    if config.resource_log_freq > 0 and verbose and (
-        state.completed_episodes % config.resource_log_freq == 0
-        or state.completed_episodes == 1
+    if (
+        config.resource_log_freq > 0
+        and verbose
+        and (
+            state.completed_episodes % config.resource_log_freq == 0
+            or state.completed_episodes == 1
+        )
     ):
         usage = get_resource_usage()
         logger.info(
@@ -1858,7 +1867,7 @@ def save_final_results(
             plot_episode_logs(
                 str(run_manager.base_output_dir),
                 run_name=run_name,
-                window_size=10,
+                window_size=40,
                 skip_warmup=True,
                 plot_flat_losses=False,
             )
