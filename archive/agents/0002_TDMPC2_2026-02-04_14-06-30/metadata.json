@@ -4,14 +4,13 @@
   "tags": [
     "tdmpc2",
     "needs_calibration",
-    "needs_calibration",
-    "niklas:095522_runWithInternalOpponentsAndSelfPlay"
+    "needs_calibration"
   ],
   "rating": {
-    "mu": 25,
-    "sigma": 8.333,
-    "rating": 0.0009999999999976694,
-    "matches_played": 0
+    "mu": 26.52481041474031,
+    "sigma": 1.8011835879462406,
+    "rating": 21.121259650901585,
+    "matches_played": 21
   },
   "step": 8000,
   "checkpoint_path": "archive/agents/0002_TDMPC2_2026-02-04_14-06-30/checkpoint.pt",
