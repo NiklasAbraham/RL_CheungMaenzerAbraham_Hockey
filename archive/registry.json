@@ -41,5 +41,90 @@
     },
     "directory": "archive\\agents\\0001_SAC_2026-01-30_00-57-20",
     "step": null
+  },
+  "0002_TDMPC2_2026-02-04_14-06-30": {
+    "agent_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "archived_at": "2026-02-04T14:06:30.942555",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0002_TDMPC2_2026-02-04_14-06-30",
+    "step": 8000
+  },
+  "0003_TDMPC2_2026-02-04_14-08-13": {
+    "agent_id": "0003_TDMPC2_2026-02-04_14-08-13",
+    "archived_at": "2026-02-04T14:08:13.048698",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0003_TDMPC2_2026-02-04_14-08-13",
+    "step": 8000
+  },
+  "0004_TDMPC2_2026-02-04_14-08-38": {
+    "agent_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "archived_at": "2026-02-04T14:08:39.102451",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0004_TDMPC2_2026-02-04_14-08-38",
+    "step": 6000
+  },
+  "0005_TDMPC2_2026-02-04_14-09-03": {
+    "agent_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "archived_at": "2026-02-04T14:09:03.846615",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0005_TDMPC2_2026-02-04_14-09-03",
+    "step": 4600
+  },
+  "0006_TDMPC2_2026-02-04_14-11-48": {
+    "agent_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "archived_at": "2026-02-04T14:11:48.594446",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0006_TDMPC2_2026-02-04_14-11-48",
+    "step": 5600
   }
 }

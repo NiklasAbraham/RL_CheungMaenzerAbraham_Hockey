@@ -115,6 +115,46 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
     return out
 
 
+def _rolling_percentiles(
+    values: List[float], window: int, upper_p: float
+) -> Tuple[List[float], List[float]]:
+    """For each index i, compute upper and lower percentile over values[i-window+1:i+1]. Lower = 100 - upper."""
+    if not values or window < 1:
+        return [], []
+    lower_p = 100.0 - upper_p
+    upper_line: List[float] = []
+    lower_line: List[float] = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        w = values[start : i + 1]
+        upper_line.append(float(np.percentile(w, upper_p)))
+        lower_line.append(float(np.percentile(w, lower_p)))
+    return upper_line, lower_line
+
+
+def _add_rolling_percentile_bands(
+    ax: plt.Axes,
+    episodes: List[int],
+    values: List[float],
+    window: int = 500,
+) -> None:
+    """Draw rolling 90/10 percentile band over the full episode range."""
+    if not episodes or not values or len(episodes) != len(values):
+        return
+    window = min(window, len(values))
+    u90, l10 = _rolling_percentiles(values, window, 90.0)
+    ax.plot(
+        episodes,
+        u90,
+        color="gray",
+        linestyle="--",
+        linewidth=2.2,
+        alpha=0.95,
+        label=f"90/10 %ile (w={window})",
+    )
+    ax.plot(episodes, l10, color="gray", linestyle="--", linewidth=2.2, alpha=0.95)
+
+
 def _plot_reward_distribution_histogram(
     ax: plt.Axes,
     values: List[float],
@@ -309,6 +349,7 @@ def plot_episode_logs(
         axes[ax_idx].plot(
             episodes, mov, label=f"MA (w={window_size})", color="blue", linewidth=2
         )
+        _add_rolling_percentile_bands(axes[ax_idx], episodes, r_vals, window=500)
         axes[ax_idx].set_xlabel("Episode")
         axes[ax_idx].set_ylabel("Reward")
         axes[ax_idx].set_title("Reward per Episode")
@@ -325,6 +366,7 @@ def plot_episode_logs(
         axes[ax_idx].plot(
             episodes, mov, label=f"MA (w={window_size})", color="green", linewidth=2
         )
+        _add_rolling_percentile_bands(axes[ax_idx], episodes, s_vals, window=500)
         axes[ax_idx].set_xlabel("Episode")
         axes[ax_idx].set_ylabel("Shaped Reward")
         axes[ax_idx].set_title("Shaped Reward per Episode")
@@ -339,6 +381,7 @@ def plot_episode_logs(
         axes[ax_idx].plot(
             episodes, mov, label=f"MA (w={window_size})", color="orange", linewidth=2
         )
+        _add_rolling_percentile_bands(axes[ax_idx], episodes, b_vals, window=500)
         axes[ax_idx].set_xlabel("Episode")
         axes[ax_idx].set_ylabel("Backprop Reward")
         axes[ax_idx].set_title("Backprop Reward per Episode")
