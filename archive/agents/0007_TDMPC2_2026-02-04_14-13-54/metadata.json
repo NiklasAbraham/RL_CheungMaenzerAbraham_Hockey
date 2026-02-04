@@ -6,10 +6,10 @@
     "needs_calibration"
   ],
   "rating": {
-    "mu": 30.086390635087636,
-    "sigma": 0.8951631402319731,
-    "rating": 27.400901214391716,
-    "matches_played": 113
+    "mu": 29.996529656670003,
+    "sigma": 0.8182225025079362,
+    "rating": 27.541862149146194,
+    "matches_played": 155
   },
   "step": 5600,
   "checkpoint_path": "archive/agents/0007_TDMPC2_2026-02-04_14-13-54/checkpoint.pt",

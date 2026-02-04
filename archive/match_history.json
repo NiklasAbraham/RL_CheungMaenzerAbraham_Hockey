@@ -13368,5 +13368,3635 @@
     "agent2_rating_before": 22.14299170145182,
     "agent1_rating_after": 26.25323360789468,
     "agent2_rating_after": 22.305243330664112
+  },
+  {
+    "timestamp": "2026-02-04T14:58:43.995469",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.25323360789468,
+    "agent2_rating_before": 22.273403792008047,
+    "agent1_rating_after": 26.345560358158195,
+    "agent2_rating_after": 22.21770006856562
+  },
+  {
+    "timestamp": "2026-02-04T14:59:15.770891",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 26.345560358158195,
+    "agent2_rating_before": 18.39322942519632,
+    "agent1_rating_after": 26.430572012703895,
+    "agent2_rating_after": 18.233765270587583
+  },
+  {
+    "timestamp": "2026-02-04T14:59:50.592685",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 26.430572012703898,
+    "agent2_rating_before": 21.12125965090159,
+    "agent1_rating_after": 26.24726221050166,
+    "agent2_rating_after": 21.938945058280886
+  },
+  {
+    "timestamp": "2026-02-04T15:00:02.837203",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.24726221050166,
+    "agent2_rating_before": 22.305243330664112,
+    "agent1_rating_after": 26.33555654622951,
+    "agent2_rating_after": 22.25358074152671
+  },
+  {
+    "timestamp": "2026-02-04T15:00:42.542037",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.33555654622951,
+    "agent2_rating_before": 26.33555654622951,
+    "agent1_rating_after": 26.365482853471406,
+    "agent2_rating_after": 26.365482853471406
+  },
+  {
+    "timestamp": "2026-02-04T15:00:46.086833",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.365482853471402,
+    "agent2_rating_before": 22.21770006856562,
+    "agent1_rating_after": 26.450450822292314,
+    "agent2_rating_after": 22.16272388892445
+  },
+  {
+    "timestamp": "2026-02-04T15:00:48.192449",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.450450822292314,
+    "agent2_rating_before": 22.162723888924447,
+    "agent1_rating_after": 26.532812369706292,
+    "agent2_rating_after": 22.108817676902902
+  },
+  {
+    "timestamp": "2026-02-04T15:01:08.091229",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 26.532812369706292,
+    "agent2_rating_before": 22.25358074152671,
+    "agent1_rating_after": 26.433695074271075,
+    "agent2_rating_after": 22.342851177264905
+  },
+  {
+    "timestamp": "2026-02-04T15:01:34.676982",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 26.14694528058398,
+    "agent2_rating_before": 26.433695074271075,
+    "agent1_rating_after": 26.305149328297855,
+    "agent2_rating_after": 26.305149328297855
+  },
+  {
+    "timestamp": "2026-02-04T15:01:40.703934",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.30514932829786,
+    "agent2_rating_before": 22.108817676902902,
+    "agent1_rating_after": 26.385865218876305,
+    "agent2_rating_after": 22.053702336161326
+  },
+  {
+    "timestamp": "2026-02-04T15:01:43.148563",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.385865218876305,
+    "agent2_rating_before": 22.05370233616133,
+    "agent1_rating_after": 26.4642028700251,
+    "agent2_rating_after": 21.99963901117094
+  },
+  {
+    "timestamp": "2026-02-04T15:01:48.214858",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.4642028700251,
+    "agent2_rating_before": 21.99963901117094,
+    "agent1_rating_after": 26.540273424475775,
+    "agent2_rating_after": 21.946584337604822
+  },
+  {
+    "timestamp": "2026-02-04T15:01:55.775499",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.540273424475775,
+    "agent2_rating_before": 21.938945058280883,
+    "agent1_rating_after": 26.651632295521836,
+    "agent2_rating_after": 21.72042511711978
+  },
+  {
+    "timestamp": "2026-02-04T15:02:40.557769",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.65163229552184,
+    "agent2_rating_before": 21.72042511711978,
+    "agent1_rating_after": 26.755599629397896,
+    "agent2_rating_after": 21.524542756679566
+  },
+  {
+    "timestamp": "2026-02-04T15:03:00.440711",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 26.755599629397896,
+    "agent2_rating_before": 22.342851177264905,
+    "agent1_rating_after": 26.65853148169515,
+    "agent2_rating_after": 22.432540562008988
+  },
+  {
+    "timestamp": "2026-02-04T15:03:13.783757",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.65853148169515,
+    "agent2_rating_before": 22.432540562008988,
+    "agent1_rating_after": 26.732942213683685,
+    "agent2_rating_after": 22.382059609771158
+  },
+  {
+    "timestamp": "2026-02-04T15:03:28.668377",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 26.732942213683685,
+    "agent2_rating_before": 18.23376527058758,
+    "agent1_rating_after": 26.797959463861144,
+    "agent2_rating_after": 18.096594767778598
+  },
+  {
+    "timestamp": "2026-02-04T15:03:48.590252",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 26.797959463861144,
+    "agent2_rating_before": 22.382059609771158,
+    "agent1_rating_after": 26.703045707632832,
+    "agent2_rating_after": 22.47100374676687
+  },
+  {
+    "timestamp": "2026-02-04T15:04:28.165210",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.703045707632825,
+    "agent2_rating_before": 26.703045707632832,
+    "agent1_rating_after": 26.72529122323653,
+    "agent2_rating_after": 26.72529122323653
+  },
+  {
+    "timestamp": "2026-02-04T15:05:07.701469",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.72529122323653,
+    "agent2_rating_before": 26.72529122323653,
+    "agent1_rating_after": 26.74668474536416,
+    "agent2_rating_after": 26.74668474536416
+  },
+  {
+    "timestamp": "2026-02-04T15:05:27.530169",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 26.74668474536416,
+    "agent2_rating_before": 22.471003746766872,
+    "agent1_rating_after": 26.659174965480744,
+    "agent2_rating_after": 22.556041400357962
+  },
+  {
+    "timestamp": "2026-02-04T15:06:07.081074",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 26.659174965480744,
+    "agent2_rating_before": 27.400901214391716,
+    "agent1_rating_after": 26.69487706885001,
+    "agent2_rating_after": 27.40377809885859
+  },
+  {
+    "timestamp": "2026-02-04T15:06:10.463840",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.69487706885001,
+    "agent2_rating_before": 22.556041400357962,
+    "agent1_rating_after": 26.763752606541484,
+    "agent2_rating_after": 22.504332415351254
+  },
+  {
+    "timestamp": "2026-02-04T15:06:27.185199",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.76375260654148,
+    "agent2_rating_before": 22.504332415351254,
+    "agent1_rating_after": 26.830934498460635,
+    "agent2_rating_after": 22.45338476630393
+  },
+  {
+    "timestamp": "2026-02-04T15:07:06.763142",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 26.830934498460635,
+    "agent2_rating_before": 27.40377809885859,
+    "agent1_rating_after": 26.861765818201476,
+    "agent2_rating_after": 27.409659568705205
+  },
+  {
+    "timestamp": "2026-02-04T15:07:32.703171",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.86176581820148,
+    "agent2_rating_before": 21.524542756679566,
+    "agent1_rating_after": 26.946072732957898,
+    "agent2_rating_after": 21.345469391095644
+  },
+  {
+    "timestamp": "2026-02-04T15:07:51.392837",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 26.946072732957898,
+    "agent2_rating_before": 22.45338476630393,
+    "agent1_rating_after": 26.756048943068215,
+    "agent2_rating_after": 22.610845232021543
+  },
+  {
+    "timestamp": "2026-02-04T15:07:59.744383",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 26.756048943068212,
+    "agent2_rating_before": 22.610845232021543,
+    "agent1_rating_after": 26.57351224904548,
+    "agent2_rating_after": 22.76294779153881
+  },
+  {
+    "timestamp": "2026-02-04T15:08:03.284910",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.57351224904548,
+    "agent2_rating_before": 21.94658433760482,
+    "agent1_rating_after": 26.635456208067037,
+    "agent2_rating_after": 21.893012085863372
+  },
+  {
+    "timestamp": "2026-02-04T15:08:26.821414",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 26.63545620806704,
+    "agent2_rating_before": 18.096594767778598,
+    "agent1_rating_after": 26.452557448321933,
+    "agent2_rating_after": 19.29054667309972
+  },
+  {
+    "timestamp": "2026-02-04T15:08:29.490708",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.452557448321933,
+    "agent2_rating_before": 22.76294779153881,
+    "agent1_rating_after": 26.523269138930218,
+    "agent2_rating_after": 22.70722256000899
+  },
+  {
+    "timestamp": "2026-02-04T15:08:45.678322",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 26.52326913893022,
+    "agent2_rating_before": 22.70722256000899,
+    "agent1_rating_after": 26.349619165024695,
+    "agent2_rating_after": 22.854525935517035
+  },
+  {
+    "timestamp": "2026-02-04T15:08:51.321949",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.349619165024695,
+    "agent2_rating_before": 21.345469391095644,
+    "agent1_rating_after": 26.43333796431383,
+    "agent2_rating_after": 21.161392583341332
+  },
+  {
+    "timestamp": "2026-02-04T15:08:54.228969",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": -1,
+    "agent1_rating_before": 26.43333796431383,
+    "agent2_rating_before": 21.893012085863376,
+    "agent1_rating_after": 26.25267752722635,
+    "agent2_rating_after": 22.07426481469344
+  },
+  {
+    "timestamp": "2026-02-04T15:08:59.972638",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 26.019237557275382,
+    "agent2_rating_before": 26.25267752722635,
+    "agent1_rating_after": 26.14284659756664,
+    "agent2_rating_after": 26.14284659756664
+  },
+  {
+    "timestamp": "2026-02-04T15:09:07.638954",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 26.14284659756664,
+    "agent2_rating_before": 21.161392583341332,
+    "agent1_rating_after": 25.99823058416218,
+    "agent2_rating_after": 21.798204425671592
+  },
+  {
+    "timestamp": "2026-02-04T15:09:27.551510",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 25.99823058416218,
+    "agent2_rating_before": 22.854525935517035,
+    "agent1_rating_after": 25.942868203837566,
+    "agent2_rating_after": 22.917997788454873
+  },
+  {
+    "timestamp": "2026-02-04T15:09:43.767456",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 25.942868203837563,
+    "agent2_rating_before": 22.917997788454873,
+    "agent1_rating_after": 25.787991976923866,
+    "agent2_rating_after": 23.052803980241283
+  },
+  {
+    "timestamp": "2026-02-04T15:09:45.714360",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.787991976923866,
+    "agent2_rating_before": 22.07426481469344,
+    "agent1_rating_after": 25.856367457237617,
+    "agent2_rating_after": 22.012302646722148
+  },
+  {
+    "timestamp": "2026-02-04T15:09:50.764265",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.856367457237617,
+    "agent2_rating_before": 22.012302646722144,
+    "agent1_rating_after": 25.923059301664217,
+    "agent2_rating_after": 21.951518269240758
+  },
+  {
+    "timestamp": "2026-02-04T15:10:08.997510",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.923059301664217,
+    "agent2_rating_before": 19.964849418271598,
+    "agent1_rating_after": 25.803346333466234,
+    "agent2_rating_after": 21.2268366900461
+  },
+  {
+    "timestamp": "2026-02-04T15:10:13.263065",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.803346333466234,
+    "agent2_rating_before": 21.95151826924076,
+    "agent1_rating_after": 25.86956072782242,
+    "agent2_rating_after": 21.89075381232233
+  },
+  {
+    "timestamp": "2026-02-04T15:10:38.366195",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 25.64451299850075,
+    "agent2_rating_before": 25.86956072782242,
+    "agent1_rating_after": 25.76270206001346,
+    "agent2_rating_after": 25.76270206001346
+  },
+  {
+    "timestamp": "2026-02-04T15:11:00.566156",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 25.538616546580023,
+    "agent2_rating_before": 25.76270206001346,
+    "agent1_rating_after": 25.656184531850624,
+    "agent2_rating_after": 25.656184531850624
+  },
+  {
+    "timestamp": "2026-02-04T15:11:36.485296",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 25.87933346931099,
+    "agent2_rating_before": 25.656184531850627,
+    "agent1_rating_after": 25.773148056125073,
+    "agent2_rating_after": 25.773148056125073
+  },
+  {
+    "timestamp": "2026-02-04T15:11:56.334034",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 25.77314805612507,
+    "agent2_rating_before": 23.052803980241283,
+    "agent1_rating_after": 25.727953686381348,
+    "agent2_rating_after": 23.107943802967466
+  },
+  {
+    "timestamp": "2026-02-04T15:11:58.983054",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.72795368638135,
+    "agent2_rating_before": 21.89075381232233,
+    "agent1_rating_after": 25.79249058479316,
+    "agent2_rating_after": 21.82957778972598
+  },
+  {
+    "timestamp": "2026-02-04T15:12:38.612154",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 25.79249058479316,
+    "agent2_rating_before": 27.409659568705205,
+    "agent1_rating_after": 25.839384831110962,
+    "agent2_rating_after": 27.389433771830145
+  },
+  {
+    "timestamp": "2026-02-04T15:13:25.338587",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 0,
+    "agent1_rating_before": 25.839384831110962,
+    "agent2_rating_before": 21.226836690046095,
+    "agent1_rating_after": 25.84133636632542,
+    "agent2_rating_after": 21.696618616061233
+  },
+  {
+    "timestamp": "2026-02-04T15:13:45.332837",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 25.84133636632542,
+    "agent2_rating_before": 23.107943802967466,
+    "agent1_rating_after": 25.796877836281944,
+    "agent2_rating_after": 23.162382343484047
+  },
+  {
+    "timestamp": "2026-02-04T15:13:47.624234",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.796877836281944,
+    "agent2_rating_before": 21.82957778972598,
+    "agent1_rating_after": 25.857866255731462,
+    "agent2_rating_after": 21.769256928525294
+  },
+  {
+    "timestamp": "2026-02-04T15:14:04.014348",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.857866255731466,
+    "agent2_rating_before": 21.696618616061233,
+    "agent1_rating_after": 25.754656694360264,
+    "agent2_rating_after": 22.5934958743116
+  },
+  {
+    "timestamp": "2026-02-04T15:14:07.923202",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 25.75465669436026,
+    "agent2_rating_before": 23.162382343484047,
+    "agent1_rating_after": 25.8294358514638,
+    "agent2_rating_after": 23.09705883165625
+  },
+  {
+    "timestamp": "2026-02-04T15:14:19.836629",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 25.8294358514638,
+    "agent2_rating_before": 19.29054667309972,
+    "agent1_rating_after": 25.894720958058286,
+    "agent2_rating_after": 19.09403672983856
+  },
+  {
+    "timestamp": "2026-02-04T15:14:22.069086",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 25.894720958058286,
+    "agent2_rating_before": 23.09705883165625,
+    "agent1_rating_after": 25.966963350221523,
+    "agent2_rating_after": 23.033405299429393
+  },
+  {
+    "timestamp": "2026-02-04T15:14:25.224125",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.966963350221523,
+    "agent2_rating_before": 21.769256928525294,
+    "agent1_rating_after": 26.025082299480637,
+    "agent2_rating_after": 21.710931821040717
+  },
+  {
+    "timestamp": "2026-02-04T15:14:27.117203",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.025082299480637,
+    "agent2_rating_before": 23.033405299429393,
+    "agent1_rating_after": 26.09497638210199,
+    "agent2_rating_after": 22.97129866191272
+  },
+  {
+    "timestamp": "2026-02-04T15:15:14.057434",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 0,
+    "agent1_rating_before": 26.09497638210199,
+    "agent2_rating_before": 19.09403672983856,
+    "agent1_rating_after": 26.03501700383307,
+    "agent2_rating_after": 19.680960150415114
+  },
+  {
+    "timestamp": "2026-02-04T15:15:53.718750",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.035017003833072,
+    "agent2_rating_before": 26.035017003833072,
+    "agent1_rating_after": 26.04620060248073,
+    "agent2_rating_after": 26.04620060248073
+  },
+  {
+    "timestamp": "2026-02-04T15:16:37.391236",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 26.04620060248073,
+    "agent2_rating_before": 22.593495874311603,
+    "agent1_rating_after": 26.149035326479158,
+    "agent2_rating_after": 22.205609023421772
+  },
+  {
+    "timestamp": "2026-02-04T15:16:44.206795",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.149035326479158,
+    "agent2_rating_before": 21.798204425671592,
+    "agent1_rating_after": 26.227263550577856,
+    "agent2_rating_after": 21.605467836220427
+  },
+  {
+    "timestamp": "2026-02-04T15:16:47.767844",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.227263550577856,
+    "agent2_rating_before": 21.710931821040713,
+    "agent1_rating_after": 26.280643360431526,
+    "agent2_rating_after": 21.655133645197292
+  },
+  {
+    "timestamp": "2026-02-04T15:16:52.325121",
+    "agent1_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 26.280643360431526,
+    "agent2_rating_before": 19.680960150415114,
+    "agent1_rating_after": 26.340103571814605,
+    "agent2_rating_after": 19.514921544791655
+  },
+  {
+    "timestamp": "2026-02-04T15:17:15.278502",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 22.205609023421772,
+    "agent2_rating_before": 21.605467836220427,
+    "agent1_rating_after": 22.797788312049565,
+    "agent2_rating_after": 21.410636274216632
+  },
+  {
+    "timestamp": "2026-02-04T15:18:02.659516",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 22.797788312049565,
+    "agent2_rating_before": 27.389433771830145,
+    "agent1_rating_after": 23.195385204958896,
+    "agent2_rating_after": 27.372988749370258
+  },
+  {
+    "timestamp": "2026-02-04T15:18:13.339651",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 23.195385204958896,
+    "agent2_rating_before": 27.372988749370258,
+    "agent1_rating_after": 23.91329172959442,
+    "agent2_rating_after": 27.24764303933079
+  },
+  {
+    "timestamp": "2026-02-04T15:18:18.332768",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.91329172959442,
+    "agent2_rating_before": 22.97129866191272,
+    "agent1_rating_after": 24.285068791541363,
+    "agent2_rating_after": 22.915221602079797
+  },
+  {
+    "timestamp": "2026-02-04T15:18:43.573443",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.285068791541363,
+    "agent2_rating_before": 19.514921544791655,
+    "agent1_rating_after": 24.591817344092217,
+    "agent2_rating_after": 19.380422008527376
+  },
+  {
+    "timestamp": "2026-02-04T15:19:09.490546",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 23.776257815942543,
+    "agent2_rating_before": 24.591817344092217,
+    "agent1_rating_after": 24.298943166661246,
+    "agent2_rating_after": 24.298943166661246
+  },
+  {
+    "timestamp": "2026-02-04T15:19:45.915301",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.080682637633547,
+    "agent2_rating_before": 24.29894316666125,
+    "agent1_rating_after": 24.797199937625024,
+    "agent2_rating_after": 24.797199937625024
+  },
+  {
+    "timestamp": "2026-02-04T15:19:54.786483",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.797199937625024,
+    "agent2_rating_before": 19.380422008527376,
+    "agent1_rating_after": 25.046847273877926,
+    "agent2_rating_after": 19.260440761798222
+  },
+  {
+    "timestamp": "2026-02-04T15:19:59.674017",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.046847273877926,
+    "agent2_rating_before": 21.655133645197296,
+    "agent1_rating_after": 25.27343779830974,
+    "agent2_rating_after": 21.608351367972606
+  },
+  {
+    "timestamp": "2026-02-04T15:20:47.058514",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 25.27343779830974,
+    "agent2_rating_before": 26.340103571814605,
+    "agent1_rating_after": 25.34567214379898,
+    "agent2_rating_after": 26.370498389845206
+  },
+  {
+    "timestamp": "2026-02-04T15:21:01.657620",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 25.34567214379898,
+    "agent2_rating_before": 22.915221602079797,
+    "agent1_rating_after": 24.89582405129628,
+    "agent2_rating_after": 23.062791968330256
+  },
+  {
+    "timestamp": "2026-02-04T15:21:22.170188",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 24.252669043950966,
+    "agent2_rating_before": 24.895824051296284,
+    "agent1_rating_after": 24.652319732359043,
+    "agent2_rating_after": 24.652319732359043
+  },
+  {
+    "timestamp": "2026-02-04T15:21:33.170790",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.652319732359043,
+    "agent2_rating_before": 21.410636274216632,
+    "agent1_rating_after": 24.919518178015966,
+    "agent2_rating_after": 21.255630017432704
+  },
+  {
+    "timestamp": "2026-02-04T15:21:43.734853",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.919518178015966,
+    "agent2_rating_before": 19.260440761798222,
+    "agent1_rating_after": 25.11647326750143,
+    "agent2_rating_after": 19.138056484431267
+  },
+  {
+    "timestamp": "2026-02-04T15:22:11.694223",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.710202873513232,
+    "agent2_rating_before": 25.116473267501426,
+    "agent1_rating_after": 25.481564494949183,
+    "agent2_rating_after": 25.481564494949183
+  },
+  {
+    "timestamp": "2026-02-04T15:22:25.630956",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 25.481564494949186,
+    "agent2_rating_before": 23.06279196833026,
+    "agent1_rating_after": 25.10256112132751,
+    "agent2_rating_after": 23.20641466308652
+  },
+  {
+    "timestamp": "2026-02-04T15:22:32.861420",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": -1,
+    "agent1_rating_before": 25.10256112132751,
+    "agent2_rating_before": 21.608351367972606,
+    "agent1_rating_after": 24.704730369590344,
+    "agent2_rating_after": 21.790961098999876
+  },
+  {
+    "timestamp": "2026-02-04T15:22:39.678503",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.704730369590344,
+    "agent2_rating_before": 23.206414663086516,
+    "agent1_rating_after": 24.928305352025852,
+    "agent2_rating_after": 23.144899919523674
+  },
+  {
+    "timestamp": "2026-02-04T15:22:58.329986",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.928305352025856,
+    "agent2_rating_before": 23.144899919523677,
+    "agent1_rating_after": 25.138759181114168,
+    "agent2_rating_after": 23.085206213067615
+  },
+  {
+    "timestamp": "2026-02-04T15:23:02.695733",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.138759181114168,
+    "agent2_rating_before": 21.790961098999876,
+    "agent1_rating_after": 25.305512060485285,
+    "agent2_rating_after": 21.737822007273962
+  },
+  {
+    "timestamp": "2026-02-04T15:23:11.989413",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.305512060485285,
+    "agent2_rating_before": 21.737822007273962,
+    "agent1_rating_after": 25.463813047739187,
+    "agent2_rating_after": 21.686099145783174
+  },
+  {
+    "timestamp": "2026-02-04T15:23:17.437823",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.463813047739187,
+    "agent2_rating_before": 21.686099145783174,
+    "agent1_rating_after": 25.614345685509846,
+    "agent2_rating_after": 21.63570133635534
+  },
+  {
+    "timestamp": "2026-02-04T15:23:23.520731",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.614345685509846,
+    "agent2_rating_before": 21.63570133635534,
+    "agent1_rating_after": 25.757718976758223,
+    "agent2_rating_after": 21.5865459165027
+  },
+  {
+    "timestamp": "2026-02-04T15:23:27.864238",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.757718976758223,
+    "agent2_rating_before": 21.5865459165027,
+    "agent1_rating_after": 25.894477458602804,
+    "agent2_rating_after": 21.53855773124597
+  },
+  {
+    "timestamp": "2026-02-04T15:24:14.564434",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 25.894477458602807,
+    "agent2_rating_before": 27.24764303933079,
+    "agent1_rating_after": 25.97537695253768,
+    "agent2_rating_after": 27.25878011443702
+  },
+  {
+    "timestamp": "2026-02-04T15:24:23.367862",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.97537695253768,
+    "agent2_rating_before": 21.538557731245966,
+    "agent1_rating_after": 26.09976402188521,
+    "agent2_rating_after": 21.49173484237772
+  },
+  {
+    "timestamp": "2026-02-04T15:24:42.246252",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 26.09976402188521,
+    "agent2_rating_before": 23.085206213067615,
+    "agent1_rating_after": 26.25143227769051,
+    "agent2_rating_after": 23.032528656085017
+  },
+  {
+    "timestamp": "2026-02-04T15:25:09.589439",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 26.694386657545905,
+    "agent2_rating_before": 26.251432277690505,
+    "agent1_rating_after": 26.513203435852056,
+    "agent2_rating_after": 26.513203435852056
+  },
+  {
+    "timestamp": "2026-02-04T15:25:56.391327",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 26.513203435852056,
+    "agent2_rating_before": 27.258780114437016,
+    "agent1_rating_after": 26.56528020523152,
+    "agent2_rating_after": 27.278711396883168
+  },
+  {
+    "timestamp": "2026-02-04T15:26:03.541855",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 26.984802612806117,
+    "agent2_rating_before": 26.56528020523152,
+    "agent1_rating_after": 26.811289170341727,
+    "agent2_rating_after": 26.811289170341727
+  },
+  {
+    "timestamp": "2026-02-04T15:26:50.356571",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.811289170341727,
+    "agent2_rating_before": 26.370498389845206,
+    "agent1_rating_after": 26.81295907862534,
+    "agent2_rating_after": 26.407676318133397
+  },
+  {
+    "timestamp": "2026-02-04T15:27:01.142922",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.81295907862534,
+    "agent2_rating_before": 21.255630017432704,
+    "agent1_rating_after": 26.937615995265254,
+    "agent2_rating_after": 21.14072379400228
+  },
+  {
+    "timestamp": "2026-02-04T15:27:09.063106",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 26.937615995265254,
+    "agent2_rating_before": 23.032528656085013,
+    "agent1_rating_after": 26.645683489239858,
+    "agent2_rating_after": 23.189184831090728
+  },
+  {
+    "timestamp": "2026-02-04T15:27:55.815551",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.645683489239858,
+    "agent2_rating_before": 26.407676318133397,
+    "agent1_rating_after": 26.6550359489698,
+    "agent2_rating_after": 26.438795723610067
+  },
+  {
+    "timestamp": "2026-02-04T15:28:32.185553",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.6550359489698,
+    "agent2_rating_before": 21.14072379400228,
+    "agent1_rating_after": 26.77196497878583,
+    "agent2_rating_after": 21.02554806804646
+  },
+  {
+    "timestamp": "2026-02-04T15:29:14.586648",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 26.771964978785828,
+    "agent2_rating_before": 27.278711396883168,
+    "agent1_rating_after": 26.981529183967588,
+    "agent2_rating_after": 27.174228378853172
+  },
+  {
+    "timestamp": "2026-02-04T15:29:35.293161",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 26.981529183967588,
+    "agent2_rating_before": 21.02554806804646,
+    "agent1_rating_after": 26.719092404669002,
+    "agent2_rating_after": 21.631441962692413
+  },
+  {
+    "timestamp": "2026-02-04T15:30:18.915867",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 26.719092404669002,
+    "agent2_rating_before": 26.438795723610067,
+    "agent1_rating_after": 26.90032627477548,
+    "agent2_rating_after": 26.352225551208118
+  },
+  {
+    "timestamp": "2026-02-04T15:30:28.044201",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 26.90032627477548,
+    "agent2_rating_before": 23.189184831090728,
+    "agent1_rating_after": 26.645089422951827,
+    "agent2_rating_after": 23.34072350997015
+  },
+  {
+    "timestamp": "2026-02-04T15:30:34.945780",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.645089422951827,
+    "agent2_rating_before": 21.49173484237772,
+    "agent1_rating_after": 26.72821975482381,
+    "agent2_rating_after": 21.446491958867536
+  },
+  {
+    "timestamp": "2026-02-04T15:30:46.831326",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 26.72821975482381,
+    "agent2_rating_before": 21.631441962692413,
+    "agent1_rating_after": 26.840315151093858,
+    "agent2_rating_after": 21.511871015705065
+  },
+  {
+    "timestamp": "2026-02-04T15:30:52.498730",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.840315151093854,
+    "agent2_rating_before": 21.446491958867536,
+    "agent1_rating_after": 26.918312425061316,
+    "agent2_rating_after": 21.402705346098244
+  },
+  {
+    "timestamp": "2026-02-04T15:31:39.280033",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 26.918312425061316,
+    "agent2_rating_before": 27.174228378853172,
+    "agent1_rating_after": 26.946843829766852,
+    "agent2_rating_after": 27.19503970158564
+  },
+  {
+    "timestamp": "2026-02-04T15:31:47.841889",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 26.946843829766856,
+    "agent2_rating_before": 21.402705346098244,
+    "agent1_rating_after": 27.020214338032424,
+    "agent2_rating_after": 21.359571910748794
+  },
+  {
+    "timestamp": "2026-02-04T15:32:14.795191",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 27.02021433803242,
+    "agent2_rating_before": 23.340723509970147,
+    "agent1_rating_after": 26.92492643050906,
+    "agent2_rating_after": 23.420365029531553
+  },
+  {
+    "timestamp": "2026-02-04T15:33:01.632661",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 26.92492643050906,
+    "agent2_rating_before": 26.352225551208114,
+    "agent1_rating_after": 26.924656580192824,
+    "agent2_rating_after": 26.38371848740408
+  },
+  {
+    "timestamp": "2026-02-04T15:33:16.290947",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 26.924656580192824,
+    "agent2_rating_before": 27.19503970158564,
+    "agent1_rating_after": 27.09716306099352,
+    "agent2_rating_after": 27.091254250379478
+  },
+  {
+    "timestamp": "2026-02-04T15:33:38.518573",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.097163060993523,
+    "agent2_rating_before": 21.511871015705065,
+    "agent1_rating_after": 27.18962869637938,
+    "agent2_rating_after": 21.402503811524642
+  },
+  {
+    "timestamp": "2026-02-04T15:33:51.754973",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 27.189628696379376,
+    "agent2_rating_before": 23.420365029531556,
+    "agent1_rating_after": 26.965890802269467,
+    "agent2_rating_after": 23.569123444284656
+  },
+  {
+    "timestamp": "2026-02-04T15:34:02.130388",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 26.96589080226947,
+    "agent2_rating_before": 19.138056484431267,
+    "agent1_rating_after": 27.034269650421265,
+    "agent2_rating_after": 19.041787806623862
+  },
+  {
+    "timestamp": "2026-02-04T15:34:20.025977",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.034269650421262,
+    "agent2_rating_before": 23.569123444284656,
+    "agent1_rating_after": 27.12911642280883,
+    "agent2_rating_after": 23.514878265109008
+  },
+  {
+    "timestamp": "2026-02-04T15:34:36.515574",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 27.129116422808835,
+    "agent2_rating_before": 27.091254250379478,
+    "agent1_rating_after": 27.287858788647597,
+    "agent2_rating_after": 26.99075959383132
+  },
+  {
+    "timestamp": "2026-02-04T15:34:57.300293",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 26.991131993702233,
+    "agent2_rating_before": 27.287858788647593,
+    "agent1_rating_after": 27.155848150532133,
+    "agent2_rating_after": 27.155848150532133
+  },
+  {
+    "timestamp": "2026-02-04T15:35:02.499133",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.155848150532133,
+    "agent2_rating_before": 21.359571910748794,
+    "agent1_rating_after": 27.21729018816359,
+    "agent2_rating_after": 21.31687899000094
+  },
+  {
+    "timestamp": "2026-02-04T15:35:14.500920",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.21729018816359,
+    "agent2_rating_before": 21.402503811524646,
+    "agent1_rating_after": 27.300229532928668,
+    "agent2_rating_after": 21.298693386264958
+  },
+  {
+    "timestamp": "2026-02-04T15:35:23.490672",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 27.300229532928668,
+    "agent2_rating_before": 26.38371848740408,
+    "agent1_rating_after": 27.43578707017353,
+    "agent2_rating_after": 26.300867620102174
+  },
+  {
+    "timestamp": "2026-02-04T15:35:35.135966",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.435787070173525,
+    "agent2_rating_before": 21.31687899000094,
+    "agent1_rating_after": 27.49197912955585,
+    "agent2_rating_after": 21.27611704046984
+  },
+  {
+    "timestamp": "2026-02-04T15:35:40.425051",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.491979129555855,
+    "agent2_rating_before": 23.514878265109008,
+    "agent1_rating_after": 27.57439720623304,
+    "agent2_rating_after": 23.46378666166488
+  },
+  {
+    "timestamp": "2026-02-04T15:35:57.642727",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 27.574397206233037,
+    "agent2_rating_before": 23.46378666166488,
+    "agent1_rating_after": 27.36018623466765,
+    "agent2_rating_after": 23.616603228914283
+  },
+  {
+    "timestamp": "2026-02-04T15:36:01.314120",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.36018623466765,
+    "agent2_rating_before": 21.27611704046984,
+    "agent1_rating_after": 27.41546950760164,
+    "agent2_rating_after": 21.23486270567866
+  },
+  {
+    "timestamp": "2026-02-04T15:36:06.831425",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.41546950760164,
+    "agent2_rating_before": 21.23486270567866,
+    "agent1_rating_after": 27.469442353161178,
+    "agent2_rating_after": 21.19416899883783
+  },
+  {
+    "timestamp": "2026-02-04T15:36:15.862916",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 27.469442353161178,
+    "agent2_rating_before": 23.616603228914283,
+    "agent1_rating_after": 27.264130714291973,
+    "agent2_rating_after": 23.76527362778416
+  },
+  {
+    "timestamp": "2026-02-04T15:36:26.635253",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.264130714291973,
+    "agent2_rating_before": 21.19416899883783,
+    "agent1_rating_after": 27.318521966690035,
+    "agent2_rating_after": 21.152543510355326
+  },
+  {
+    "timestamp": "2026-02-04T15:36:47.813155",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.318521966690035,
+    "agent2_rating_before": 21.298693386264958,
+    "agent1_rating_after": 27.393182542921167,
+    "agent2_rating_after": 21.199684133837415
+  },
+  {
+    "timestamp": "2026-02-04T15:37:10.243660",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 27.39318254292117,
+    "agent2_rating_before": 26.99075959383132,
+    "agent1_rating_after": 27.257312880792217,
+    "agent2_rating_after": 27.11753161294386
+  },
+  {
+    "timestamp": "2026-02-04T15:37:16.187988",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.257312880792217,
+    "agent2_rating_before": 23.76527362778416,
+    "agent1_rating_after": 27.342050099742714,
+    "agent2_rating_after": 23.709943714497133
+  },
+  {
+    "timestamp": "2026-02-04T15:38:09.730147",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 0,
+    "agent1_rating_before": 27.342050099742714,
+    "agent2_rating_before": 27.342050099742714,
+    "agent1_rating_after": 27.36551409313228,
+    "agent2_rating_after": 27.36551409313228
+  },
+  {
+    "timestamp": "2026-02-04T15:38:18.131061",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 27.36551409313228,
+    "agent2_rating_before": 19.041787806623862,
+    "agent1_rating_after": 27.418316211785527,
+    "agent2_rating_after": 18.95524375932596
+  },
+  {
+    "timestamp": "2026-02-04T15:38:26.755468",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 27.418316211785527,
+    "agent2_rating_before": 18.95524375932596,
+    "agent1_rating_after": 27.191871128970114,
+    "agent2_rating_after": 19.796278004934013
+  },
+  {
+    "timestamp": "2026-02-04T15:38:37.296081",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.19187112897011,
+    "agent2_rating_before": 21.199684133837415,
+    "agent1_rating_after": 27.262543925860673,
+    "agent2_rating_after": 21.100971178176223
+  },
+  {
+    "timestamp": "2026-02-04T15:38:43.316799",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.262543925860673,
+    "agent2_rating_before": 21.152543510355326,
+    "agent1_rating_after": 27.313243671402923,
+    "agent2_rating_after": 21.110626955324648
+  },
+  {
+    "timestamp": "2026-02-04T15:38:53.574626",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.313243671402923,
+    "agent2_rating_before": 21.100971178176223,
+    "agent1_rating_after": 27.38023813052715,
+    "agent2_rating_after": 21.00838189895692
+  },
+  {
+    "timestamp": "2026-02-04T15:39:14.283749",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 27.38023813052715,
+    "agent2_rating_before": 19.796278004934013,
+    "agent1_rating_after": 27.43799030540201,
+    "agent2_rating_after": 19.7014944632015
+  },
+  {
+    "timestamp": "2026-02-04T15:39:53.179007",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 27.69898740607965,
+    "agent2_rating_before": 27.43799030540201,
+    "agent1_rating_after": 27.57944276934728,
+    "agent2_rating_after": 27.57944276934728
+  },
+  {
+    "timestamp": "2026-02-04T15:39:56.742715",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.57944276934728,
+    "agent2_rating_before": 23.709943714497133,
+    "agent1_rating_after": 27.654501635087406,
+    "agent2_rating_after": 23.656831591140946
+  },
+  {
+    "timestamp": "2026-02-04T15:40:06.789864",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 27.65450163508741,
+    "agent2_rating_before": 23.656831591140946,
+    "agent1_rating_after": 27.463015500436896,
+    "agent2_rating_after": 23.806697442672544
+  },
+  {
+    "timestamp": "2026-02-04T15:40:53.394800",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 27.463015500436896,
+    "agent2_rating_before": 27.11753161294386,
+    "agent1_rating_after": 27.47102980667302,
+    "agent2_rating_after": 27.14144472566867
+  },
+  {
+    "timestamp": "2026-02-04T15:40:56.969880",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.47102980667302,
+    "agent2_rating_before": 21.110626955324648,
+    "agent1_rating_after": 27.516553821883242,
+    "agent2_rating_after": 21.06994268171253
+  },
+  {
+    "timestamp": "2026-02-04T15:41:14.751343",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 27.516553821883242,
+    "agent2_rating_before": 23.806697442672544,
+    "agent1_rating_after": 27.334701958889934,
+    "agent2_rating_after": 23.95192326561055
+  },
+  {
+    "timestamp": "2026-02-04T15:41:19.840706",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.334701958889934,
+    "agent2_rating_before": 23.95192326561055,
+    "agent1_rating_after": 27.412993741126986,
+    "agent2_rating_after": 23.89462838992228
+  },
+  {
+    "timestamp": "2026-02-04T15:41:26.008969",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.412993741126986,
+    "agent2_rating_before": 21.06994268171253,
+    "agent1_rating_after": 27.457972649225773,
+    "agent2_rating_after": 21.028971740565197
+  },
+  {
+    "timestamp": "2026-02-04T15:41:31.057079",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.457972649225773,
+    "agent2_rating_before": 23.89462838992228,
+    "agent1_rating_after": 27.533568494166403,
+    "agent2_rating_after": 23.838619894317322
+  },
+  {
+    "timestamp": "2026-02-04T15:41:56.821834",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 27.286096466149473,
+    "agent2_rating_before": 27.533568494166403,
+    "agent1_rating_after": 27.41878176619645,
+    "agent2_rating_after": 27.41878176619645
+  },
+  {
+    "timestamp": "2026-02-04T15:42:07.752570",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 27.41878176619645,
+    "agent2_rating_before": 27.14144472566867,
+    "agent1_rating_after": 27.298371385612633,
+    "agent2_rating_after": 27.262318195660562
+  },
+  {
+    "timestamp": "2026-02-04T15:42:14.271874",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.298371385612633,
+    "agent2_rating_before": 21.0289717405652,
+    "agent1_rating_after": 27.343211970049758,
+    "agent2_rating_after": 20.98730602073551
+  },
+  {
+    "timestamp": "2026-02-04T15:42:18.523854",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.343211970049758,
+    "agent2_rating_before": 20.987306020735506,
+    "agent1_rating_after": 27.387158738922057,
+    "agent2_rating_after": 20.94617408677003
+  },
+  {
+    "timestamp": "2026-02-04T15:42:38.374222",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 27.387158738922057,
+    "agent2_rating_before": 19.7014944632015,
+    "agent1_rating_after": 27.43868386877363,
+    "agent2_rating_after": 19.609529636526606
+  },
+  {
+    "timestamp": "2026-02-04T15:42:47.476898",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.43868386877363,
+    "agent2_rating_before": 21.00838189895692,
+    "agent1_rating_after": 27.497385215450073,
+    "agent2_rating_after": 20.919766845584782
+  },
+  {
+    "timestamp": "2026-02-04T15:43:11.564782",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 27.497385215450073,
+    "agent2_rating_before": 26.300867620102174,
+    "agent1_rating_after": 27.362917070042585,
+    "agent2_rating_after": 26.423463069837563
+  },
+  {
+    "timestamp": "2026-02-04T15:43:16.577941",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.362917070042585,
+    "agent2_rating_before": 20.946174086770032,
+    "agent1_rating_after": 27.405747352698,
+    "agent2_rating_after": 20.905317040375966
+  },
+  {
+    "timestamp": "2026-02-04T15:44:10.412346",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 0,
+    "agent1_rating_before": 27.405747352698,
+    "agent2_rating_before": 20.919766845584782,
+    "agent1_rating_after": 27.313104139832397,
+    "agent2_rating_after": 21.24497703150724
+  },
+  {
+    "timestamp": "2026-02-04T15:44:15.214810",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.3131041398324,
+    "agent2_rating_before": 20.905317040375962,
+    "agent1_rating_after": 27.355395604059517,
+    "agent2_rating_after": 20.864245902872685
+  },
+  {
+    "timestamp": "2026-02-04T15:44:31.478959",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.355395604059517,
+    "agent2_rating_before": 21.24497703150724,
+    "agent1_rating_after": 27.41498790674406,
+    "agent2_rating_after": 21.155813463581445
+  },
+  {
+    "timestamp": "2026-02-04T15:44:39.032968",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 27.414987906744056,
+    "agent2_rating_before": 21.155813463581445,
+    "agent1_rating_after": 27.472432055131502,
+    "agent2_rating_after": 21.070737424221953
+  },
+  {
+    "timestamp": "2026-02-04T15:44:55.889674",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 27.710830398494767,
+    "agent2_rating_before": 27.472432055131502,
+    "agent1_rating_after": 27.599246180439295,
+    "agent2_rating_after": 27.599246180439295
+  },
+  {
+    "timestamp": "2026-02-04T15:45:06.739761",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 27.36217622516003,
+    "agent2_rating_before": 27.599246180439295,
+    "agent1_rating_after": 27.488131466002233,
+    "agent2_rating_after": 27.488131466002233
+  },
+  {
+    "timestamp": "2026-02-04T15:45:34.529800",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 27.723910336266478,
+    "agent2_rating_before": 27.488131466002233,
+    "agent1_rating_after": 27.613252094439343,
+    "agent2_rating_after": 27.613252094439343
+  },
+  {
+    "timestamp": "2026-02-04T15:45:40.294752",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.613252094439343,
+    "agent2_rating_before": 23.83861989431732,
+    "agent1_rating_after": 27.68156854911653,
+    "agent2_rating_after": 23.783546143322695
+  },
+  {
+    "timestamp": "2026-02-04T15:45:46.619550",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 27.681568549116534,
+    "agent2_rating_before": 20.864245902872685,
+    "agent1_rating_after": 27.718829712151766,
+    "agent2_rating_after": 20.82562050061024
+  },
+  {
+    "timestamp": "2026-02-04T15:45:50.562862",
+    "agent1_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 27.718829712151766,
+    "agent2_rating_before": 23.783546143322695,
+    "agent1_rating_after": 27.785143462326353,
+    "agent2_rating_after": 23.72960478910625
+  },
+  {
+    "timestamp": "2026-02-04T15:45:59.437804",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 20.284525951199484,
+    "agent2_rating_before": 19.609529636526606,
+    "agent1_rating_after": 20.031617429392686,
+    "agent2_rating_after": 20.031617429392686
+  },
+  {
+    "timestamp": "2026-02-04T15:46:09.430060",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 19.37977628100654,
+    "agent2_rating_before": 20.031617429392686,
+    "agent1_rating_after": 19.785534410285067,
+    "agent2_rating_after": 19.785534410285067
+  },
+  {
+    "timestamp": "2026-02-04T15:46:35.850357",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 19.785534410285067,
+    "agent2_rating_before": 27.785143462326353,
+    "agent1_rating_after": 19.707484075412836,
+    "agent2_rating_after": 27.828714342595195
+  },
+  {
+    "timestamp": "2026-02-04T15:46:39.987415",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 19.707484075412836,
+    "agent2_rating_before": 20.82562050061024,
+    "agent1_rating_after": 20.07018171969852,
+    "agent2_rating_after": 20.730453376787437
+  },
+  {
+    "timestamp": "2026-02-04T15:46:48.878639",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 20.07018171969852,
+    "agent2_rating_before": 23.72960478910625,
+    "agent1_rating_after": 20.519796163576945,
+    "agent2_rating_after": 23.618891343584153
+  },
+  {
+    "timestamp": "2026-02-04T15:47:05.096572",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 20.519796163576945,
+    "agent2_rating_before": 27.828714342595195,
+    "agent1_rating_after": 20.437084559498334,
+    "agent2_rating_after": 27.877330771215146
+  },
+  {
+    "timestamp": "2026-02-04T15:47:34.101569",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 20.437084559498334,
+    "agent2_rating_before": 27.262318195660562,
+    "agent1_rating_after": 20.34566501916703,
+    "agent2_rating_after": 27.311487663398317
+  },
+  {
+    "timestamp": "2026-02-04T15:47:38.540091",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 20.345665019167026,
+    "agent2_rating_before": 23.61889134358415,
+    "agent1_rating_after": 20.750274532051645,
+    "agent2_rating_after": 23.510529322751776
+  },
+  {
+    "timestamp": "2026-02-04T15:47:45.162900",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 20.750274532051648,
+    "agent2_rating_before": 27.311487663398317,
+    "agent1_rating_after": 20.6590426038654,
+    "agent2_rating_after": 27.362297313178317
+  },
+  {
+    "timestamp": "2026-02-04T15:48:15.921796",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 20.659042603865398,
+    "agent2_rating_before": 27.877330771215142,
+    "agent1_rating_after": 20.582431558707444,
+    "agent2_rating_after": 27.924950758648542
+  },
+  {
+    "timestamp": "2026-02-04T15:48:23.263184",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 20.582431558707444,
+    "agent2_rating_before": 26.423463069837563,
+    "agent1_rating_after": 20.47909336771061,
+    "agent2_rating_after": 26.4755111527025
+  },
+  {
+    "timestamp": "2026-02-04T15:48:26.962798",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 20.479093367710615,
+    "agent2_rating_before": 23.510529322751776,
+    "agent1_rating_after": 20.843583328035198,
+    "agent2_rating_after": 23.40264207818686
+  },
+  {
+    "timestamp": "2026-02-04T15:48:33.807595",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 20.843583328035198,
+    "agent2_rating_before": 20.73045337678744,
+    "agent1_rating_after": 21.099783763621513,
+    "agent2_rating_after": 20.643750271186825
+  },
+  {
+    "timestamp": "2026-02-04T15:48:38.268921",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 21.09978376362151,
+    "agent2_rating_before": 20.643750271186825,
+    "agent1_rating_after": 21.339957043332916,
+    "agent2_rating_after": 20.560466434311564
+  },
+  {
+    "timestamp": "2026-02-04T15:48:50.746322",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 21.33995704333292,
+    "agent2_rating_before": 27.924950758648542,
+    "agent1_rating_after": 21.262081419000815,
+    "agent2_rating_after": 27.97693271445479
+  },
+  {
+    "timestamp": "2026-02-04T15:48:54.669709",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.26208141900081,
+    "agent2_rating_before": 23.40264207818686,
+    "agent1_rating_after": 21.56833152949395,
+    "agent2_rating_after": 23.302515490786277
+  },
+  {
+    "timestamp": "2026-02-04T15:49:03.564121",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 21.56833152949395,
+    "agent2_rating_before": 27.976932714454794,
+    "agent1_rating_after": 21.490851638274957,
+    "agent2_rating_after": 28.02998360973892
+  },
+  {
+    "timestamp": "2026-02-04T15:49:11.492880",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.490851638274957,
+    "agent2_rating_before": 23.302515490786277,
+    "agent1_rating_after": 21.775971361054772,
+    "agent2_rating_after": 23.20509456445158
+  },
+  {
+    "timestamp": "2026-02-04T15:49:17.364870",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.775971361054772,
+    "agent2_rating_before": 23.205094564451585,
+    "agent1_rating_after": 22.043550627328578,
+    "agent2_rating_after": 23.11127319774241
+  },
+  {
+    "timestamp": "2026-02-04T15:49:20.515370",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 22.04355062732858,
+    "agent2_rating_before": 23.11127319774241,
+    "agent1_rating_after": 22.295240162864324,
+    "agent2_rating_after": 23.020786915007584
+  },
+  {
+    "timestamp": "2026-02-04T15:49:27.019317",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.29524016286432,
+    "agent2_rating_before": 20.560466434311564,
+    "agent1_rating_after": 22.472715107372842,
+    "agent2_rating_after": 20.487793995251522
+  },
+  {
+    "timestamp": "2026-02-04T15:49:54.712301",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.472715107372842,
+    "agent2_rating_before": 27.362297313178317,
+    "agent1_rating_after": 22.377867966490125,
+    "agent2_rating_after": 27.42581343355238
+  },
+  {
+    "timestamp": "2026-02-04T15:50:08.169350",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 21.9689372516775,
+    "agent2_rating_before": 22.37786796649013,
+    "agent1_rating_after": 22.207847916842756,
+    "agent2_rating_after": 22.207847916842756
+  },
+  {
+    "timestamp": "2026-02-04T15:50:13.319246",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.207847916842752,
+    "agent2_rating_before": 20.48779399525152,
+    "agent1_rating_after": 22.37735878687583,
+    "agent2_rating_after": 20.41410607579965
+  },
+  {
+    "timestamp": "2026-02-04T15:50:27.109858",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 22.37735878687583,
+    "agent2_rating_before": 21.070737424221953,
+    "agent1_rating_after": 22.58234080216644,
+    "agent2_rating_after": 20.900841380786265
+  },
+  {
+    "timestamp": "2026-02-04T15:50:44.089408",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 22.58234080216644,
+    "agent2_rating_before": 28.02998360973892,
+    "agent1_rating_after": 22.50324921394962,
+    "agent2_rating_after": 28.090488554161052
+  },
+  {
+    "timestamp": "2026-02-04T15:50:55.916762",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.50324921394962,
+    "agent2_rating_before": 20.41410607579965,
+    "agent1_rating_after": 22.657435590699368,
+    "agent2_rating_after": 20.343417722967676
+  },
+  {
+    "timestamp": "2026-02-04T15:51:07.810503",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 23.036320098464135,
+    "agent2_rating_before": 22.657435590699368,
+    "agent1_rating_after": 22.876299845501908,
+    "agent2_rating_after": 22.876299845501908
+  },
+  {
+    "timestamp": "2026-02-04T15:51:33.229204",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 22.503741743825437,
+    "agent2_rating_before": 22.876299845501908,
+    "agent1_rating_after": 22.718401999937328,
+    "agent2_rating_after": 22.718401999937328
+  },
+  {
+    "timestamp": "2026-02-04T15:51:37.995746",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.71840199993733,
+    "agent2_rating_before": 20.343417722967676,
+    "agent1_rating_after": 22.85960442334305,
+    "agent2_rating_after": 20.274789125530397
+  },
+  {
+    "timestamp": "2026-02-04T15:52:03.015612",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 23.22157688506736,
+    "agent2_rating_before": 22.859604423343047,
+    "agent1_rating_after": 23.06724342687955,
+    "agent2_rating_after": 23.06724342687955
+  },
+  {
+    "timestamp": "2026-02-04T15:52:14.188138",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 23.067243426879553,
+    "agent2_rating_before": 20.900841380786265,
+    "agent1_rating_after": 22.881385167709052,
+    "agent2_rating_after": 21.235260604880914
+  },
+  {
+    "timestamp": "2026-02-04T15:52:29.417184",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.88138516770905,
+    "agent2_rating_before": 27.42581343355238,
+    "agent1_rating_after": 22.79634198278258,
+    "agent2_rating_after": 27.490008779901316
+  },
+  {
+    "timestamp": "2026-02-04T15:52:32.937591",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 22.79634198278258,
+    "agent2_rating_before": 23.020786915007584,
+    "agent1_rating_after": 22.98118394911867,
+    "agent2_rating_after": 22.934766163226264
+  },
+  {
+    "timestamp": "2026-02-04T15:52:43.985990",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.98118394911867,
+    "agent2_rating_before": 20.274789125530397,
+    "agent1_rating_after": 23.106587773980962,
+    "agent2_rating_after": 20.208270284660557
+  },
+  {
+    "timestamp": "2026-02-04T15:52:55.384754",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.106587773980962,
+    "agent2_rating_before": 27.490008779901316,
+    "agent1_rating_after": 23.02213574132021,
+    "agent2_rating_after": 27.55535896824298
+  },
+  {
+    "timestamp": "2026-02-04T15:53:01.592367",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 23.02213574132021,
+    "agent2_rating_before": 22.934766163226264,
+    "agent1_rating_after": 22.858450520238847,
+    "agent2_rating_after": 23.038731444507974
+  },
+  {
+    "timestamp": "2026-02-04T15:53:05.509833",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.858450520238847,
+    "agent2_rating_before": 20.208270284660557,
+    "agent1_rating_after": 22.98051119240766,
+    "agent2_rating_after": 20.140693039499897
+  },
+  {
+    "timestamp": "2026-02-04T15:53:11.067393",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.98051119240766,
+    "agent2_rating_before": 20.140693039499897,
+    "agent1_rating_after": 23.09787273178588,
+    "agent2_rating_after": 20.07483381074878
+  },
+  {
+    "timestamp": "2026-02-04T15:53:34.833588",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.09787273178588,
+    "agent2_rating_before": 26.475511152702502,
+    "agent1_rating_after": 23.0011081192505,
+    "agent2_rating_after": 26.545144921729328
+  },
+  {
+    "timestamp": "2026-02-04T15:53:39.734966",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.0011081192505,
+    "agent2_rating_before": 27.55535896824298,
+    "agent1_rating_after": 22.923172861075052,
+    "agent2_rating_after": 27.617745796061715
+  },
+  {
+    "timestamp": "2026-02-04T15:53:43.331855",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.923172861075056,
+    "agent2_rating_before": 20.074833810748775,
+    "agent1_rating_after": 23.037071399387504,
+    "agent2_rating_after": 20.008665239162298
+  },
+  {
+    "timestamp": "2026-02-04T15:53:58.841067",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 22.722012344564014,
+    "agent2_rating_before": 23.037071399387504,
+    "agent1_rating_after": 22.89872864985588,
+    "agent2_rating_after": 22.89872864985588
+  },
+  {
+    "timestamp": "2026-02-04T15:54:03.433139",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.89872864985588,
+    "agent2_rating_before": 20.008665239162298,
+    "agent1_rating_after": 23.009460520055246,
+    "agent2_rating_after": 19.942617578800867
+  },
+  {
+    "timestamp": "2026-02-04T15:54:18.549613",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.009460520055246,
+    "agent2_rating_before": 23.038731444507974,
+    "agent1_rating_after": 23.170080571003727,
+    "agent2_rating_after": 22.952666238073178
+  },
+  {
+    "timestamp": "2026-02-04T15:54:22.932066",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.170080571003727,
+    "agent2_rating_before": 19.942617578800867,
+    "agent1_rating_after": 23.27292782740566,
+    "agent2_rating_after": 19.879490140307084
+  },
+  {
+    "timestamp": "2026-02-04T15:54:47.315542",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 23.27292782740566,
+    "agent2_rating_before": 21.235260604880914,
+    "agent1_rating_after": 23.116675683056883,
+    "agent2_rating_after": 21.550413057161673
+  },
+  {
+    "timestamp": "2026-02-04T15:54:50.664977",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.116675683056883,
+    "agent2_rating_before": 22.952666238073178,
+    "agent1_rating_after": 23.268665974697228,
+    "agent2_rating_after": 22.868035881793695
+  },
+  {
+    "timestamp": "2026-02-04T15:54:56.844692",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.268665974697228,
+    "agent2_rating_before": 19.879490140307084,
+    "agent1_rating_after": 23.365757435967026,
+    "agent2_rating_after": 19.817448118624107
+  },
+  {
+    "timestamp": "2026-02-04T15:55:13.723960",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.365757435967026,
+    "agent2_rating_before": 26.545144921729324,
+    "agent1_rating_after": 23.274812765542258,
+    "agent2_rating_after": 26.615429175271935
+  },
+  {
+    "timestamp": "2026-02-04T15:55:25.149678",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 23.274812765542254,
+    "agent2_rating_before": 21.550413057161673,
+    "agent1_rating_after": 23.416508634084273,
+    "agent2_rating_after": 21.390726876019713
+  },
+  {
+    "timestamp": "2026-02-04T15:55:54.998835",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 23.416508634084277,
+    "agent2_rating_before": 21.39072687601971,
+    "agent1_rating_after": 23.265878334386198,
+    "agent2_rating_after": 21.69046472279617
+  },
+  {
+    "timestamp": "2026-02-04T15:56:07.300400",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 23.265878334386198,
+    "agent2_rating_before": 28.090488554161052,
+    "agent1_rating_after": 23.19973864506053,
+    "agent2_rating_after": 28.15252953614684
+  },
+  {
+    "timestamp": "2026-02-04T15:56:11.580251",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.19973864506053,
+    "agent2_rating_before": 19.817448118624107,
+    "agent1_rating_after": 23.292889558226435,
+    "agent2_rating_after": 19.754798612107827
+  },
+  {
+    "timestamp": "2026-02-04T15:56:27.568282",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.292889558226435,
+    "agent2_rating_before": 26.615429175271935,
+    "agent1_rating_after": 23.20714147202696,
+    "agent2_rating_after": 26.683454966362063
+  },
+  {
+    "timestamp": "2026-02-04T15:57:05.038027",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.207141472026965,
+    "agent2_rating_before": 27.617745796061715,
+    "agent1_rating_after": 23.136484916151076,
+    "agent2_rating_after": 27.67950368090496
+  },
+  {
+    "timestamp": "2026-02-04T15:57:13.041366",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 23.136484916151076,
+    "agent2_rating_before": 28.15252953614684,
+    "agent1_rating_after": 23.073752023485,
+    "agent2_rating_after": 28.211860168847963
+  },
+  {
+    "timestamp": "2026-02-04T15:57:19.758244",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 23.073752023485,
+    "agent2_rating_before": 21.69046472279617,
+    "agent1_rating_after": 23.2131301165855,
+    "agent2_rating_after": 21.528606337663927
+  },
+  {
+    "timestamp": "2026-02-04T15:57:25.540609",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.2131301165855,
+    "agent2_rating_before": 19.754798612107827,
+    "agent1_rating_after": 23.30205921917032,
+    "agent2_rating_after": 19.69243742851096
+  },
+  {
+    "timestamp": "2026-02-04T15:57:39.609802",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.30205921917032,
+    "agent2_rating_before": 26.683454966362063,
+    "agent1_rating_after": 23.219471931903982,
+    "agent2_rating_after": 26.750343361248962
+  },
+  {
+    "timestamp": "2026-02-04T15:57:45.288863",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.219471931903982,
+    "agent2_rating_before": 27.679503680904965,
+    "agent1_rating_after": 23.15122566986964,
+    "agent2_rating_after": 27.74018552038958
+  },
+  {
+    "timestamp": "2026-02-04T15:58:03.290949",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 23.15122566986964,
+    "agent2_rating_before": 27.74018552038958,
+    "agent1_rating_after": 23.38122525397914,
+    "agent2_rating_after": 27.57654496838826
+  },
+  {
+    "timestamp": "2026-02-04T15:58:24.489036",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.38122525397914,
+    "agent2_rating_before": 27.57654496838826,
+    "agent1_rating_after": 23.31093503842431,
+    "agent2_rating_after": 27.639502992087206
+  },
+  {
+    "timestamp": "2026-02-04T15:59:11.359521",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 23.31093503842431,
+    "agent2_rating_before": 27.63950299208721,
+    "agent1_rating_after": 23.430214567404335,
+    "agent2_rating_after": 27.573520954596518
+  },
+  {
+    "timestamp": "2026-02-04T15:59:36.444506",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 23.430214567404335,
+    "agent2_rating_before": 27.573520954596514,
+    "agent1_rating_after": 23.643911020733732,
+    "agent2_rating_after": 27.418090850683036
+  },
+  {
+    "timestamp": "2026-02-04T16:00:16.812701",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 1,
+    "agent1_rating_before": 23.643911020733736,
+    "agent2_rating_before": 28.21186016884796,
+    "agent1_rating_after": 23.86521247785609,
+    "agent2_rating_after": 28.037225860360344
+  },
+  {
+    "timestamp": "2026-02-04T16:00:22.058049",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.865212477856087,
+    "agent2_rating_before": 19.692437428510956,
+    "agent1_rating_after": 23.938097302339873,
+    "agent2_rating_after": 19.63556780741945
+  },
+  {
+    "timestamp": "2026-02-04T16:00:35.374259",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.938097302339877,
+    "agent2_rating_before": 26.750343361248962,
+    "agent1_rating_after": 23.853559977279147,
+    "agent2_rating_after": 26.822680103422897
+  },
+  {
+    "timestamp": "2026-02-04T16:00:55.633680",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 24.10860556320473,
+    "agent2_rating_before": 23.853559977279144,
+    "agent1_rating_after": 23.99115214974339,
+    "agent2_rating_after": 23.99115214974339
+  },
+  {
+    "timestamp": "2026-02-04T16:01:09.234701",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 23.73791861924902,
+    "agent2_rating_before": 23.99115214974339,
+    "agent1_rating_after": 23.874336218791278,
+    "agent2_rating_after": 23.874336218791278
+  },
+  {
+    "timestamp": "2026-02-04T16:01:15.523172",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 23.874336218791278,
+    "agent2_rating_before": 19.635567807419452,
+    "agent1_rating_after": 23.94454170234204,
+    "agent2_rating_after": 19.578987875214352
+  },
+  {
+    "timestamp": "2026-02-04T16:01:20.068061",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.94454170234204,
+    "agent2_rating_before": 22.86803588179369,
+    "agent1_rating_after": 24.056769688375077,
+    "agent2_rating_after": 22.789772590929772
+  },
+  {
+    "timestamp": "2026-02-04T16:01:31.942350",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.05676968837508,
+    "agent2_rating_before": 21.528606337663927,
+    "agent1_rating_after": 24.163270674364135,
+    "agent2_rating_after": 21.391264875659903
+  },
+  {
+    "timestamp": "2026-02-04T16:01:37.835303",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.163270674364135,
+    "agent2_rating_before": 22.789772590929772,
+    "agent1_rating_after": 24.269744792240093,
+    "agent2_rating_after": 22.714192994461435
+  },
+  {
+    "timestamp": "2026-02-04T16:01:43.341035",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.269744792240093,
+    "agent2_rating_before": 19.57898787521435,
+    "agent1_rating_after": 24.33288464084221,
+    "agent2_rating_after": 19.5259778718326
+  },
+  {
+    "timestamp": "2026-02-04T16:01:48.419025",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.33288464084221,
+    "agent2_rating_before": 22.714192994461435,
+    "agent1_rating_after": 24.43491085484388,
+    "agent2_rating_after": 22.64079526477643
+  },
+  {
+    "timestamp": "2026-02-04T16:02:08.472391",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.189873259576284,
+    "agent2_rating_before": 24.43491085484388,
+    "agent1_rating_after": 24.320982557575945,
+    "agent2_rating_after": 24.320982557575945
+  },
+  {
+    "timestamp": "2026-02-04T16:02:31.034946",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 24.320982557575945,
+    "agent2_rating_before": 26.822680103422897,
+    "agent1_rating_after": 24.236610211998062,
+    "agent2_rating_after": 26.89782326936592
+  },
+  {
+    "timestamp": "2026-02-04T16:02:37.968837",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 24.479071487292284,
+    "agent2_rating_before": 24.236610211998066,
+    "agent1_rating_after": 24.36605229271429,
+    "agent2_rating_after": 24.36605229271429
+  },
+  {
+    "timestamp": "2026-02-04T16:02:52.650696",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 24.607069899065888,
+    "agent2_rating_before": 24.36605229271429,
+    "agent1_rating_after": 24.49456041135351,
+    "agent2_rating_after": 24.49456041135351
+  },
+  {
+    "timestamp": "2026-02-04T16:02:57.215017",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": -1,
+    "agent1_rating_before": 24.49456041135351,
+    "agent2_rating_before": 19.525977871832602,
+    "agent1_rating_after": 24.30362962888217,
+    "agent2_rating_after": 19.715668049000968
+  },
+  {
+    "timestamp": "2026-02-04T16:03:00.688320",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.30362962888217,
+    "agent2_rating_before": 22.640795264776433,
+    "agent1_rating_after": 24.40116731356878,
+    "agent2_rating_after": 22.567273523117215
+  },
+  {
+    "timestamp": "2026-02-04T16:03:06.553176",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.40116731356878,
+    "agent2_rating_before": 19.715668049000968,
+    "agent1_rating_after": 24.461286020150435,
+    "agent2_rating_after": 19.66235894237854
+  },
+  {
+    "timestamp": "2026-02-04T16:03:10.574029",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.461286020150435,
+    "agent2_rating_before": 19.66235894237854,
+    "agent1_rating_after": 24.519999130525186,
+    "agent2_rating_after": 19.609941665055544
+  },
+  {
+    "timestamp": "2026-02-04T16:03:31.679636",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.284012239546268,
+    "agent2_rating_before": 24.519999130525186,
+    "agent1_rating_after": 24.409267331332778,
+    "agent2_rating_after": 24.409267331332778
+  },
+  {
+    "timestamp": "2026-02-04T16:03:34.972812",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.409267331332778,
+    "agent2_rating_before": 19.609941665055544,
+    "agent1_rating_after": 24.46752680595126,
+    "agent2_rating_after": 19.557433607581526
+  },
+  {
+    "timestamp": "2026-02-04T16:04:18.245100",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.46752680595126,
+    "agent2_rating_before": 21.391264875659903,
+    "agent1_rating_after": 24.559241088064216,
+    "agent2_rating_after": 21.265711871898315
+  },
+  {
+    "timestamp": "2026-02-04T16:04:24.120574",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.3255744606921,
+    "agent2_rating_before": 24.55924108806422,
+    "agent1_rating_after": 24.44932996457512,
+    "agent2_rating_after": 24.44932996457512
+  },
+  {
+    "timestamp": "2026-02-04T16:04:37.652139",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 24.449329964575117,
+    "agent2_rating_before": 26.89782326936592,
+    "agent1_rating_after": 24.367752176554788,
+    "agent2_rating_after": 26.972861172297073
+  },
+  {
+    "timestamp": "2026-02-04T16:04:43.313373",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.367752176554788,
+    "agent2_rating_before": 22.567273523117215,
+    "agent1_rating_after": 24.46076319547826,
+    "agent2_rating_after": 22.49466147249953
+  },
+  {
+    "timestamp": "2026-02-04T16:05:29.969355",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 24.46076319547826,
+    "agent2_rating_before": 26.972861172297073,
+    "agent1_rating_after": 24.52432850012243,
+    "agent2_rating_after": 26.939980921204526
+  },
+  {
+    "timestamp": "2026-02-04T16:05:51.795425",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.52432850012243,
+    "agent2_rating_before": 28.037225860360344,
+    "agent1_rating_after": 24.457172967759337,
+    "agent2_rating_after": 28.110636432672944
+  },
+  {
+    "timestamp": "2026-02-04T16:06:01.711070",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 24.457172967759334,
+    "agent2_rating_before": 27.418090850683036,
+    "agent1_rating_after": 24.383397186245087,
+    "agent2_rating_after": 27.491738947288578
+  },
+  {
+    "timestamp": "2026-02-04T16:06:19.788337",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 24.383397186245087,
+    "agent2_rating_before": 26.939980921204526,
+    "agent1_rating_after": 24.304493405422082,
+    "agent2_rating_after": 27.012757680990422
+  },
+  {
+    "timestamp": "2026-02-04T16:06:33.471739",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.304493405422082,
+    "agent2_rating_before": 28.110636432672944,
+    "agent1_rating_after": 24.240564188182226,
+    "agent2_rating_after": 28.18014373081296
+  },
+  {
+    "timestamp": "2026-02-04T16:06:37.912135",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.24056418818223,
+    "agent2_rating_before": 19.557433607581526,
+    "agent1_rating_after": 24.29765132053775,
+    "agent2_rating_after": 19.503551808705748
+  },
+  {
+    "timestamp": "2026-02-04T16:06:52.660247",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 24.29765132053775,
+    "agent2_rating_before": 27.012757680990422,
+    "agent1_rating_after": 24.220804984398736,
+    "agent2_rating_after": 27.083635586185604
+  },
+  {
+    "timestamp": "2026-02-04T16:06:58.619087",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.220804984398736,
+    "agent2_rating_before": 19.503551808705748,
+    "agent1_rating_after": 24.277302315999695,
+    "agent2_rating_after": 19.449903038412696
+  },
+  {
+    "timestamp": "2026-02-04T16:07:03.177278",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": -1,
+    "agent1_rating_before": 24.277302315999695,
+    "agent2_rating_before": 19.449903038412696,
+    "agent1_rating_after": 24.099422063861457,
+    "agent2_rating_after": 19.635508906960737
+  },
+  {
+    "timestamp": "2026-02-04T16:07:08.466314",
+    "agent1_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.099422063861457,
+    "agent2_rating_before": 19.635508906960734,
+    "agent1_rating_after": 24.158167087228875,
+    "agent2_rating_after": 19.57987906478065
+  },
+  {
+    "timestamp": "2026-02-04T16:07:21.351746",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 21.265711871898315,
+    "agent2_rating_before": 27.491738947288578,
+    "agent1_rating_after": 21.192883488732384,
+    "agent2_rating_after": 27.5388870566555
+  },
+  {
+    "timestamp": "2026-02-04T16:07:52.663712",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 21.192883488732384,
+    "agent2_rating_before": 27.083635586185604,
+    "agent1_rating_after": 21.56795903585214,
+    "agent2_rating_after": 26.924891687113384
+  },
+  {
+    "timestamp": "2026-02-04T16:07:56.783903",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.56795903585214,
+    "agent2_rating_before": 22.494661472499526,
+    "agent1_rating_after": 21.794106239929363,
+    "agent2_rating_after": 22.403261900959038
+  },
+  {
+    "timestamp": "2026-02-04T16:08:07.816979",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 21.794106239929363,
+    "agent2_rating_before": 27.5388870566555,
+    "agent1_rating_after": 22.152209659845877,
+    "agent2_rating_after": 27.370900228518632
+  },
+  {
+    "timestamp": "2026-02-04T16:08:25.093585",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 22.152209659845877,
+    "agent2_rating_before": 24.15816708722888,
+    "agent1_rating_after": 22.01683561354383,
+    "agent2_rating_after": 24.25746703219241
+  },
+  {
+    "timestamp": "2026-02-04T16:08:36.577916",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.01683561354383,
+    "agent2_rating_before": 27.370900228518632,
+    "agent1_rating_after": 21.938401977006304,
+    "agent2_rating_after": 27.42511635820425
+  },
+  {
+    "timestamp": "2026-02-04T16:08:53.974199",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 21.938401977006308,
+    "agent2_rating_before": 26.924891687113384,
+    "agent1_rating_after": 21.85437635185014,
+    "agent2_rating_after": 26.978450725457392
+  },
+  {
+    "timestamp": "2026-02-04T16:09:00.314023",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.85437635185014,
+    "agent2_rating_before": 22.403261900959038,
+    "agent1_rating_after": 22.055105048163796,
+    "agent2_rating_after": 22.3143095028709
+  },
+  {
+    "timestamp": "2026-02-04T16:09:07.005662",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 22.055105048163792,
+    "agent2_rating_before": 26.978450725457392,
+    "agent1_rating_after": 21.97237859158409,
+    "agent2_rating_after": 27.032299769121956
+  },
+  {
+    "timestamp": "2026-02-04T16:09:11.094427",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 21.97237859158409,
+    "agent2_rating_before": 19.579879064780652,
+    "agent1_rating_after": 22.107683031954988,
+    "agent2_rating_after": 19.5116975794121
+  },
+  {
+    "timestamp": "2026-02-04T16:09:20.551717",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.107683031954988,
+    "agent2_rating_before": 27.42511635820425,
+    "agent1_rating_after": 22.033174276207365,
+    "agent2_rating_after": 27.478723470766255
+  },
+  {
+    "timestamp": "2026-02-04T16:09:34.417164",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 22.033174276207365,
+    "agent2_rating_before": 22.314309502870902,
+    "agent1_rating_after": 22.218791343252317,
+    "agent2_rating_after": 22.22724926262988
+  },
+  {
+    "timestamp": "2026-02-04T16:09:45.226763",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 22.21879134325232,
+    "agent2_rating_before": 28.18014373081296,
+    "agent1_rating_after": 22.15511596103933,
+    "agent2_rating_after": 28.23154174178808
+  },
+  {
+    "timestamp": "2026-02-04T16:09:57.821866",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 22.15511596103933,
+    "agent2_rating_before": 28.23154174178808,
+    "agent1_rating_after": 22.093218545362255,
+    "agent2_rating_after": 28.281569449542626
+  },
+  {
+    "timestamp": "2026-02-04T16:10:09.980670",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 21.75752108421418,
+    "agent2_rating_before": 22.093218545362255,
+    "agent1_rating_after": 21.94780250966118,
+    "agent2_rating_after": 21.94780250966118
+  },
+  {
+    "timestamp": "2026-02-04T16:10:13.332333",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 21.94780250966118,
+    "agent2_rating_before": 19.511697579412097,
+    "agent1_rating_after": 22.07388217599507,
+    "agent2_rating_after": 19.442932386825355
+  },
+  {
+    "timestamp": "2026-02-04T16:10:21.228640",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 22.401641236597445,
+    "agent2_rating_before": 22.07388217599507,
+    "agent1_rating_after": 22.258938814473876,
+    "agent2_rating_after": 22.258938814473876
+  },
+  {
+    "timestamp": "2026-02-04T16:10:53.310262",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.258938814473872,
+    "agent2_rating_before": 27.478723470766255,
+    "agent1_rating_after": 22.18837366961313,
+    "agent2_rating_after": 27.532132546660158
+  },
+  {
+    "timestamp": "2026-02-04T16:10:58.170737",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 22.18837366961313,
+    "agent2_rating_before": 27.532132546660158,
+    "agent1_rating_after": 22.119823631126994,
+    "agent2_rating_after": 27.58415470046048
+  },
+  {
+    "timestamp": "2026-02-04T16:11:06.508928",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 21.8011979202315,
+    "agent2_rating_before": 22.119823631126994,
+    "agent1_rating_after": 21.980254251433962,
+    "agent2_rating_after": 21.980254251433962
+  },
+  {
+    "timestamp": "2026-02-04T16:11:12.099595",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 21.980254251433962,
+    "agent2_rating_before": 22.22724926262988,
+    "agent1_rating_after": 22.14858843239921,
+    "agent2_rating_after": 22.138843062414114
+  },
+  {
+    "timestamp": "2026-02-04T16:11:58.542415",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 22.14858843239921,
+    "agent2_rating_before": 27.032299769121956,
+    "agent1_rating_after": 22.3000440699639,
+    "agent2_rating_after": 26.965364191004586
+  },
+  {
+    "timestamp": "2026-02-04T16:12:24.859634",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 22.300044069963903,
+    "agent2_rating_before": 22.13884306241411,
+    "agent1_rating_after": 22.454953257044416,
+    "agent2_rating_after": 22.05408818505354
+  },
+  {
+    "timestamp": "2026-02-04T16:12:38.059826",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 22.756284889796028,
+    "agent2_rating_before": 22.454953257044412,
+    "agent1_rating_after": 22.6226794514545,
+    "agent2_rating_after": 22.6226794514545
+  },
+  {
+    "timestamp": "2026-02-04T16:12:54.044350",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 22.9206985584641,
+    "agent2_rating_before": 22.622679451454502,
+    "agent1_rating_after": 22.78824006814517,
+    "agent2_rating_after": 22.78824006814517
+  },
+  {
+    "timestamp": "2026-02-04T16:13:04.791265",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 22.78824006814517,
+    "agent2_rating_before": 28.281569449542626,
+    "agent1_rating_after": 22.727447627012644,
+    "agent2_rating_after": 28.335576479030625
+  },
+  {
+    "timestamp": "2026-02-04T16:13:13.072518",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 23.020731896017715,
+    "agent2_rating_before": 22.727447627012644,
+    "agent1_rating_after": 22.8899153419203,
+    "agent2_rating_after": 22.8899153419203
+  },
+  {
+    "timestamp": "2026-02-04T16:13:54.133214",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 22.59966644909239,
+    "agent2_rating_before": 22.8899153419203,
+    "agent1_rating_after": 22.7601529309014,
+    "agent2_rating_after": 22.7601529309014
+  },
+  {
+    "timestamp": "2026-02-04T16:14:01.136173",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 22.7601529309014,
+    "agent2_rating_before": 19.442932386825355,
+    "agent1_rating_after": 22.855079069917267,
+    "agent2_rating_after": 19.380385913482833
+  },
+  {
+    "timestamp": "2026-02-04T16:14:11.333488",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 22.855079069917267,
+    "agent2_rating_before": 22.054088185053544,
+    "agent1_rating_after": 22.988621418266753,
+    "agent2_rating_after": 21.97469989415224
+  },
+  {
+    "timestamp": "2026-02-04T16:14:49.977262",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 22.988621418266757,
+    "agent2_rating_before": 26.965364191004586,
+    "agent1_rating_after": 22.91082012059476,
+    "agent2_rating_after": 27.025002251899906
+  },
+  {
+    "timestamp": "2026-02-04T16:15:11.598002",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 22.910820120594757,
+    "agent2_rating_before": 27.025002251899906,
+    "agent1_rating_after": 23.137554942218443,
+    "agent2_rating_after": 26.882416187382557
+  },
+  {
+    "timestamp": "2026-02-04T16:15:48.358135",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 23.137554942218447,
+    "agent2_rating_before": 27.584154700460484,
+    "agent1_rating_after": 23.067589268314826,
+    "agent2_rating_after": 27.643518902195748
+  },
+  {
+    "timestamp": "2026-02-04T16:16:20.853128",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 23.067589268314826,
+    "agent2_rating_before": 26.88241618738256,
+    "agent1_rating_after": 22.98945909046085,
+    "agent2_rating_after": 26.94325683955995
+  },
+  {
+    "timestamp": "2026-02-04T16:16:30.787440",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 23.26420050925346,
+    "agent2_rating_before": 22.98945909046085,
+    "agent1_rating_after": 23.1398419421927,
+    "agent2_rating_after": 23.1398419421927
+  },
+  {
+    "timestamp": "2026-02-04T16:16:38.069299",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.1398419421927,
+    "agent2_rating_before": 21.974699894152238,
+    "agent1_rating_after": 23.260924926371015,
+    "agent2_rating_after": 21.89812219849605
+  },
+  {
+    "timestamp": "2026-02-04T16:17:24.958687",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 23.260924926371015,
+    "agent2_rating_before": 26.943256839559947,
+    "agent1_rating_after": 23.363589508443056,
+    "agent2_rating_after": 26.894086747211887
+  },
+  {
+    "timestamp": "2026-02-04T16:17:46.923991",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 23.363589508443056,
+    "agent2_rating_before": 27.643518902195744,
+    "agent1_rating_after": 23.582566176496133,
+    "agent2_rating_after": 27.48765398489689
+  },
+  {
+    "timestamp": "2026-02-04T16:17:52.969188",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 23.582566176496133,
+    "agent2_rating_before": 24.257467032192405,
+    "agent1_rating_after": 23.46868765364826,
+    "agent2_rating_after": 24.367718081764025
+  },
+  {
+    "timestamp": "2026-02-04T16:18:39.926419",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 23.46868765364826,
+    "agent2_rating_before": 27.48765398489689,
+    "agent1_rating_after": 23.57757195165192,
+    "agent2_rating_after": 27.428276935800383
+  },
+  {
+    "timestamp": "2026-02-04T16:18:46.356740",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.577571951651922,
+    "agent2_rating_before": 21.89812219849605,
+    "agent1_rating_after": 23.683669500679684,
+    "agent2_rating_after": 21.825597801020354
+  },
+  {
+    "timestamp": "2026-02-04T16:19:00.652730",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 23.68366950067968,
+    "agent2_rating_before": 24.367718081764025,
+    "agent1_rating_after": 23.83033021437282,
+    "agent2_rating_after": 24.255646703945395
+  },
+  {
+    "timestamp": "2026-02-04T16:19:08.927901",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 23.83033021437282,
+    "agent2_rating_before": 21.825597801020354,
+    "agent1_rating_after": 23.930082419428757,
+    "agent2_rating_after": 21.755860086493442
+  },
+  {
+    "timestamp": "2026-02-04T16:19:55.883346",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 0,
+    "agent1_rating_before": 23.930082419428757,
+    "agent2_rating_before": 27.428276935800383,
+    "agent1_rating_after": 24.02332043933193,
+    "agent2_rating_after": 27.378198852843415
+  },
+  {
+    "timestamp": "2026-02-04T16:19:59.723696",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.02332043933193,
+    "agent2_rating_before": 19.380385913482833,
+    "agent1_rating_after": 24.087555126728212,
+    "agent2_rating_after": 19.32750920779129
+  },
+  {
+    "timestamp": "2026-02-04T16:20:02.783403",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.087555126728212,
+    "agent2_rating_before": 21.755860086493442,
+    "agent1_rating_after": 24.18033604049459,
+    "agent2_rating_after": 21.688747749733388
+  },
+  {
+    "timestamp": "2026-02-04T16:20:13.591407",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.18033604049459,
+    "agent2_rating_before": 28.33557647903062,
+    "agent1_rating_after": 24.11512824465771,
+    "agent2_rating_after": 28.402032862137617
+  },
+  {
+    "timestamp": "2026-02-04T16:20:18.845641",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.11512824465771,
+    "agent2_rating_before": 21.68874774973339,
+    "agent1_rating_after": 24.205849552995602,
+    "agent2_rating_after": 21.62231816407486
+  },
+  {
+    "timestamp": "2026-02-04T16:20:45.241826",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.205849552995602,
+    "agent2_rating_before": 24.2556467039454,
+    "agent1_rating_after": 24.33607999019237,
+    "agent2_rating_after": 24.151344646567786
+  },
+  {
+    "timestamp": "2026-02-04T16:20:49.158533",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.33607999019237,
+    "agent2_rating_before": 19.32750920779129,
+    "agent1_rating_after": 24.394515933003163,
+    "agent2_rating_after": 19.277302743132964
+  },
+  {
+    "timestamp": "2026-02-04T16:21:17.652841",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": -1,
+    "agent1_rating_before": 24.394515933003163,
+    "agent2_rating_before": 26.894086747211887,
+    "agent1_rating_after": 24.309695075695174,
+    "agent2_rating_after": 26.967123375106155
+  },
+  {
+    "timestamp": "2026-02-04T16:22:11.527366",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": 0,
+    "agent1_rating_before": 24.309695075695174,
+    "agent2_rating_before": 28.40203286213762,
+    "agent1_rating_after": 24.414345063482614,
+    "agent2_rating_after": 28.334526397882943
+  },
+  {
+    "timestamp": "2026-02-04T16:22:33.392921",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.414345063482614,
+    "agent2_rating_before": 28.334526397882943,
+    "agent1_rating_after": 24.348360809763975,
+    "agent2_rating_after": 28.40229830523552
+  },
+  {
+    "timestamp": "2026-02-04T16:22:42.431863",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.348360809763975,
+    "agent2_rating_before": 24.151344646567786,
+    "agent1_rating_after": 24.47095922339576,
+    "agent2_rating_after": 24.049978111705833
+  },
+  {
+    "timestamp": "2026-02-04T16:22:57.520132",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.233343885322594,
+    "agent2_rating_before": 24.47095922339576,
+    "agent1_rating_after": 24.35965173011894,
+    "agent2_rating_after": 24.35965173011894
+  },
+  {
+    "timestamp": "2026-02-04T16:23:10.491692",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.35965173011894,
+    "agent2_rating_before": 28.40229830523552,
+    "agent1_rating_after": 24.295603832708057,
+    "agent2_rating_after": 28.46828635296473
+  },
+  {
+    "timestamp": "2026-02-04T16:23:18.527981",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 24.53140404516695,
+    "agent2_rating_before": 24.295603832708053,
+    "agent1_rating_after": 24.42073825643471,
+    "agent2_rating_after": 24.42073825643471
+  },
+  {
+    "timestamp": "2026-02-04T16:23:40.114759",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.420738256434714,
+    "agent2_rating_before": 21.622318164074855,
+    "agent1_rating_after": 24.501669265291238,
+    "agent2_rating_after": 21.55848082091442
+  },
+  {
+    "timestamp": "2026-02-04T16:23:51.596676",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.501669265291238,
+    "agent2_rating_before": 28.46828635296473,
+    "agent1_rating_after": 24.43740861270449,
+    "agent2_rating_after": 28.534913133163318
+  },
+  {
+    "timestamp": "2026-02-04T16:24:06.106803",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.43740861270449,
+    "agent2_rating_before": 19.277302743132964,
+    "agent1_rating_after": 24.49116550033417,
+    "agent2_rating_after": 19.22777152119902
+  },
+  {
+    "timestamp": "2026-02-04T16:24:18.219476",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.49116550033417,
+    "agent2_rating_before": 28.534913133163318,
+    "agent1_rating_after": 24.42778227592143,
+    "agent2_rating_after": 28.600480163069427
+  },
+  {
+    "timestamp": "2026-02-04T16:25:00.629309",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 24.427782275921434,
+    "agent2_rating_before": 27.37819885284341,
+    "agent1_rating_after": 24.352152775695835,
+    "agent2_rating_after": 27.450117861958866
+  },
+  {
+    "timestamp": "2026-02-04T16:25:06.631152",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.352152775695835,
+    "agent2_rating_before": 19.22777152119902,
+    "agent1_rating_after": 24.405960778583278,
+    "agent2_rating_after": 19.17787188042589
+  },
+  {
+    "timestamp": "2026-02-04T16:25:14.507959",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.405960778583275,
+    "agent2_rating_before": 24.049978111705833,
+    "agent1_rating_after": 24.522325074907783,
+    "agent2_rating_after": 23.95037790580272
+  },
+  {
+    "timestamp": "2026-02-04T16:25:29.181532",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 24.753213949807346,
+    "agent2_rating_before": 24.522325074907783,
+    "agent1_rating_after": 24.644285927518386,
+    "agent2_rating_after": 24.644285927518386
+  },
+  {
+    "timestamp": "2026-02-04T16:25:41.182204",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.644285927518386,
+    "agent2_rating_before": 19.17787188042589,
+    "agent1_rating_after": 24.69376897641189,
+    "agent2_rating_after": 19.13045084905584
+  },
+  {
+    "timestamp": "2026-02-04T16:26:08.401465",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 24.693768976411892,
+    "agent2_rating_before": 27.45011786195887,
+    "agent1_rating_after": 24.61688992196636,
+    "agent2_rating_after": 27.524072946487188
+  },
+  {
+    "timestamp": "2026-02-04T16:26:15.591297",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 24.616889921966358,
+    "agent2_rating_before": 26.96712337510616,
+    "agent1_rating_after": 24.771394081834483,
+    "agent2_rating_after": 26.84442474023831
+  },
+  {
+    "timestamp": "2026-02-04T16:26:52.578959",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 24.771394081834483,
+    "agent2_rating_before": 27.524072946487184,
+    "agent1_rating_after": 24.695048451299073,
+    "agent2_rating_after": 27.597874999228026
+  },
+  {
+    "timestamp": "2026-02-04T16:27:00.820424",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": 1,
+    "agent1_rating_before": 24.695048451299076,
+    "agent2_rating_before": 23.95037790580272,
+    "agent1_rating_after": 24.803140761996666,
+    "agent2_rating_after": 23.855420650639598
+  },
+  {
+    "timestamp": "2026-02-04T16:27:06.984022",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.803140761996666,
+    "agent2_rating_before": 19.13045084905584,
+    "agent1_rating_after": 24.84956624444002,
+    "agent2_rating_after": 19.0843671012954
+  },
+  {
+    "timestamp": "2026-02-04T16:27:30.318932",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": 1,
+    "agent1_rating_before": 24.84956624444002,
+    "agent2_rating_before": 27.597874999228026,
+    "agent1_rating_after": 25.00939201032535,
+    "agent2_rating_after": 27.463362964245167
+  },
+  {
+    "timestamp": "2026-02-04T16:27:36.506911",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.00939201032535,
+    "agent2_rating_before": 19.0843671012954,
+    "agent1_rating_after": 25.052965701609708,
+    "agent2_rating_after": 19.040007544779975
+  },
+  {
+    "timestamp": "2026-02-04T16:27:40.972425",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.052965701609708,
+    "agent2_rating_before": 19.04000754477997,
+    "agent1_rating_after": 25.095723404485465,
+    "agent2_rating_after": 18.99622949619124
+  },
+  {
+    "timestamp": "2026-02-04T16:27:48.436729",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 25.095723404485465,
+    "agent2_rating_before": 21.55848082091442,
+    "agent1_rating_after": 24.93538254045833,
+    "agent2_rating_after": 21.702803960131938
+  },
+  {
+    "timestamp": "2026-02-04T16:27:51.608952",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.935382540458328,
+    "agent2_rating_before": 21.70280396013194,
+    "agent1_rating_after": 25.00678700894891,
+    "agent2_rating_after": 21.64217317657156
+  },
+  {
+    "timestamp": "2026-02-04T16:28:44.427530",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": -1,
+    "agent1_rating_before": 25.230270554186838,
+    "agent2_rating_before": 25.006787008948912,
+    "agent1_rating_after": 25.123966479896374,
+    "agent2_rating_after": 25.123966479896374
+  },
+  {
+    "timestamp": "2026-02-04T16:28:48.472029",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 25.12396647989637,
+    "agent2_rating_before": 18.99622949619124,
+    "agent1_rating_after": 25.165006950897407,
+    "agent2_rating_after": 18.953103355789334
+  },
+  {
+    "timestamp": "2026-02-04T16:28:55.639927",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "result": -1,
+    "agent1_rating_before": 25.16500695089741,
+    "agent2_rating_before": 27.463362964245167,
+    "agent1_rating_after": 25.08512185044342,
+    "agent2_rating_after": 27.541862149146194
+  },
+  {
+    "timestamp": "2026-02-04T16:29:07.992433",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.08512185044342,
+    "agent2_rating_before": 28.600480163069427,
+    "agent1_rating_after": 25.019163946841683,
+    "agent2_rating_after": 28.67154162373621
+  },
+  {
+    "timestamp": "2026-02-04T16:29:17.491894",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 25.019163946841683,
+    "agent2_rating_before": 28.67154162373621,
+    "agent1_rating_after": 24.954577766879623,
+    "agent2_rating_after": 28.740788306717487
+  },
+  {
+    "timestamp": "2026-02-04T16:29:21.330837",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.954577766879623,
+    "agent2_rating_before": 18.953103355789334,
+    "agent1_rating_after": 24.996649136858863,
+    "agent2_rating_after": 18.909009511850865
+  },
+  {
+    "timestamp": "2026-02-04T16:29:25.514436",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 24.996649136858863,
+    "agent2_rating_before": 21.64217317657156,
+    "agent1_rating_after": 24.8413411244681,
+    "agent2_rating_after": 21.78369319010307
+  },
+  {
+    "timestamp": "2026-02-04T16:29:34.472849",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.8413411244681,
+    "agent2_rating_before": 18.909009511850865,
+    "agent1_rating_after": 24.883834679885076,
+    "agent2_rating_after": 18.864333823325232
+  },
+  {
+    "timestamp": "2026-02-04T16:29:40.783580",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.883834679885076,
+    "agent2_rating_before": 21.78369319010307,
+    "agent1_rating_after": 24.955716027952477,
+    "agent2_rating_after": 21.721795665682542
+  },
+  {
+    "timestamp": "2026-02-04T16:29:59.607653",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.955716027952477,
+    "agent2_rating_before": 28.740788306717487,
+    "agent1_rating_after": 24.89271073006746,
+    "agent2_rating_after": 28.808226194404522
+  },
+  {
+    "timestamp": "2026-02-04T16:30:04.534587",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.89271073006746,
+    "agent2_rating_before": 18.864333823325232,
+    "agent1_rating_after": 24.934212526693734,
+    "agent2_rating_after": 18.820287725422393
+  },
+  {
+    "timestamp": "2026-02-04T16:30:09.232577",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.934212526693734,
+    "agent2_rating_before": 21.72179566568254,
+    "agent1_rating_after": 25.00465826986608,
+    "agent2_rating_after": 21.66075894662061
+  },
+  {
+    "timestamp": "2026-02-04T16:30:16.428733",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "result": -1,
+    "agent1_rating_before": 25.004658269866084,
+    "agent2_rating_before": 23.855420650639598,
+    "agent1_rating_after": 24.88438145813099,
+    "agent2_rating_after": 23.98601013526827
+  },
+  {
+    "timestamp": "2026-02-04T16:30:54.801666",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.66514124692172,
+    "agent2_rating_before": 24.884381458130985,
+    "agent1_rating_after": 24.779582771588032,
+    "agent2_rating_after": 24.779582771588032
+  },
+  {
+    "timestamp": "2026-02-04T16:31:00.938761",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.779582771588032,
+    "agent2_rating_before": 18.820287725422393,
+    "agent1_rating_after": 24.8213143494912,
+    "agent2_rating_after": 18.77562936375135
+  },
+  {
+    "timestamp": "2026-02-04T16:31:09.371149",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "result": 1,
+    "agent1_rating_before": 24.602624490360103,
+    "agent2_rating_before": 24.8213143494912,
+    "agent1_rating_after": 24.716710998772687,
+    "agent2_rating_after": 24.716710998772687
+  },
+  {
+    "timestamp": "2026-02-04T16:31:36.467841",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 0,
+    "agent1_rating_before": 24.716710998772687,
+    "agent2_rating_before": 21.66075894662061,
+    "agent1_rating_after": 24.666233719495892,
+    "agent2_rating_after": 21.72255972802784
+  },
+  {
+    "timestamp": "2026-02-04T16:31:59.739713",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 1,
+    "agent1_rating_before": 24.66623371949589,
+    "agent2_rating_before": 26.844424740238306,
+    "agent1_rating_after": 24.80859777170197,
+    "agent2_rating_after": 26.723082895594068
+  },
+  {
+    "timestamp": "2026-02-04T16:32:05.190009",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.80859777170197,
+    "agent2_rating_before": 18.77562936375135,
+    "agent1_rating_after": 24.84874687576015,
+    "agent2_rating_after": 18.73130481166517
+  },
+  {
+    "timestamp": "2026-02-04T16:32:11.425352",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_strong",
+    "result": 1,
+    "agent1_rating_before": 24.84874687576015,
+    "agent2_rating_before": 18.73130481166517,
+    "agent1_rating_after": 24.88819800928778,
+    "agent2_rating_after": 18.68755273462678
+  },
+  {
+    "timestamp": "2026-02-04T16:32:31.967452",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "result": -1,
+    "agent1_rating_before": 24.88819800928778,
+    "agent2_rating_before": 28.808226194404522,
+    "agent1_rating_after": 24.82755393045789,
+    "agent2_rating_after": 28.87362149172658
+  },
+  {
+    "timestamp": "2026-02-04T16:32:37.226957",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": 1,
+    "agent1_rating_before": 24.82755393045789,
+    "agent2_rating_before": 21.72255972802784,
+    "agent1_rating_after": 24.897316053890574,
+    "agent2_rating_after": 21.660533066458783
+  },
+  {
+    "timestamp": "2026-02-04T16:32:42.036531",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "basic_weak",
+    "result": -1,
+    "agent1_rating_before": 24.897316053890574,
+    "agent2_rating_before": 21.660533066458783,
+    "agent1_rating_after": 24.74810032237988,
+    "agent2_rating_after": 21.799565948960336
+  },
+  {
+    "timestamp": "2026-02-04T16:33:28.966296",
+    "agent1_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "agent2_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "result": 0,
+    "agent1_rating_before": 24.74810032237988,
+    "agent2_rating_before": 26.723082895594068,
+    "agent1_rating_after": 24.795687679266344,
+    "agent2_rating_after": 26.69854627062781
   }
 ]
