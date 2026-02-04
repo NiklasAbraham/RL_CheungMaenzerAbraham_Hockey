@@ -91,8 +91,10 @@ class RunManager:
             "csv_resources": self.csvs_dir / f"{run_name}_resources.csv",
             "csv_episode_logs": self.csvs_dir / f"{run_name}_episode_logs.csv",
             "model": self.models_dir / f"{run_name}.pt",
-            "plot_value_propagation_heatmap": self.plots_dir / f"{run_name}_value_propagation_heatmap.png",
-            "plot_value_propagation_line": self.plots_dir / f"{run_name}_value_propagation_line.png",
+            "plot_value_propagation_heatmap": self.plots_dir
+            / f"{run_name}_value_propagation_heatmap.png",
+            "plot_value_propagation_line": self.plots_dir
+            / f"{run_name}_value_propagation_line.png",
         }
 
     def save_config(self, run_name: str, config: Dict[str, Any]):
@@ -214,21 +216,27 @@ class RunManager:
             self.save_episode_logs_csv(
                 checkpoint_name, episode_logs, checkpoint_csv_path
             )
-            
+
             # Generate plots for the checkpoint
             try:
-                from rl_hockey.common.training.plot_episode_logs import plot_episode_logs
+                from rl_hockey.common.training.plot_episode_logs import (
+                    plot_episode_logs,
+                )
+
                 plot_episode_logs(
                     str(self.base_output_dir),
                     run_name=checkpoint_name,
-                    window_size=10,
+                    window_size=80,
                     skip_warmup=True,
                     plot_flat_losses=False,
                 )
             except Exception as e:
                 import logging
+
                 logger = logging.getLogger(__name__)
-                logger.warning(f"Failed to generate plots for checkpoint {checkpoint_name}: {e}")
+                logger.warning(
+                    f"Failed to generate plots for checkpoint {checkpoint_name}: {e}"
+                )
 
     def get_checkpoint_path(self, run_name: str, episode: int) -> Path:
         """Get checkpoint path for a specific episode."""
@@ -330,8 +338,10 @@ class RunManager:
             return
 
         import matplotlib
+
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+
         from rl_hockey.common.evaluation.value_propagation import (
             plot_value_heatmap,
             plot_values_line,

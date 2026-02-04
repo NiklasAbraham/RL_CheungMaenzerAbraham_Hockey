@@ -3,14 +3,13 @@
   "archived_at": "2026-02-04T14:09:03.846615",
   "tags": [
     "tdmpc2",
-    "needs_calibration",
     "needs_calibration"
   ],
   "rating": {
-    "mu": 26.98170130236868,
-    "sigma": 2.3389506280323618,
-    "rating": 19.964849418271594,
-    "matches_played": 9
+    "mu": 31.432979358121813,
+    "sigma": 0.8531192887984104,
+    "rating": 28.87362149172658,
+    "matches_played": 150
   },
   "step": 4600,
   "checkpoint_path": "archive/agents/0005_TDMPC2_2026-02-04_14-09-03/checkpoint.pt",

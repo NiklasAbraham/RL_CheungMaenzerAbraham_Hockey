@@ -7,7 +7,6 @@ from pathlib import Path
 
 import hockey.hockey_env as h_env
 import numpy as np
-from tqdm import tqdm
 
 from rl_hockey.common.archive.archive import Archive
 from rl_hockey.common.archive.matchmaker import Matchmaker
@@ -21,9 +20,9 @@ logger = logging.getLogger(__name__)
 # Config: edit these paths and parameters
 CONFIG = {
     "archive_dir": Path("archive"),
-    "num_games_per_match": 100,
+    "num_games_per_match": 2,
     "max_steps": 500,
-    "filter_tags": ["tdmpc2"],
+    "filter_tags": [],
     "exclude_baselines": True,
 }
 
@@ -161,7 +160,9 @@ def run_round_robin_tournament(
 
     # Run tournament
     results = []
-    for agent1_id, agent2_id in tqdm(matches, desc="Tournament Progress"):
+    total_matches = len(matches)
+    for match_idx, (agent1_id, agent2_id) in enumerate(matches, 1):
+        logger.info(f"Match {match_idx}/{total_matches}")
         result = run_match_series(
             archive,
             matchmaker,
