@@ -3,17 +3,31 @@ import hashlib
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 
 
 class RunManager:
     """Manages file organization for hyperparameter runs."""
 
-    def __init__(self, base_output_dir: str = "results/hyperparameter_runs"):
-        """Initialize the run manager."""
-        # Add current date and time to the output directory
-        current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        self.base_output_dir = Path(base_output_dir) / current_datetime
+    def __init__(
+        self,
+        base_output_dir: str = "results/hyperparameter_runs",
+        existing_run_dir: Optional[str] = None,
+    ):
+        """Initialize the run manager.
+
+        Args:
+            base_output_dir: Parent directory for new runs (ignored if existing_run_dir is set).
+            existing_run_dir: If set, use this path as the run directory (no new timestamp).
+                Use when resuming into an existing run folder.
+        """
+        if existing_run_dir is not None:
+            self.base_output_dir = Path(existing_run_dir)
+        else:
+            current_datetime = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            self.base_output_dir = Path(base_output_dir) / current_datetime
         self.base_output_dir.mkdir(parents=True, exist_ok=True)
 
         # Create subdirectories
@@ -77,6 +91,10 @@ class RunManager:
             "csv_resources": self.csvs_dir / f"{run_name}_resources.csv",
             "csv_episode_logs": self.csvs_dir / f"{run_name}_episode_logs.csv",
             "model": self.models_dir / f"{run_name}.pt",
+            "plot_value_propagation_heatmap": self.plots_dir
+            / f"{run_name}_value_propagation_heatmap.png",
+            "plot_value_propagation_line": self.plots_dir
+            / f"{run_name}_value_propagation_line.png",
         }
 
     def save_config(self, run_name: str, config: Dict[str, Any]):
@@ -199,6 +217,27 @@ class RunManager:
                 checkpoint_name, episode_logs, checkpoint_csv_path
             )
 
+            # Generate plots for the checkpoint
+            try:
+                from rl_hockey.common.training.plot_episode_logs import (
+                    plot_episode_logs,
+                )
+
+                plot_episode_logs(
+                    str(self.base_output_dir),
+                    run_name=checkpoint_name,
+                    window_size=80,
+                    skip_warmup=True,
+                    plot_flat_losses=False,
+                )
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.warning(
+                    f"Failed to generate plots for checkpoint {checkpoint_name}: {e}"
+                )
+
     def get_checkpoint_path(self, run_name: str, episode: int) -> Path:
         """Get checkpoint path for a specific episode."""
         checkpoint_name = f"{run_name}_ep{episode:06d}"
@@ -287,6 +326,40 @@ class RunManager:
 
         plt.tight_layout()
         plt.savefig(paths["plot_evaluation"])
+        plt.close()
+
+    def save_value_propagation_plot(
+        self,
+        run_name: str,
+        q_values: List[Tuple[np.ndarray, np.ndarray]],
+    ):
+        """Save value propagation heatmap and line plots from list of (means, variances) from evaluate_episodes."""
+        if not q_values:
+            return
+
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        from rl_hockey.common.evaluation.value_propagation import (
+            plot_value_heatmap,
+            plot_values_line,
+        )
+
+        paths = self.get_run_directories(run_name)
+        all_means = [m for m, _ in q_values]
+        all_variances = [v for _, v in q_values]
+        labels = [f"Eval {i + 1}" for i in range(len(q_values))]
+
+        plot_value_heatmap(all_means, path=str(paths["plot_value_propagation_heatmap"]))
+        plt.close()
+        plot_values_line(
+            all_means,
+            path=str(paths["plot_value_propagation_line"]),
+            all_variances=all_variances,
+            labels=labels,
+        )
         plt.close()
 
     def save_resources_csv(self, run_name: str, resource_logs: List[Dict[str, Any]]):
@@ -396,6 +469,39 @@ class RunManager:
                         )
                     row.append(loss_value)
                 writer.writerow(row)
+
+    @staticmethod
+    def load_episode_logs_csv(csv_path: Path) -> List[Dict[str, Any]]:
+        """Load episode logs from a checkpoint or run CSV (inverse of save_episode_logs_csv)."""
+        if not csv_path.exists():
+            return []
+        fixed_keys = [
+            "episode",
+            "reward",
+            "shaped_reward",
+            "backprop_reward",
+            "total_gradient_steps",
+        ]
+        with open(csv_path, newline="") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+        if not rows:
+            return []
+        keys = list(rows[0].keys())
+        loss_keys = [k for k in keys if k not in fixed_keys]
+        out = []
+        for row in rows:
+            log = {k: row.get(k, "") for k in fixed_keys}
+            losses = {k: row.get(k, "") for k in loss_keys}
+            for k, v in losses.items():
+                if v != "":
+                    try:
+                        losses[k] = float(v)
+                    except (TypeError, ValueError):
+                        pass
+            log["losses"] = losses
+            out.append(log)
+        return out
 
     @staticmethod
     def _moving_average(data: List[float], window_size: int) -> List[float]:

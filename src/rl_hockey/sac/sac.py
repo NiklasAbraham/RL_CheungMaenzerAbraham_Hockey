@@ -91,7 +91,7 @@ class SAC(Agent):
 
             return action.squeeze(0).cpu().numpy()
 
-    def act_batch(self, states, deterministic=False, t0=None, **kwargs):
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             states = torch.from_numpy(states).to(DEVICE)

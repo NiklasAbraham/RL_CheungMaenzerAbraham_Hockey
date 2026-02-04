@@ -47,6 +47,7 @@ class OpponentConfig:
     opponents: Optional[List[Dict[str, Any]]] = None  # For weighted_mixture
     skill_range: float = 50.0  # For archive sampling
     distribution: Optional[Dict[str, float]] = None  # For archive sampling
+    agent_type: Optional[str] = None  # Agent type for loading checkpoints: "SAC", "TD3", "TDMPC2", "DECOYPOLICY", etc.
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'OpponentConfig':
@@ -57,7 +58,8 @@ class OpponentConfig:
             deterministic=data.get('deterministic', True),
             opponents=data.get('opponents'),
             skill_range=data.get('skill_range'),
-            distribution=data.get('distribution')
+            distribution=data.get('distribution'),
+            agent_type=data.get('agent_type')
         )
 
 
@@ -110,11 +112,18 @@ class AgentConfig:
 
 @dataclass
 class TrainingConfig:
-    warmup_steps: int
-    updates_per_step: int
-    eval_frequency: int
-    checkpoint_frequency: int
+    """Single training config used by curriculum, train_run_refactored, and train.py."""
+    warmup_steps: int = 10_000
+    updates_per_step: int = 1
+    eval_frequency: int = 100_000
+    checkpoint_frequency: int = 100_000
     reward_scale: float = 1.0
+    max_episode_steps: int = 500
+    checkpoint_save_freq: int = 100
+    train_freq: int = 1
+    resource_log_freq: int = 10
+    episode_resource_window: int = 10
+    episode_resource_samples: int = 5
 
 
 @dataclass
@@ -167,7 +176,8 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             deterministic=opponent_dict.get('deterministic', True),
             opponents=opponent_dict.get('opponents'),
             skill_range=opponent_dict.get('skill_range', 50),
-            distribution=opponent_dict.get('distribution')
+            distribution=opponent_dict.get('distribution'),
+            agent_type=opponent_dict.get('agent_type')
         )
         
         reward_shaping_dict = phase_dict.get('reward_shaping')
@@ -200,13 +210,20 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
         checkpoint_path=agent_dict.get('checkpoint_path')
     )
 
-    training_dict = config_dict['training']
+    training_raw = config_dict.get('training', {})
+    training_dict = training_raw if isinstance(training_raw, dict) else {}
     training_config = TrainingConfig(
-        warmup_steps=training_dict.get('warmup_steps', 10000),
+        warmup_steps=training_dict.get('warmup_steps', 10_000),
         updates_per_step=training_dict.get('updates_per_step', 1),
         eval_frequency=training_dict.get('eval_frequency', 100_000),
         checkpoint_frequency=training_dict.get('checkpoint_frequency', 100_000),
-        reward_scale=training_dict.get('reward_scale', 1.0)
+        reward_scale=training_dict.get('reward_scale', 1.0),
+        max_episode_steps=training_dict.get('max_episode_steps', 500),
+        checkpoint_save_freq=training_dict.get('checkpoint_save_freq', 100),
+        train_freq=training_dict.get('train_freq', 1),
+        resource_log_freq=training_dict.get('resource_log_freq', 10),
+        episode_resource_window=training_dict.get('episode_resource_window', 10),
+        episode_resource_samples=training_dict.get('episode_resource_samples', 5),
     )
     
     curriculum_config = CurriculumConfig(

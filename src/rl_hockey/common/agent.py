@@ -30,8 +30,15 @@ class Agent(ABC):
             self.buffer.store(transition)
 
     @abstractmethod
-    def act(self, state, deterministic=False):
-        """Returns the action for a given state according to the current policy."""
+    def act(self, state, deterministic=False, t0=None, **kwargs):
+        """Returns the action for a given state according to the current policy.
+
+        Args:
+            state: Observation/state.
+            deterministic: If True, use deterministic policy (e.g. for eval).
+            t0: Optional bool; True if this is the first step of an episode.
+                Agents that need episode reset (e.g. TDMPC2) use this; others ignore it.
+        """
         pass
 
     @abstractmethod

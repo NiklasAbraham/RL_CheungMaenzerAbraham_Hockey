@@ -1,21 +1,25 @@
-# Changes
+# Changes (integrate_tdmpc2_eval)
 
-## How to use
+## TDMPC2 archive integration
 
-- agents stored in archive:
-    - rating, checkpoint, config, tags
-    - bots: tagged as `baseline`
-- new opponent type: `archive` in curriculum:
-    - distribution (skill-based, random, baseline)
-    - skill range
-- add agents manually to archive via `archive.add_agent()`
-    - will have tag `needs_calibration` by default
-- calibrate agents in archive using `calibrate.py`
-- running rating estimated during training (doesn't affect opponent ratings)
-- agent config supports `checkpoint` to continue training from a saved model
-- phase config supports `clear_buffer` to toggle replay buffer clearing at start of phase
+- `add_tdmpc2_to_archive.py`: add TDMPC2 checkpoints to archive (config read from run folder)
+- `run_archive_tournament.py`: run tournaments between archived agents
+- `ARCHIVE_GUIDE.md`: guide for adding agents, calibrating, running tournaments
 
-## To implement
+## Training and curriculum
 
-- use deterministic flag in agent.act
-- combine plotting (Niklas)
+- SAC run function for single runs
+- `curriculum_tdmpc2_mixed_opponents.json`: mixed opponent curriculum
+- Opponent manager: archive distribution and skill range
+- Run manager and curriculum manager extended for archive opponents
+
+## Plotting
+
+- `plot_episode_logs.py`: more detailed episode log plots
+
+## Resources
+
+- `train_sac_single_run.sbatch`: SAC training on cluster
+- `run_archive_calibration.sbatch`, `run_archive_tournament.sbatch`: archive jobs
+- Container and .gitignore updates
+
