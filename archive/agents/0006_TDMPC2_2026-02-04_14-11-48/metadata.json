@@ -4,14 +4,13 @@
   "tags": [
     "tdmpc2",
     "needs_calibration",
-    "needs_calibration",
-    "niklas:114935_simpleRunWithHorizion8WithOutOpponentsOfAnyKind"
+    "needs_calibration"
   ],
   "rating": {
-    "mu": 25,
-    "sigma": 8.333,
-    "rating": 0.0009999999999976694,
-    "matches_played": 0
+    "mu": 29.36425955564439,
+    "sigma": 1.0062330658287324,
+    "rating": 26.345560358158195,
+    "matches_played": 61
   },
   "step": 5600,
   "checkpoint_path": "archive/agents/0006_TDMPC2_2026-02-04_14-11-48/checkpoint.pt",
