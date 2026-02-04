@@ -6,10 +6,10 @@
       "baseline"
     ],
     "rating": {
-      "mu": 24.133653602062672,
-      "sigma": 0.7799664431727927,
-      "rating": 21.793754272544295,
-      "matches_played": 210
+      "mu": 24.140071744330047,
+      "sigma": 0.7801685984565705,
+      "rating": 21.799565948960336,
+      "matches_played": 317
     },
     "directory": "",
     "step": null
@@ -21,10 +21,10 @@
       "baseline"
     ],
     "rating": {
-      "mu": 26.069146327826306,
-      "sigma": 0.8270225443760761,
-      "rating": 23.588078694698076,
-      "matches_played": 204
+      "mu": 21.205981611268374,
+      "sigma": 0.839476292213864,
+      "rating": 18.68755273462678,
+      "matches_played": 314
     },
     "directory": "",
     "step": null
@@ -41,5 +41,102 @@
     },
     "directory": "archive\\agents\\0001_SAC_2026-01-30_00-57-20",
     "step": null
+  },
+  "0002_TDMPC2_2026-02-04_14-06-30": {
+    "agent_id": "0002_TDMPC2_2026-02-04_14-06-30",
+    "archived_at": "2026-02-04T14:06:30.942555",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 27.280735922801277,
+      "sigma": 0.8283494145116443,
+      "rating": 24.795687679266344,
+      "matches_played": 165
+    },
+    "directory": "archive/agents/0002_TDMPC2_2026-02-04_14-06-30",
+    "step": 8000
+  },
+  "0003_TDMPC2_2026-02-04_14-08-13": {
+    "agent_id": "0003_TDMPC2_2026-02-04_14-08-13",
+    "archived_at": "2026-02-04T14:08:13.048698",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0
+    },
+    "directory": "archive/agents/0003_TDMPC2_2026-02-04_14-08-13",
+    "step": 8000
+  },
+  "0004_TDMPC2_2026-02-04_14-08-38": {
+    "agent_id": "0004_TDMPC2_2026-02-04_14-08-38",
+    "archived_at": "2026-02-04T14:08:39.102451",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 26.502178905917752,
+      "sigma": 0.8387229235498276,
+      "rating": 23.98601013526827,
+      "matches_played": 151
+    },
+    "directory": "archive/agents/0004_TDMPC2_2026-02-04_14-08-38",
+    "step": 6000
+  },
+  "0005_TDMPC2_2026-02-04_14-09-03": {
+    "agent_id": "0005_TDMPC2_2026-02-04_14-09-03",
+    "archived_at": "2026-02-04T14:09:03.846615",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 31.432979358121813,
+      "sigma": 0.8531192887984104,
+      "rating": 28.87362149172658,
+      "matches_played": 150
+    },
+    "directory": "archive/agents/0005_TDMPC2_2026-02-04_14-09-03",
+    "step": 4600
+  },
+  "0006_TDMPC2_2026-02-04_14-11-48": {
+    "agent_id": "0006_TDMPC2_2026-02-04_14-11-48",
+    "archived_at": "2026-02-04T14:11:48.594446",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 29.077711541941127,
+      "sigma": 0.7930550904377727,
+      "rating": 26.69854627062781,
+      "matches_played": 162
+    },
+    "directory": "archive/agents/0006_TDMPC2_2026-02-04_14-11-48",
+    "step": 5600
+  },
+  "0007_TDMPC2_2026-02-04_14-13-54": {
+    "agent_id": "0007_TDMPC2_2026-02-04_14-13-54",
+    "archived_at": "2026-02-04T14:13:54.750304",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 29.996529656670003,
+      "sigma": 0.8182225025079362,
+      "rating": 27.541862149146194,
+      "matches_played": 155
+    },
+    "directory": "archive/agents/0007_TDMPC2_2026-02-04_14-13-54",
+    "step": 5600
   }
 }

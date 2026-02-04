@@ -6,35 +6,17 @@
 #### Jobs
 
 
-##### 1969941 - 2026-01-22_22-05-49
-- simple fucking run of the current repo state nothing exiting
-- no backprop reward shaping calssic boring things
-- Horizon 18
---> fucked because 18! and config error 
+#### Snapshot Niklas 01.02 14:55
+
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+           1980432      week hockey_s  stud421  R      11:49      1 tcml-node37   -> jannik SAC test by Niklas
+           1980366      week hockey_s  stud421  R    4:59:44      1 tcml-node37   -> new niklas with jannick and the self play starting at episode 3000
+           1980103      week hockey_s  stud421  R 1-02:18:05      1 tcml-node37   -> old niklas version with oppponent
+           1980094      week hockey_s  stud421  R 1-03:05:05      1 tcml-node37   -> Horizion, without opponent
+           1980093      week hockey_s  stud421  R 1-03:05:15      1 tcml-node37   -> Horizion, without opponent
+           1980092      week hockey_s  stud421  R 1-03:05:27      1 tcml-node37   -> Horizion, without opponent
 
 
-##### 1970116 - 2026-01-22_22-35-14
-- run with minimla reward shaping
-- curretn state of repo and then with simple reward prop
-- Horizon 18
---> fucked because 18! and config error
-
-
-##### 1971497 - 2026-01-23_08-49-02
-- run with minimal reward shaping
-- run with backward prop
-
-##### 1971498 - 2026-01-23_08-51-48
-- run without shaping and back prop
-
-##### 1971519 - killed
-- run with backprop aber ohne reward shaping
-
-##### 1971525
-- more loggign , shorter horizion 5
-
-##### 1972025 
-- entire poliy change rolled back with the tanh, might be the ciritla fucking issue
 
 #### Architecture of TDMPC-2 
 

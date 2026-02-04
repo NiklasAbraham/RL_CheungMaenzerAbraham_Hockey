@@ -71,10 +71,3 @@ pip install -e .
 ```
 
 Use absolute imports everywhere in the codebase to avoid import issues, e.g., `from rl_hockey.sac import SAC`.
-
-
-## Ideas to try / ToDos
-
-- [ ] Prioritized Experience Replay
-- [ ] Intrinsic Curiosity Module
-- [ ]

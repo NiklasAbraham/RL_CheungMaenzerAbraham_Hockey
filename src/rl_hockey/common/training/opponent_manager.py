@@ -41,7 +41,8 @@ def create_opponent(
             state_dim=state_dim,
             action_dim=action_dim,
             is_discrete=is_discrete,
-            deterministic=config.deterministic
+            deterministic=config.deterministic,
+            opponent_agent_type=config.agent_type
         )
     
     elif config.type == "weighted_mixture":
@@ -84,7 +85,8 @@ def sample_opponent(
         weight=sampled_opponent_dict.get('weight', 1.0),
         checkpoint=sampled_opponent_dict.get('checkpoint'),
         deterministic=sampled_opponent_dict.get('deterministic', True),
-        opponents=None
+        opponents=None,
+        agent_type=sampled_opponent_dict.get('agent_type')
     )
     
     return create_opponent(
@@ -118,9 +120,25 @@ def create_self_play_opponent(
     state_dim: Optional[int] = None,
     action_dim: Optional[int] = None,
     is_discrete: Optional[bool] = None,
-    deterministic: bool = True
+    deterministic: bool = True,
+    opponent_agent_type: Optional[str] = None
 ) -> Agent:
+    """Create a self-play opponent from checkpoint or by copying the current agent.
+    
+    Args:
+        agent: Current training agent (for copy-based self-play)
+        checkpoint: Path to checkpoint file or "latest"
+        checkpoint_dir: Directory containing checkpoints (for "latest")
+        agent_config: Configuration for creating the agent
+        state_dim: Observation space dimension
+        action_dim: Action space dimension
+        is_discrete: Whether the action space is discrete
+        deterministic: Whether the opponent should act deterministically
+        opponent_agent_type: Specific agent type for loading checkpoint (SAC, TD3, TDMPC2, etc.)
+                            If None, uses agent_config.type
+    """
     if checkpoint is None:
+        # Copy current agent for self-play
         opponent_agent = copy.deepcopy(agent)
 
         if hasattr(opponent_agent, 'q_network'):
@@ -136,12 +154,14 @@ def create_self_play_opponent(
     elif checkpoint == "latest":
         checkpoint_path = _find_latest_checkpoint(checkpoint_dir)
         return load_agent_checkpoint(
-            checkpoint_path, agent_config, state_dim, action_dim, is_discrete
+            checkpoint_path, agent_config, state_dim, action_dim, is_discrete,
+            opponent_agent_type=opponent_agent_type
         )
     
     else:
         return load_agent_checkpoint(
-            checkpoint, agent_config, state_dim, action_dim, is_discrete
+            checkpoint, agent_config, state_dim, action_dim, is_discrete,
+            opponent_agent_type=opponent_agent_type
         )
 
 
@@ -150,16 +170,43 @@ def load_agent_checkpoint(
     agent_config: AgentConfig,
     state_dim: int,
     action_dim: int,
-    is_discrete: bool
+    is_discrete: bool,
+    opponent_agent_type: Optional[str] = None
 ) -> Agent:
+    """Load an agent from checkpoint.
+    
+    Args:
+        checkpoint_path: Path to the checkpoint file
+        agent_config: Configuration of the training agent
+        state_dim: Observation space dimension
+        action_dim: Action space dimension  
+        is_discrete: Whether the action space is discrete
+        opponent_agent_type: Specific agent type to load (SAC, TD3, TDMPC2, DECOYPOLICY)
+                            If provided, overrides agent_config.type
+    """
     from rl_hockey.common.training.agent_factory import create_agent
     
+    # Create a new AgentConfig with the opponent's agent type if specified
+    if opponent_agent_type is not None:
+        # Create opponent-specific config
+        opponent_config = AgentConfig(
+            type=opponent_agent_type,
+            hyperparameters=_get_default_hyperparameters(opponent_agent_type),
+            checkpoint_path=None
+        )
+    else:
+        # Use the training agent's config
+        opponent_config = agent_config
+    
+    # Create agent with minimal hyperparameters (will be loaded from checkpoint)
     agent = create_agent(
-        agent_config, state_dim, action_dim, {}
+        opponent_config, state_dim, action_dim, {}
     )
     
+    # Load checkpoint
     agent.load(checkpoint_path)
     
+    # Set to evaluation mode
     if hasattr(agent, 'q_network'):
         agent.q_network.eval()
     if hasattr(agent, 'q_network_target'):
@@ -170,6 +217,42 @@ def load_agent_checkpoint(
         agent.critic1.eval()
     
     return agent
+
+
+def _get_default_hyperparameters(agent_type: str) -> Dict[str, Any]:
+    """Get default hyperparameters for different agent types."""
+    defaults = {
+        "SAC": {
+            "discount": 0.99,
+            "tau": 0.005,
+            "alpha": 0.2,
+            "learn_alpha": False,
+        },
+        "TD3": {
+            "learning_rate": 3e-4,
+            "max_action": 1.0,
+            "discount": 0.99,
+            "tau": 0.005,
+            "expl_noise": 0.1,
+            "policy_noise": 0.2,
+            "noise_clip": 0.5,
+            "policy_freq": 2,
+        },
+        "TDMPC2": {
+            "latent_dim": 512,
+            "num_q": 5,
+            "gamma": 0.99,
+            "horizon": 5,
+            "num_samples": 512,
+            "num_iterations": 6,
+            "temperature": 0.5,
+        },
+        "DECOYPOLICY": {
+            "hidden_layers": [256, 256],
+            "buffer_max_size": 100_000,
+        },
+    }
+    return defaults.get(agent_type, {})
 
 
 def _find_latest_checkpoint(checkpoint_dir: str) -> str:

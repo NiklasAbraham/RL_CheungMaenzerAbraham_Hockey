@@ -240,6 +240,8 @@ class TDMPC2(Agent):
             "tau": tau,
             "grad_clip_norm": grad_clip_norm,
             "n_step": n_step,
+            "win_reward_bonus": win_reward_bonus,
+            "win_reward_discount": win_reward_discount,
         }
 
         self.encoder = Encoder(
@@ -1730,6 +1732,13 @@ class TDMPC2(Agent):
         lines.append("Configuration:")
         for key, value in self.config.items():
             lines.append(f"  {key}: {value}")
+        if hasattr(self, "buffer") and self.buffer is not None:
+            buf = self.buffer
+            if hasattr(buf, "win_reward_bonus") and hasattr(buf, "win_reward_discount"):
+                lines.append(
+                    f"  (buffer) win_reward_bonus: {buf.win_reward_bonus}, "
+                    f"win_reward_discount: {buf.win_reward_discount}"
+                )
         lines.append("")
 
         lines.append("Model-based components:")

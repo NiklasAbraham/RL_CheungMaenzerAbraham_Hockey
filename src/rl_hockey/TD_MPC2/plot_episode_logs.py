@@ -3,7 +3,7 @@
 import csv
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 import numpy as np
@@ -82,7 +82,7 @@ def combine_episode_logs(log_files: List[Path]) -> List[Dict[str, Any]]:
 
 
 def plot_episode_logs(
-    folder_path: str, window_size: int = 10, save_path: Optional[Path] = None
+    folder_path: str, window_size: int = 500, save_path: Optional[Path] = None
 ):
     """Plot episode logs (rewards, shaped reward, losses)."""
     folder = Path(folder_path)
@@ -194,13 +194,16 @@ def plot_episode_logs(
     # Create figure with subplots
     num_losses = len(sorted_loss_keys)
     if num_losses == 0:
-        # Only rewards, no losses
-        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        # Only rewards + reward distribution histogram
+        n_plots = 3  # rewards, shaped_rewards, reward distribution
+        n_cols = 2
+        n_rows = (n_plots + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
         axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
         plot_rewards_only = False
     else:
-        # Calculate grid size for subplots: rewards + shaped rewards + all losses
-        n_plots = 2 + num_losses  # rewards, shaped_rewards, and all loss types
+        # rewards, shaped_rewards, reward distribution histogram, and all losses
+        n_plots = 3 + num_losses
         n_cols = 2
         n_rows = (n_plots + n_cols - 1) // n_cols
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
@@ -221,6 +224,7 @@ def plot_episode_logs(
         color="blue",
         linewidth=2,
     )
+    _add_rolling_percentile_bands(axes[ax_idx], episodes, rewards, window=500)
     axes[ax_idx].set_xlabel("Episode")
     axes[ax_idx].set_ylabel("Reward")
     axes[ax_idx].set_title("Reward per Episode")
@@ -241,11 +245,18 @@ def plot_episode_logs(
             color="green",
             linewidth=2,
         )
+        _add_rolling_percentile_bands(
+            axes[ax_idx], episodes, shaped_rewards, window=500
+        )
         axes[ax_idx].set_xlabel("Episode")
         axes[ax_idx].set_ylabel("Shaped Reward")
         axes[ax_idx].set_title("Shaped Reward per Episode")
         axes[ax_idx].legend()
         axes[ax_idx].grid(True, alpha=0.3)
+
+    ax_idx += 1
+    _plot_reward_distribution_histogram(axes[ax_idx], rewards, n_last=1000)
+    # ax_idx stays so next plot (first loss or hide) uses ax_idx + 1 via loop increment
 
     # Plot each loss type
     colors = plt.cm.tab10(np.linspace(0, 1, len(other_loss_keys)))
@@ -344,26 +355,108 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
     return moving_averages
 
 
+def _rolling_percentiles(
+    values: List[float], window: int, upper_p: float
+) -> Tuple[List[float], List[float]]:
+    """For each index i, compute upper and lower percentile over values[i-window+1:i+1]. Lower = 100 - upper."""
+    if not values or window < 1:
+        return [], []
+    lower_p = 100.0 - upper_p
+    upper_line: List[float] = []
+    lower_line: List[float] = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        w = values[start : i + 1]
+        upper_line.append(float(np.percentile(w, upper_p)))
+        lower_line.append(float(np.percentile(w, lower_p)))
+    return upper_line, lower_line
+
+
+def _add_rolling_percentile_bands(
+    ax: plt.Axes,
+    episodes: List[int],
+    values: List[float],
+    window: int = 500,
+) -> None:
+    """Draw rolling 90/10 percentile band over the full episode range."""
+    if not episodes or not values or len(episodes) != len(values):
+        return
+    window = min(window, len(values))
+    u90, l10 = _rolling_percentiles(values, window, 90.0)
+    ax.plot(
+        episodes,
+        u90,
+        color="gray",
+        linestyle="--",
+        linewidth=2.2,
+        alpha=0.95,
+        label=f"90/10 %ile (w={window})",
+    )
+    ax.plot(episodes, l10, color="gray", linestyle="--", linewidth=2.2, alpha=0.95)
+
+
+def _plot_reward_distribution_histogram(
+    ax: plt.Axes,
+    values: List[float],
+    n_last: int = 1000,
+) -> None:
+    """Histogram of reward distribution over the last n_last episodes (or all if fewer). Show mean, std, 10/50/90 percentiles."""
+    if not values:
+        return
+    n = min(n_last, len(values))
+    data = np.array(values[-n:], dtype=float)
+    mean = float(np.mean(data))
+    std = float(np.std(data))
+    p10, p50, p90 = (
+        float(np.percentile(data, 10)),
+        float(np.percentile(data, 50)),
+        float(np.percentile(data, 90)),
+    )
+    bins = min(50, max(10, n // 20))
+    ax.hist(
+        data, bins=bins, color="steelblue", alpha=0.7, edgecolor="black", density=False
+    )
+    ax.axvline(mean, color="green", linewidth=2, label=f"Mean = {mean:.2f}")
+    ax.axvline(
+        mean - std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean \u2212 \u03c3 = {mean - std:.2f}",
+    )
+    ax.axvline(
+        mean + std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean + \u03c3 = {mean + std:.2f}",
+    )
+    ax.axvline(
+        p10, color="gray", linestyle=":", linewidth=1.5, label=f"10th %ile = {p10:.2f}"
+    )
+    ax.axvline(p50, color="red", linewidth=1.5, label=f"50th %ile = {p50:.2f}")
+    ax.axvline(
+        p90, color="gray", linestyle="-.", linewidth=1.5, label=f"90th %ile = {p90:.2f}"
+    )
+    ax.set_xlabel("Reward")
+    ax.set_ylabel("Count")
+    ax.set_title(f"Reward distribution (last {n} episodes)")
+    ax.legend(loc="upper right", fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+
 if __name__ == "__main__":
-    # folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
-    # folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
-    # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
-    # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
+    folder_path_1 = "results/tdmpc2_runs/2026-01-31_11-50-00"  # 94 -> 16
+    folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"  # 93 -> 16
+    folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"  # 92 -> 8
+    folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"  # 103 -> 8 aber opponents
 
-    folder_path_1 = "results/tdmpc2_runs/2026-01-25_11-40-04"
-    folder_path_2 = "results/tdmpc2_runs/2026-01-25_18-56-52"
-    folder_path_3 = "results/tdmpc2_runs/2026-01-26_16-37-13"
-    folder_path_4 = "results/tdmpc2_runs/2026-01-30_10-50-21"
-    folder_path_5 = "results/tdmpc2_runs/2026-01-30_10-51-35"
-    folder_path_6 = "results/tdmpc2_runs/2026-01-30_13-00-35"
-    folder_path_7 = "results/tdmpc2_runs/2026-01-30_17-16-40"
+    folder_path_5 = "results/tdmpc2_runs_test/2026-02-01_09-55-22"  # der ganz gute run eigentlich alles
 
-    window_size = 20
+    window_size = 100
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
     plot_episode_logs(folder_path_3, window_size=window_size)
     plot_episode_logs(folder_path_4, window_size=window_size)
     plot_episode_logs(folder_path_5, window_size=window_size)
-    plot_episode_logs(folder_path_6, window_size=window_size)
-    plot_episode_logs(folder_path_7, window_size=window_size)
