@@ -115,6 +115,56 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
     return out
 
 
+def _plot_reward_distribution_histogram(
+    ax: plt.Axes,
+    values: List[float],
+    n_last: int = 1000,
+) -> None:
+    """Histogram of reward distribution over the last n_last episodes (or all if fewer). Show mean, std, 10/50/90 percentiles."""
+    if not values:
+        return
+    n = min(n_last, len(values))
+    data = np.array(values[-n:], dtype=float)
+    mean = float(np.mean(data))
+    std = float(np.std(data))
+    p10, p50, p90 = (
+        float(np.percentile(data, 10)),
+        float(np.percentile(data, 50)),
+        float(np.percentile(data, 90)),
+    )
+    bins = min(50, max(10, n // 20))
+    ax.hist(
+        data, bins=bins, color="steelblue", alpha=0.7, edgecolor="black", density=False
+    )
+    ax.axvline(mean, color="green", linewidth=2, label=f"Mean = {mean:.2f}")
+    ax.axvline(
+        mean - std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean \u2212 \u03c3 = {mean - std:.2f}",
+    )
+    ax.axvline(
+        mean + std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean + \u03c3 = {mean + std:.2f}",
+    )
+    ax.axvline(
+        p10, color="gray", linestyle=":", linewidth=1.5, label=f"10th %ile = {p10:.2f}"
+    )
+    ax.axvline(p50, color="red", linewidth=1.5, label=f"50th %ile = {p50:.2f}")
+    ax.axvline(
+        p90, color="gray", linestyle="-.", linewidth=1.5, label=f"90th %ile = {p90:.2f}"
+    )
+    ax.set_xlabel("Reward")
+    ax.set_ylabel("Count")
+    ax.set_title(f"Reward distribution (last {n} episodes)")
+    ax.legend(loc="upper right", fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+
 def _collect_metric_series(
     episode_logs: List[Dict[str, Any]],
 ) -> Tuple[List[int], Dict[str, List[float]]]:
@@ -159,7 +209,7 @@ def _first_complete_episode(
 def plot_episode_logs(
     folder_path: str,
     run_name: Optional[str] = None,
-    window_size: int = 30,
+    window_size: int = 500,
     skip_warmup: bool = True,
     plot_flat_losses: bool = False,
 ) -> Optional[Path]:
@@ -232,7 +282,7 @@ def plot_episode_logs(
 
     n_plots = 0
     if any(r is not None for r in rewards):
-        n_plots += 1
+        n_plots += 2  # reward series + reward distribution histogram
     if any(s is not None for s in shaped_rewards):
         n_plots += 1
     if any(b is not None for b in backprop_rewards):
@@ -264,6 +314,8 @@ def plot_episode_logs(
         axes[ax_idx].set_title("Reward per Episode")
         axes[ax_idx].legend()
         axes[ax_idx].grid(True, alpha=0.3)
+        ax_idx += 1
+        _plot_reward_distribution_histogram(axes[ax_idx], r_vals, n_last=1000)
         ax_idx += 1
 
     if any(s is not None for s in shaped_rewards):
@@ -382,7 +434,7 @@ def _plot_flat_losses_if_present(
 def plot_run_folder(
     folder_path: str,
     run_name: Optional[str] = None,
-    window_size: int = 10,
+    window_size: int = 500,
     skip_warmup: bool = True,
     plot_flat_losses: bool = False,
 ) -> Optional[Path]:
