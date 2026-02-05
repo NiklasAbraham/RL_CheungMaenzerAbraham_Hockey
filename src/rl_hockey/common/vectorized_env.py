@@ -27,9 +27,11 @@ def worker(remote, parent_remote, env_fn):
                     terminal_obs = obs
                     # Reset for next episode
                     obs, reset_info = env.reset()
-                    # Send terminal observation but with reset state for next step
-                    # The training loop needs the terminal obs for storing transition
-                    remote.send((terminal_obs, reward, done, trunc, info))
+                    # Send terminal observation but include reset observation in info
+                    # for proper RL training (agent needs reset_obs for next action)
+                    info['terminal_obs'] = terminal_obs
+                    info['reset_obs'] = obs
+                    remote.send((obs, reward, done, trunc, info))
                 else:
                     remote.send((obs, reward, done, trunc, info))
                 
@@ -72,8 +74,11 @@ def thread_worker(cmd_queue, result_queue, env_fn):
                     terminal_obs = obs
                     # Reset for next episode
                     obs, reset_info = env.reset()
-                    # Send terminal observation but with reset state for next step
-                    result_queue.put(('step', (terminal_obs, reward, done, trunc, info)))
+                    # Send reset observation but include terminal observation in info
+                    # for proper RL training (need terminal_obs for last transition)
+                    info['terminal_obs'] = terminal_obs
+                    info['reset_obs'] = obs
+                    result_queue.put(('step', (obs, reward, done, trunc, info)))
                 else:
                     result_queue.put(('step', (obs, reward, done, trunc, info)))
                 

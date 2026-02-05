@@ -9,10 +9,11 @@ from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive
 from rl_hockey.common.archive.archive import AgentMetadata, Rating
 from rl_hockey.common.archive.rating_system import RatingSystem
-from rl_hockey.common.training.curriculum_manager import OpponentConfig
+from rl_hockey.common.training.curriculum_manager import OpponentConfig, AgentConfig
 from rl_hockey.sac.sac import SAC
 from rl_hockey.common.training.curriculum_manager import load_curriculum
 from rl_hockey.common.training.agent_factory import create_agent
+from rl_hockey.common.training.opponent_manager import load_agent_checkpoint
 
 
 Opponent = Agent | h_env.BasicOpponent
@@ -49,6 +50,9 @@ class Matchmaker:
             case "archive":
                 opponent, _, rating = self.sample_archive_opponent(rating, config.distribution, config.skill_range, config.deterministic)
                 return opponent, rating
+            case "self_play":
+                opponent = self._load_self_play_opponent(config)
+                return opponent, Rating(25.0, 1.0)
             case "weighted_mixture":
                 pass  # Handled below
             case _:
@@ -133,6 +137,30 @@ class Matchmaker:
             agent = random.choice(agents) if agents else None
         
         return self.load_opponent(agent, deterministic), agent.agent_id, agent.rating
+
+    def _load_self_play_opponent(self, config: OpponentConfig) -> Opponent:
+        """Load a self-play opponent from a checkpoint path (used by weighted_mixture with type self_play)."""
+        if config.checkpoint is None:
+            raise ValueError("self_play opponent requires a checkpoint path in config")
+        cache_key = f"self_play:{config.checkpoint}:{config.agent_type or 'SAC'}"
+        if cache_key in self.loaded_agents:
+            return self.loaded_agents[cache_key]
+        env = h_env.HockeyEnv()
+        state_dim = env.observation_space.shape[0]
+        action_dim = env.action_space.shape[0] // 2
+        env.close()
+        agent_type = config.agent_type or "SAC"
+        dummy_config = AgentConfig(type=agent_type, hyperparameters={}, checkpoint_path=None)
+        opponent = load_agent_checkpoint(
+            checkpoint_path=config.checkpoint,
+            agent_config=dummy_config,
+            state_dim=state_dim,
+            action_dim=action_dim,
+            is_discrete=False,
+            opponent_agent_type=agent_type,
+        )
+        self.loaded_agents[cache_key] = opponent
+        return opponent
 
     def load_opponent(self, metadata: AgentMetadata, deterministic: bool = True) -> Opponent:
         """Load an agent from metadata checkpoint."""
