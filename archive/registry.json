@@ -9,7 +9,10 @@
       "mu": 24.140071744330047,
       "sigma": 0.7801685984565705,
       "rating": 21.799565948960336,
-      "matches_played": 317
+      "matches_played": 317,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
     },
     "directory": "",
     "step": null
@@ -24,7 +27,10 @@
       "mu": 21.205981611268374,
       "sigma": 0.839476292213864,
       "rating": 18.68755273462678,
-      "matches_played": 314
+      "matches_played": 314,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
     },
     "directory": "",
     "step": null
@@ -37,9 +43,72 @@
       "mu": 36.5882481852571,
       "sigma": 1.0828529560855025,
       "rating": 33.33968931700059,
-      "matches_played": 186
+      "matches_played": 186,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
     },
     "directory": "archive/agents/0001_SAC_2026-01-30_00-57-20",
     "step": null
+  },
+  "0002_TDMPC2_2026-02-05_14-22-11": {
+    "agent_id": "0002_TDMPC2_2026-02-05_14-22-11",
+    "archived_at": "2026-02-05T14:22:11.444822",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "directory": "archive/agents/0002_TDMPC2_2026-02-05_14-22-11",
+    "step": 5400
+  },
+  "0003_TDMPC2_2026-02-05_14-24-35": {
+    "agent_id": "0003_TDMPC2_2026-02-05_14-24-35",
+    "archived_at": "2026-02-05T14:24:35.346581",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "directory": "archive/agents/0003_TDMPC2_2026-02-05_14-24-35",
+    "step": 6600
+  },
+  "0004_TDMPC2_2026-02-05_14-25-47": {
+    "agent_id": "0004_TDMPC2_2026-02-05_14-25-47",
+    "archived_at": "2026-02-05T14:25:47.100138",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "directory": "archive/agents/0004_TDMPC2_2026-02-05_14-25-47",
+    "step": 9400
   }
 }
