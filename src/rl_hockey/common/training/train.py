@@ -712,10 +712,6 @@ def train_vectorized(
     
     # Track t0 (episode start) flags for each environment
     t0_flags = np.ones(num_envs, dtype=bool)  # All envs start at episode beginning
-    
-    # Call on_episode_start for initial episodes
-    if hasattr(agent, "on_episode_start"):
-        agent.on_episode_start(training_state.episode)
 
     # Log initial buffer state
     if verbose and hasattr(agent, 'buffer'):
@@ -777,7 +773,7 @@ def train_vectorized(
             agent.store_transition(
                 (states[i], actions[i], scaled_reward, next_state_for_buffer, done),
                 winner=winner,
-                env_id=i,  # Pass env_id for proper per-environment episode tracking
+                env_id=i,  # Critical for TDMPC2 episodic buffer in vectorized mode
             )
 
             episode_metrics[i].reward += rewards[i]
@@ -787,12 +783,16 @@ def train_vectorized(
 
             # Handle episode completion
             if dones[i] or truncs[i]:
-                # Call on_episode_end callback before completing episode
+                # Call on_episode_end callback before incrementing episode
                 if hasattr(agent, "on_episode_end"):
                     agent.on_episode_end(training_state.episode)
                 
                 # Update metrics
                 training_state.episode += 1
+                
+                # Call on_episode_start callback for next episode (after increment)
+                if hasattr(agent, "on_episode_start"):
+                    agent.on_episode_start(training_state.episode)
                 
                 # Log first episode completion for debugging
                 if training_state.episode == 1 and verbose:
@@ -854,10 +854,6 @@ def train_vectorized(
                 
                 # Mark this environment as starting a new episode (for t0 flag)
                 t0_flags[i] = True
-                
-                # Call on_episode_start callback for next episode
-                if hasattr(agent, "on_episode_start"):
-                    agent.on_episode_start(training_state.episode)
 
                 # Check for phase transition
                 new_phase_index, new_phase_local_episode, _ = get_phase_for_episode(
