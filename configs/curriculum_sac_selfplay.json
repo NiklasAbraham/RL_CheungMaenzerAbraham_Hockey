@@ -44,7 +44,6 @@
       "learn_alpha": true,
       "noise": "pink",
       "max_episode_steps": 250
-    },
-    "checkpoint_path": "results\\sac_runs\\2026-01-30_04-57-49\\models\\final.pt"
+    }
   }
 }

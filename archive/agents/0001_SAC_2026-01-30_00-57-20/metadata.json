@@ -8,7 +8,7 @@
     "rating": 33.33968931700059,
     "matches_played": 186
   },
-  "checkpoint_path": "archive\\agents\\0001_SAC_2026-01-30_00-57-20\\checkpoint.pt",
+  "checkpoint_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/checkpoint.pt",
   "step": null,
-  "config_path": "archive\\agents\\0001_SAC_2026-01-30_00-57-20\\config.json"
+  "config_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/config.json"
 }

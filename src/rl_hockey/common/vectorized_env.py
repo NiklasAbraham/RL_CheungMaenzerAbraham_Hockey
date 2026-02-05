@@ -172,7 +172,7 @@ class VectorizedHockeyEnv:
             remote.send(('obs_agent_two', None))
         
         results = [remote.recv() for remote in self.remotes]
-        return np.stack(results) if len(results) > 1 else results[0]
+        return np.stack(results)
     
     def step(self, actions):
         """
@@ -275,7 +275,7 @@ class ThreadedVectorizedHockeyEnv:
             cmd, data = result_q.get()
             results.append(data)
         
-        return np.stack(results) if len(results) > 1 else results[0]
+        return np.stack(results)
     
     def step(self, actions):
         """

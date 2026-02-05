@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # Config: edit these paths and parameters
 CONFIG = {
     "archive_dir": Path("archive"),
-    "num_games_per_match": 2,
+    "num_games_per_match": 150,
     "max_steps": 500,
     "filter_tags": [],
     "exclude_baselines": True,

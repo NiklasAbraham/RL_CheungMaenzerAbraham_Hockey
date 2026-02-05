@@ -494,6 +494,176 @@ def plot_run_folder(
     )
 
 
+def plot_training_metrics(
+    training_metrics,
+    result_dir: str,
+    run_name: str = "training_run",
+    window_size: int = 500,
+) -> Optional[Path]:
+    """
+    Plot training metrics from TrainingMetrics dataclass (used in train.py).
+    
+    Args:
+        training_metrics: TrainingMetrics instance with episodes, updates, winrates
+        result_dir: Directory to save plots
+        run_name: Name for the run (used in plot title and filename)
+        window_size: Moving average window for smoothing
+    
+    Returns:
+        Path to saved plot, or None if no data
+    """
+    if not training_metrics.episodes and not training_metrics.updates:
+        return None
+    
+    plots_dir = Path(result_dir) / "plots"
+    plots_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Extract episode data
+    episodes = [i for i in range(len(training_metrics.episodes))]
+    rewards = [ep["reward"] for ep in training_metrics.episodes]
+    ratings = [ep["rating"] for ep in training_metrics.episodes]
+    
+    # Extract update metrics
+    metric_names = set()
+    for update in training_metrics.updates:
+        metric_names.update(k for k in update.keys() if k != "step")
+    metric_names = sorted(metric_names)
+    
+    # Organize metrics by name; normalize list values (e.g. SAC/TD3 return lists) to scalar per step
+    def _to_scalar(v: Any) -> float:
+        if isinstance(v, list):
+            return float(np.mean(v)) if v else 0.0
+        if isinstance(v, (int, float)):
+            return float(v)
+        return 0.0
+
+    metrics_by_name = {name: {"steps": [], "values": []} for name in metric_names}
+    for update in training_metrics.updates:
+        for metric_name in metric_names:
+            if metric_name in update:
+                metrics_by_name[metric_name]["steps"].append(update["step"])
+                metrics_by_name[metric_name]["values"].append(
+                    _to_scalar(update[metric_name])
+                )
+    
+    # Separate opponent cloning losses from other metrics
+    opponent_metrics = [k for k in metric_names if "opponent" in k.lower() and "cloning" in k.lower()]
+    other_metrics = [k for k in metric_names if k not in opponent_metrics]
+    
+    # Count plots needed
+    n_plots = 0
+    if rewards:
+        n_plots += 2  # reward series + reward distribution
+    if ratings:
+        n_plots += 1  # rating series
+    n_plots += len(other_metrics)  # individual metric plots
+    if opponent_metrics:
+        n_plots += 1  # combined opponent cloning plot
+    
+    if n_plots == 0:
+        return None
+    
+    # Create figure
+    n_cols = 2
+    n_rows = (n_plots + n_cols - 1) // n_cols
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
+    axes = np.atleast_1d(axes).flatten().tolist()
+    fig.suptitle(run_name, fontsize=14, fontweight="bold", y=0.995)
+    
+    ax_idx = 0
+    
+    # Plot rewards
+    if rewards:
+        mov = _moving_average(rewards, window_size)
+        axes[ax_idx].plot(episodes, rewards, alpha=0.3, label="Raw", color="blue")
+        axes[ax_idx].plot(
+            episodes, mov, label=f"MA (w={window_size})", color="blue", linewidth=2
+        )
+        _add_rolling_percentile_bands(axes[ax_idx], episodes, rewards, window=min(500, len(rewards)))
+        axes[ax_idx].set_xlabel("Episode")
+        axes[ax_idx].set_ylabel("Reward")
+        axes[ax_idx].set_title("Reward per Episode")
+        axes[ax_idx].legend()
+        axes[ax_idx].grid(True, alpha=0.3)
+        ax_idx += 1
+        
+        # Reward distribution histogram
+        _plot_reward_distribution_histogram(axes[ax_idx], rewards, n_last=1000)
+        ax_idx += 1
+    
+    # Plot ratings
+    if ratings:
+        mov = _moving_average(ratings, window_size)
+        axes[ax_idx].plot(episodes, ratings, alpha=0.3, label="Raw", color="purple")
+        axes[ax_idx].plot(
+            episodes, mov, label=f"MA (w={window_size})", color="purple", linewidth=2
+        )
+        axes[ax_idx].set_xlabel("Episode")
+        axes[ax_idx].set_ylabel("Rating")
+        axes[ax_idx].set_title("Rating over Episodes")
+        axes[ax_idx].legend()
+        axes[ax_idx].grid(True, alpha=0.3)
+        ax_idx += 1
+    
+    # Plot other metrics
+    colors_main = plt.cm.tab10(np.linspace(0, 1, max(1, len(other_metrics))))
+    for i, metric_name in enumerate(other_metrics):
+        if ax_idx >= len(axes):
+            break
+        
+        steps = metrics_by_name[metric_name]["steps"]
+        values = metrics_by_name[metric_name]["values"]
+        
+        if values:
+            mov = _moving_average(values, window_size)
+            axes[ax_idx].plot(steps, values, alpha=0.3, label="Raw", color=colors_main[i])
+            axes[ax_idx].plot(
+                steps, mov, label=f"MA (w={window_size})", color=colors_main[i], linewidth=2
+            )
+            axes[ax_idx].set_xlabel("Step")
+            axes[ax_idx].set_ylabel("Value")
+            axes[ax_idx].set_title(f"{metric_name}")
+            axes[ax_idx].legend()
+            axes[ax_idx].grid(True, alpha=0.3)
+        ax_idx += 1
+    
+    # Plot opponent cloning losses (combined)
+    if opponent_metrics and ax_idx < len(axes):
+        colors_opp = plt.cm.Reds(np.linspace(0.4, 0.9, max(1, len(opponent_metrics))))
+        
+        for i, metric_name in enumerate(opponent_metrics):
+            steps = metrics_by_name[metric_name]["steps"]
+            values = metrics_by_name[metric_name]["values"]
+            
+            if values:
+                mov = _moving_average(values, window_size)
+                opponent_label = metric_name.replace("opponent_", "Opponent ").replace("_cloning_loss", "")
+                
+                axes[ax_idx].plot(steps, values, alpha=0.2, color=colors_opp[i])
+                axes[ax_idx].plot(
+                    steps, mov, label=opponent_label, color=colors_opp[i], linewidth=2
+                )
+        
+        axes[ax_idx].set_xlabel("Step")
+        axes[ax_idx].set_ylabel("Cloning Loss (MSE)")
+        axes[ax_idx].set_title("Opponent Cloning Losses")
+        axes[ax_idx].legend()
+        axes[ax_idx].grid(True, alpha=0.3)
+        ax_idx += 1
+    
+    # Hide unused subplots
+    for idx in range(ax_idx, len(axes)):
+        axes[idx].set_visible(False)
+    
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
+    save_path = plots_dir / f"{run_name}_training_metrics.png"
+    plt.savefig(save_path, dpi=150, bbox_inches="tight")
+    plt.close()
+    
+    print(f"Training metrics plot saved to {save_path}")
+    return save_path
+
+
 if __name__ == "__main__":
     folder_path = "results/tdmpc2_runs_test/2026-01-31_19-19-57"
     run_name = None
