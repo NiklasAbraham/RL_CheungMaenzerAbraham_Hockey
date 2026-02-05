@@ -3,32 +3,23 @@ Minimal training script for debugging.
 No curriculum, just SAC vs weak opponent with basic logging.
 """
 
+import csv
+import json
+import logging
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-import tqdm
-from functools import partial
+import shutil
+import sys
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any, Tuple
+from functools import partial
+from typing import Any, Dict, List, Optional, Tuple
 
 import hockey.hockey_env as h_env
+import matplotlib.pyplot as plt
+import numpy as np
+
 from rl_hockey.common.agent import Agent
-from rl_hockey.common.archive import Archive, Matchmaker, RatingSystem, Rating
+from rl_hockey.common.archive import Archive, Matchmaker, Rating, RatingSystem
 from rl_hockey.common.archive.matchmaker import Opponent
-from rl_hockey.common.training.agent_factory import create_agent
-from rl_hockey.sac import SAC
-from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized
-from rl_hockey.common.training.curriculum_manager import (
-    load_curriculum,
-    get_phase_for_episode,
-    get_total_episodes,
-    CurriculumConfig,
-    PhaseConfig,
-)
-from rl_hockey.common.training.opponent_manager import (
-    sample_opponent,
-    get_opponent_action,
-)
 from rl_hockey.common.evaluation.value_propagation import (
     evaluate_episodes,
     plot_value_heatmap,
@@ -36,15 +27,42 @@ from rl_hockey.common.evaluation.value_propagation import (
     sample_trajectories,
 )
 from rl_hockey.common.evaluation.winrate_evaluator import evaluate_winrate
-from datetime import datetime
-import shutil
+from rl_hockey.common.reward_backprop import apply_win_reward_backprop
+from rl_hockey.common.training.agent_factory import create_agent
+from rl_hockey.common.training.curriculum_manager import (
+    CurriculumConfig,
+    PhaseConfig,
+    get_phase_for_episode,
+    get_total_episodes,
+    load_curriculum,
+)
+from rl_hockey.common.training.opponent_manager import (
+    sample_opponent,
+)
+from rl_hockey.common.training.plot_episode_logs import plot_training_metrics
+from rl_hockey.common.training.run_manager import RunManager
+from rl_hockey.common.vectorized_env import VectorizedHockeyEnvOptimized
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,
+)
+logger = logging.getLogger(__name__)
 
 
 @dataclass
 class TrainingState:
     """Holds the state of training."""
+
     step: int = 0
     episode: int = 0
+    gradient_steps: int = 0
     last_eval_step: int = 0
     last_checkpoint_step: int = 0
     phase: PhaseConfig = None
@@ -56,42 +74,59 @@ class TrainingState:
 @dataclass
 class TrainingMetrics:
     """Flexible container for all training data, indexed by global steps."""
-    episodes: List[Dict[str, Any]] = field(default_factory=list) 
+
+    episodes: List[Dict[str, Any]] = field(default_factory=list)
     updates: List[Dict[str, Any]] = field(default_factory=list)
     winrates: List[Dict[str, Any]] = field(default_factory=list)
 
-    def add_episode(self, step: int, rating: float, reward: float, length: int, phase: Optional[str] = None):
+    def add_episode(
+        self,
+        step: int,
+        rating: float,
+        reward: float,
+        length: int,
+        phase: Optional[str] = None,
+    ):
         """Records an episode finish at a specific global step."""
-        episode_data = {"step": step, "rating": rating, "reward": reward, "length": length}
+        episode_data = {
+            "step": step,
+            "rating": rating,
+            "reward": reward,
+            "length": length,
+        }
         if phase:
             episode_data["phase"] = phase
         self.episodes.append(episode_data)
 
     def add_update(self, step: int, **metrics):
         """Records training metrics at a specific global step."""
-        self.updates.append({
-            "step": step,
-            **metrics
-        })
-    
+        self.updates.append({"step": step, **metrics})
+
     def add_winrate(self, step: int, winrate: float):
         """Records winrate evaluation at a specific global step."""
-        self.winrates.append({
-            "step": step,
-            "winrate": winrate,
-        })
+        self.winrates.append(
+            {
+                "step": step,
+                "winrate": winrate,
+            }
+        )
 
 
 @dataclass
 class EpisodeMetrics:
     """Metrics for a single episode."""
+
     reward: float = 0.0
+    shaped_reward: float = 0.0
     length: int = 0
-    
+    step_rewards: List[float] = field(default_factory=list)
+
     def reset(self):
         """Reset episode metrics."""
         self.reward = 0.0
+        self.shaped_reward = 0.0
         self.length = 0
+        self.step_rewards = []
 
 
 def _make_hockey_env(mode, keep_mode):
@@ -99,7 +134,14 @@ def _make_hockey_env(mode, keep_mode):
     return h_env.HockeyEnv(mode=mode, keep_mode=keep_mode)
 
 
-def _create_opponents(num_envs: int, phase: PhaseConfig, state_dim: int, action_dim: int, rating: Optional[float] = None, matchmaker: Optional[Matchmaker] = None) -> List:
+def _create_opponents(
+    num_envs: int,
+    phase: PhaseConfig,
+    state_dim: int,
+    action_dim: int,
+    rating: Optional[float] = None,
+    matchmaker: Optional[Matchmaker] = None,
+) -> List:
     """Create opponents based on curriculum phase or default to weak opponents."""
     if phase:
         return [
@@ -116,7 +158,168 @@ def _create_opponents(num_envs: int, phase: PhaseConfig, state_dim: int, action_
     return [h_env.BasicOpponent(weak=True) for _ in range(num_envs)]
 
 
-def _get_opponent_actions(opponents: List[Opponent], obs_opponent: np.ndarray, num_envs: int) -> np.ndarray:
+def _to_scalar_loss(val: Any) -> float:
+    """Convert metric value to scalar for CSV (handle lists from SAC/TD3)."""
+    if val is None:
+        return float("nan")
+    if isinstance(val, (list, tuple)):
+        return float(np.mean(val)) if val else float("nan")
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return float("nan")
+
+
+def _format_losses_for_log(metrics: Optional[Dict[str, Any]]) -> List[str]:
+    """Format training metrics (losses, grad norms) for episode log line. Works with SAC, TD3, TDMPC2."""
+    if not metrics:
+        return []
+    parts = []
+    for key in sorted(metrics.keys()):
+        key_lower = key.lower()
+        if "loss" not in key_lower and "grad_norm" not in key_lower:
+            continue
+        val = metrics[key]
+        if val is None:
+            continue
+        if isinstance(val, (list, tuple)):
+            if not val:
+                continue
+            try:
+                scalar = sum(float(x) for x in val) / len(val)
+            except (TypeError, ValueError):
+                continue
+        else:
+            try:
+                scalar = float(val)
+            except (TypeError, ValueError):
+                continue
+        parts.append(f"{key}={scalar:.4f}")
+    return parts
+
+
+def _compute_backprop_reward(
+    agent: Optional[Agent],
+    episode_rewards: Optional[List[float]],
+    winner: int,
+    fallback_shaped_reward: float,
+) -> float:
+    """Compute backprop_reward when buffer has win_reward_bonus/discount; else use shaped_reward."""
+    if (
+        agent is None
+        or not hasattr(agent, "buffer")
+        or agent.buffer is None
+        or not hasattr(agent.buffer, "win_reward_bonus")
+        or not hasattr(agent.buffer, "win_reward_discount")
+        or episode_rewards is None
+        or len(episode_rewards) == 0
+    ):
+        return fallback_shaped_reward
+    buf = agent.buffer
+    rewards_out, _, _ = apply_win_reward_backprop(
+        np.array(episode_rewards, dtype=np.float32),
+        winner,
+        win_reward_bonus=buf.win_reward_bonus,
+        win_reward_discount=buf.win_reward_discount,
+    )
+    return float(np.sum(rewards_out))
+
+
+def _save_csvs_and_plots(
+    episode_logs: List[Dict[str, Any]],
+    training_metrics: TrainingMetrics,
+    csvs_dir: str,
+    result_dir: str,
+    run_name: str,
+    verbose: bool = True,
+    window_size: int = 250,
+) -> None:
+    """Write episode logs, losses, winrates CSVs and training metrics plots."""
+    if episode_logs:
+        fixed_cols = {
+            "episode",
+            "step",
+            "reward",
+            "shaped_reward",
+            "backprop_reward",
+            "total_gradient_steps",
+            "rating",
+            "length",
+            "phase",
+        }
+        loss_keys = sorted(
+            set().union(*(ep.keys() for ep in episode_logs)) - fixed_cols
+        )
+        fixed_cols_list = [
+            "episode",
+            "step",
+            "reward",
+            "shaped_reward",
+            "backprop_reward",
+            "total_gradient_steps",
+            "rating",
+            "length",
+            "phase",
+        ]
+        episode_csv_path = os.path.join(csvs_dir, f"{run_name}_episode_logs.csv")
+        with open(episode_csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=fixed_cols_list + loss_keys,
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for ep in episode_logs:
+                row = {k: ep.get(k, "") for k in fixed_cols_list}
+                row.update({k: ep.get(k, "") for k in loss_keys})
+                writer.writerow(row)
+        if verbose:
+            logger.info("Episode logs saved to %s", episode_csv_path)
+
+    if training_metrics.updates:
+        all_keys = sorted(
+            set().union(*(u.keys() for u in training_metrics.updates))
+            - {"step"}
+        )
+        losses_csv_path = os.path.join(csvs_dir, f"{run_name}_losses.csv")
+        with open(losses_csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=["step"] + all_keys,
+                extrasaction="ignore",
+            )
+            writer.writeheader()
+            for u in training_metrics.updates:
+                row = {"step": u["step"]}
+                for k in all_keys:
+                    val = u.get(k)
+                    row[k] = _to_scalar_loss(val) if val is not None else ""
+                writer.writerow(row)
+        if verbose:
+            logger.info("Losses saved to %s", losses_csv_path)
+
+    if training_metrics.winrates:
+        winrate_csv_path = os.path.join(csvs_dir, f"{run_name}_winrates.csv")
+        with open(winrate_csv_path, "w", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow(["step", "winrate"])
+            for wr in training_metrics.winrates:
+                writer.writerow([wr["step"], wr["winrate"]])
+        if verbose:
+            logger.info("Winrates saved to %s", winrate_csv_path)
+
+    if training_metrics.episodes or training_metrics.updates:
+        plot_training_metrics(
+            training_metrics,
+            result_dir=result_dir,
+            run_name=run_name,
+            window_size=window_size,
+        )
+
+
+def _get_opponent_actions(
+    opponents: List[Opponent], obs_opponent: np.ndarray, num_envs: int
+) -> np.ndarray:
     def get_action(opponent, obs):
         if opponent is None:
             return np.zeros(4)
@@ -125,7 +328,9 @@ def _get_opponent_actions(opponents: List[Opponent], obs_opponent: np.ndarray, n
         elif isinstance(opponent, Agent):
             return opponent.act(obs.astype(np.float32))
 
-    return np.array([get_action(opponents[i][0], obs_opponent[i]) for i in range(num_envs)])
+    return np.array(
+        [get_action(opponents[i][0], obs_opponent[i]) for i in range(num_envs)]
+    )
 
 
 def _switch_phase(
@@ -140,14 +345,21 @@ def _switch_phase(
     verbose: bool = True,
 ) -> Tuple[VectorizedHockeyEnvOptimized, np.ndarray, List]:
     """Check and handle curriculum phase transitions. Returns updated env, states, and opponents."""
-    new_phase_index, _, new_phase = get_phase_for_episode(curriculum, training_state.episode)
+    new_phase_index, _, new_phase = get_phase_for_episode(
+        curriculum, training_state.episode
+    )
 
     training_state.phase_index = new_phase_index
     training_state.phase = new_phase
-    
+
     if verbose:
-        print(f"\n  -> Starting phase {new_phase_index + 1}/{len(curriculum.phases)}: {new_phase.name}")
-    
+        logger.info(
+            "Starting phase %d/%d: %s",
+            new_phase_index + 1,
+            len(curriculum.phases),
+            new_phase.name,
+        )
+
     # Recreate environment
     if env:
         env.close()
@@ -155,20 +367,25 @@ def _switch_phase(
     env_mode = getattr(h_env.Mode, mode_str)
     env = VectorizedHockeyEnvOptimized(
         num_envs=num_envs,
-        env_fn=partial(_make_hockey_env, mode=env_mode, keep_mode=new_phase.environment.keep_mode),
+        env_fn=partial(
+            _make_hockey_env, mode=env_mode, keep_mode=new_phase.environment.keep_mode
+        ),
     )
     states = env.reset()
 
     # Create opponents
-    opponents = [matchmaker.get_opponent(new_phase.opponent, training_state.rating.rating) for _ in range(num_envs)]
+    opponents = [
+        matchmaker.get_opponent(new_phase.opponent, training_state.rating.rating)
+        for _ in range(num_envs)
+    ]
 
     # Clear agent buffer if specified
     if agent and new_phase.clear_buffer:
         training_state.last_warmup_reset_step = training_state.step
-
+        buffer_size = agent.buffer.size
         agent.buffer.clear()
         if verbose:
-            print("  -> Cleared agent replay buffer")
+            logger.info("Cleared agent replay buffer (size was %d)", buffer_size)
 
     return env, states, opponents
 
@@ -182,7 +399,7 @@ def train_vectorized(
 ):
     """
     Minimal training with multiple parallel environments.
-    
+
     Args:
         config_path: Path to curriculum config file
         verbose: Print episode info
@@ -196,20 +413,37 @@ def train_vectorized(
     total_episodes = get_total_episodes(curriculum)
 
     if verbose:
-        print(f"Curriculum: {len(curriculum.phases)} phases, {total_episodes} episodes")
+        logger.info(
+            "Curriculum: %d phases, %d episodes", len(curriculum.phases), total_episodes
+        )
 
-    # Create result directory
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    result_dir = os.path.join(result_dir, timestamp)
-    os.makedirs(result_dir, exist_ok=True)
+    # Create result directory and subdirectories (same layout as old train_single_run_refactored)
+    run_manager = RunManager(base_output_dir=result_dir)
+    result_dir = str(run_manager.base_output_dir)
+    csvs_dir = str(run_manager.csvs_dir)
+    plots_dir = str(run_manager.plots_dir)
+    models_dir = str(run_manager.models_dir)
 
+    config_dict = {
+        "agent": {
+            "type": curriculum.agent.type,
+            "hyperparameters": curriculum.agent.hyperparameters,
+        },
+        "hyperparameters": curriculum.hyperparameters,
+    }
+    run_name = run_manager.generate_run_name(config_dict)
+    run_manager.save_config(run_name, config_dict)
     shutil.copy(config_path, os.path.join(result_dir, "config.json"))
+
+    if verbose:
+        logger.info("Parameters (config):")
+        logger.info("\n%s", json.dumps(config_dict, indent=2))
 
     # Setup archive
     archive = Archive(base_dir=archive_dir)
     matchmaker = Matchmaker(archive)
     rating_system = RatingSystem(archive)
-    
+
     training_state = TrainingState()
 
     # Create agent
@@ -217,7 +451,7 @@ def train_vectorized(
     state_dim = temp_env.observation_space.shape[0]
     action_dim = temp_env.action_space.shape[0] // 2
     temp_env.close()
-    
+
     agent = create_agent(
         curriculum.agent,
         state_dim=state_dim,
@@ -225,6 +459,9 @@ def train_vectorized(
         common_hyperparams=curriculum.hyperparameters,
         deterministic=False,
     )
+
+    logger.info("Agent network architecture:")
+    logger.info("\n%s\n", agent.log_architecture())
 
     # Setup initial phase
     env, states, opponents = _switch_phase(
@@ -242,44 +479,72 @@ def train_vectorized(
 
     # Setup metrics
     training_metrics = TrainingMetrics()
+    episode_logs: List[Dict[str, Any]] = []
     episode_metrics = [EpisodeMetrics() for _ in range(num_envs)]
+    last_train_metrics: Dict[str, Any] = {}
 
-    pbar = tqdm.tqdm(total=total_episodes, unit="ep")
     while training_state.episode < total_episodes:
         # Get batched agent actions
         actions = agent.act_batch(states.astype(np.float32))
-        
+
         # Get opponent actions
         obs_opponent = env.obs_agent_two()
         actions_opponent = _get_opponent_actions(opponents, obs_opponent, num_envs)
-        
+
         # Step all environments
         full_actions = np.hstack([actions, actions_opponent])
         next_states, rewards, dones, truncs, infos = env.step(full_actions)
-        
+
         for i in range(num_envs):
-            reward = rewards[i] * curriculum.training.reward_scale
-            done = dones[i] and infos[i]["winner"] == 0  # handle truncation (env always returns done)
-            agent.store_transition((states[i], actions[i], reward, next_states[i], done))
-            
+            scaled_reward = rewards[i] * curriculum.training.reward_scale
+            done = (
+                dones[i] and infos[i]["winner"] == 0
+            )  # handle truncation (env always returns done)
+            agent.store_transition(
+                (states[i], actions[i], scaled_reward, next_states[i], done)
+            )
+
             episode_metrics[i].reward += rewards[i]
+            episode_metrics[i].shaped_reward += scaled_reward
+            episode_metrics[i].step_rewards.append(scaled_reward)
             episode_metrics[i].length += 1
-            
+
             # Handle episode completion
             if dones[i] or truncs[i]:
                 # Update metrics
                 training_state.episode += 1
 
-                training_state.rating = rating_system.estimate_rating(training_state.rating, opponents[i][1], infos[i]["winner"])
+                training_state.rating = rating_system.estimate_rating(
+                    training_state.rating, opponents[i][1], infos[i]["winner"]
+                )
 
-                pbar.update(1)
-                pbar.set_postfix({
-                    "rating": f"{training_state.rating.rating:.2f}",
-                    "reward": f"{episode_metrics[i].reward:.2f}",
-                    "length": episode_metrics[i].length,
-                    "buffer": agent.buffer.size,
-                    "phase": training_state.phase.name,
-                })
+                winner = infos[i].get("winner", 0)
+                backprop_reward = _compute_backprop_reward(
+                    agent,
+                    episode_metrics[i].step_rewards,
+                    winner,
+                    episode_metrics[i].shaped_reward,
+                )
+
+                env_mode_str = training_state.phase.environment.get_mode_for_episode(0)
+                opponent_type = getattr(
+                    training_state.phase.opponent, "type", training_state.phase.name
+                )
+
+                if verbose:
+                    log_parts = [
+                        f"Episode {training_state.episode}: reward={episode_metrics[i].reward:.2f}",
+                        f"shaped_reward={episode_metrics[i].shaped_reward:.2f}",
+                        f"backprop_reward={backprop_reward:.2f}",
+                        f"steps={episode_metrics[i].length}",
+                        f"phase={training_state.phase.name}",
+                        f"rating={training_state.rating.rating:.2f}",
+                        f"buffer={agent.buffer.size}",
+                        f"env={env_mode_str}",
+                        f"opponent={opponent_type}",
+                    ]
+                    log_parts.extend(_format_losses_for_log(last_train_metrics))
+                    logger.info(" | ".join(log_parts))
 
                 training_metrics.add_episode(
                     step=training_state.step,
@@ -288,17 +553,35 @@ def train_vectorized(
                     length=episode_metrics[i].length,
                     phase=training_state.phase.name,
                 )
+                episode_row: Dict[str, Any] = {
+                    "episode": training_state.episode,
+                    "step": training_state.step,
+                    "reward": episode_metrics[i].reward,
+                    "shaped_reward": episode_metrics[i].shaped_reward,
+                    "backprop_reward": backprop_reward,
+                    "total_gradient_steps": training_state.gradient_steps,
+                    "rating": training_state.rating.rating,
+                    "length": episode_metrics[i].length,
+                    "phase": training_state.phase.name,
+                }
+                for k, v in (last_train_metrics or {}).items():
+                    episode_row[k] = _to_scalar_loss(v)
+                episode_logs.append(episode_row)
                 episode_metrics[i].reset()
 
                 # Check for phase transition
-                new_phase_index, _, _ = get_phase_for_episode(curriculum, training_state.episode)
+                new_phase_index, _, _ = get_phase_for_episode(
+                    curriculum, training_state.episode
+                )
                 if new_phase_index != training_state.phase_index:
                     switch = True
 
                 # Sample new opponent
-                opponent, opponent_rating = matchmaker.get_opponent(training_state.phase.opponent, training_state.rating.rating)
+                opponent, opponent_rating = matchmaker.get_opponent(
+                    training_state.phase.opponent, training_state.rating.rating
+                )
                 opponents[i] = (opponent, opponent_rating)
-                
+
         # Step or switch phase
         if switch:
             switch = False
@@ -319,87 +602,71 @@ def train_vectorized(
             states = next_states
 
         # Train
-        if training_state.step - curriculum.training.warmup_steps > training_state.last_warmup_reset_step:
+        if (
+            training_state.step - curriculum.training.warmup_steps
+            > training_state.last_warmup_reset_step
+        ):
             metrics = agent.train(steps=curriculum.training.updates_per_step)
-            training_metrics.add_update(step=training_state.step, **metrics)
-        
+            training_state.gradient_steps += curriculum.training.updates_per_step
+            if metrics:
+                last_train_metrics = metrics
+                training_metrics.add_update(step=training_state.step, **metrics)
+
         training_state.step += num_envs
 
-        # Save model checkpoint
+        # Save model checkpoint, CSVs and plots at same frequency
         # TODO when to add to archive?
-        if training_state.step - curriculum.training.checkpoint_frequency >= training_state.last_checkpoint_step:
+        if (
+            training_state.step - curriculum.training.checkpoint_frequency
+            >= training_state.last_checkpoint_step
+        ):
             training_state.last_checkpoint_step = training_state.step
-            agent.save(f"{result_dir}/models/ep_{training_state.episode}.pt")
+            agent.save(os.path.join(models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"))
+            _save_csvs_and_plots(
+                episode_logs=episode_logs,
+                training_metrics=training_metrics,
+                csvs_dir=csvs_dir,
+                result_dir=result_dir,
+                run_name=run_name,
+                verbose=verbose,
+                window_size=250,
+            )
 
         # Run evaluation
         # TODO outsource
-        if training_state.step - curriculum.training.eval_frequency >= training_state.last_eval_step:
+        if (
+            training_state.step - curriculum.training.eval_frequency
+            >= training_state.last_eval_step
+        ):
             training_state.last_eval_step = training_state.step
-
+            if verbose:
+                logger.info("Evaluating agent at step %d...", training_state.step)
             winrate = evaluate_winrate(agent, opponent_weak=False, verbose=verbose)
             training_metrics.add_winrate(step=training_state.step, winrate=winrate)
-    
-    # Cleanup
-    pbar.close()
-    env.close()
-    agent.save(f"{result_dir}/models/final.pt")
-    
-    if verbose:
-        print(f"\nTraining complete. Total steps: {training_state.step}")
-    
-    # Plotting
-    # TODO outsource
-    os.makedirs(f"{result_dir}/plots", exist_ok=True)
+            if verbose:
+                logger.info("Evaluation: Win rate: %.2f%%", winrate * 100.0)
 
-    if training_metrics.episodes:
-        episode_rewards = [ep["reward"] for ep in training_metrics.episodes]
-        plt.figure(figsize=(12, 6))
-        plt.plot(episode_rewards, label="Episode Reward", alpha=0.6)
-        # Add rolling average
-        if len(episode_rewards) > 100:
-            window = 100
-            rolling_avg = np.convolve(episode_rewards, np.ones(window)/window, mode='valid')
-            plt.plot(range(window-1, len(episode_rewards)), rolling_avg, label=f"Rolling Avg ({window})", linewidth=2)
-        plt.xlabel("Episodes")
-        plt.ylabel("Reward")
-        plt.title("Episode Rewards")
-        plt.legend()
-        plt.grid(alpha=0.3)
-        plt.savefig(f"{result_dir}/plots/rewards.png")
-        plt.close()
-    
-    if training_metrics.updates:
-        # Extract unique metric names (excluding 'step')
-        metric_names = set()
-        for update in training_metrics.updates:
-            metric_names.update(k for k in update.keys() if k != "step")
-        metric_names = sorted(metric_names)
-        
-        if metric_names:
-            num_metrics = len(metric_names)
-            fig, axes = plt.subplots(num_metrics, 1, figsize=(12, 4 * num_metrics))
-            if num_metrics == 1:
-                axes = [axes]
-            
-            for idx, metric_name in enumerate(metric_names):
-                steps = [u["step"] for u in training_metrics.updates if metric_name in u]
-                values = [u[metric_name] for u in training_metrics.updates if metric_name in u]
-                
-                axes[idx].plot(steps, values, label=metric_name, alpha=0.7)
-                axes[idx].set_xlabel("Steps")
-                axes[idx].set_ylabel(metric_name)
-                axes[idx].set_title(metric_name)
-                axes[idx].legend()
-                axes[idx].grid(alpha=0.3)
-            
-            plt.tight_layout()
-            plt.savefig(f"{result_dir}/plots/training_metrics.png")
-            plt.close()    
+    # Cleanup
+    env.close()
+    agent.save(os.path.join(models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"))
+
+    if verbose:
+        logger.info("Training complete. Total steps: %d", training_state.step)
+
+    # Final save of CSV files and training plots
+    _save_csvs_and_plots(
+        episode_logs=episode_logs,
+        training_metrics=training_metrics,
+        csvs_dir=csvs_dir,
+        result_dir=result_dir,
+        run_name=run_name,
+        verbose=verbose,
+        window_size=100,
+    )
 
     # Plot value propagation
     opponent = h_env.BasicOpponent(weak=False)
-    
-    models_dir = f"{result_dir}/models/"
+
     model_files = sorted([f for f in os.listdir(models_dir) if f.endswith(".pt")])
 
     agent.load(os.path.join(models_dir, model_files[-1]))
@@ -413,26 +680,35 @@ def train_vectorized(
         all_means.append(means)
         all_variances.append(variances)
 
-    plot_value_heatmap(all_means, path=f"{result_dir}/plots/value_propagation_heatmap.png")
+    plot_value_heatmap(
+        all_means, path=os.path.join(plots_dir, "value_propagation_heatmap.png")
+    )
     means = [all_means[0], all_means[-1]]
     variances = [all_variances[0], all_variances[-1]]
     labels = ["Untrained", "Trained"]
-    plot_values_line(means, all_variances=variances, path=f"{result_dir}/plots/value_propagation_line.png", labels=labels)
-    
+    plot_values_line(
+        means,
+        all_variances=variances,
+        path=os.path.join(plots_dir, "value_propagation_line.png"),
+        labels=labels,
+    )
+
     # Plot winrates
     if training_metrics.winrates:
         steps = [wr["step"] for wr in training_metrics.winrates]
         winrates = [wr["winrate"] for wr in training_metrics.winrates]
-        
+
         plt.figure(figsize=(12, 6))
-        plt.plot(steps, winrates, marker='o', linewidth=2, markersize=6, label="Winrate")
+        plt.plot(
+            steps, winrates, marker="o", linewidth=2, markersize=6, label="Winrate"
+        )
         plt.xlabel("Training Steps")
         plt.ylabel("Winrate")
         plt.title("Winrate over Training")
         plt.ylim(0, 1.0)
         plt.grid(alpha=0.3)
         plt.legend()
-        plt.savefig(f"{result_dir}/plots/winrates.png")
+        plt.savefig(os.path.join(plots_dir, "winrates.png"))
         plt.close()
 
 

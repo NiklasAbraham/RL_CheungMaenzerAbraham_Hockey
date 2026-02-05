@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=hockey_single_run
+#SBATCH --job-name=hockey_td3
 # Job name
 
 #SBATCH --partition=week
@@ -31,26 +31,19 @@
 # Path to the Singularity container image
 SINGULARITY_IMAGE="$HOME/RL_CheungMaenzerAbraham_Hockey/singularity_build/rl_hockey.simg"
 
-# Set working directory to project root
+# Set working directory to project root (config paths are in train_td3.py)
 PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 cd "$PROJECT_DIR"
-
-# Set number of parallel environments to match CPU cores
-export NUM_ENVS=1
 
 # Disable Python output buffering for immediate logging in batch jobs
 export PYTHONUNBUFFERED=1
 
-# Run the training script using singularity
-# Since the container is read-only, we can't install packages into /venv
-# Install missing packages to a user-writable location if needed
 USER_PACKAGES_DIR="$PROJECT_DIR/.user_packages"
 mkdir -p "$USER_PACKAGES_DIR"
 
-# Run the training script using singularity
 singularity exec \
     --nv \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export NUM_ENVS=$NUM_ENVS && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_single_run_refactored_niklas.py'"
+    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_td3.py'"
