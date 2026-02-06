@@ -463,12 +463,6 @@ def _get_agent_actions_with_t0(
     Returns:
         actions: (num_envs, action_dim) continuous actions
     """
-    # Log t0 usage for TDMPC2 debugging
-    active_t0s = np.sum(t0_flags)
-    if active_t0s > 0 and debug_level >= 2:
-        logger.debug("Getting actions with %d active t0 flags: %s", active_t0s, 
-                    [i for i in range(num_envs) if t0_flags[i]])
-    
     # For single environment, use simple direct calls (most reliable for TDMPC2)
     # This matches the train_run_refactored.py approach
     if num_envs == 1:
@@ -481,13 +475,9 @@ def _get_agent_actions_with_t0(
             sig = inspect.signature(agent.act)
             if 't0' in sig.parameters:
                 action = agent.act(state, t0=t0)
-                if t0 and debug_level >= 2:
-                    logger.debug("Single env: Called act(t0=%s)", t0)
             else:
                 # Agent doesn't support t0 (SAC/TD3)
                 action = agent.act(state)
-                if t0 and debug_level >= 2:
-                    logger.debug("Single env: Called act() without t0 (not supported)")
         else:
             action = agent.act(state)
         
@@ -500,20 +490,12 @@ def _get_agent_actions_with_t0(
         import inspect
         sig = inspect.signature(agent.act_batch)
         if 't0s' in sig.parameters:
-            actions = agent.act_batch(states.astype(np.float32), t0s=t0_flags)
-            if active_t0s > 0 and debug_level >= 2:
-                logger.debug("Used act_batch with t0s successfully")
-            return actions
+            return agent.act_batch(states.astype(np.float32), t0s=t0_flags)
         else:
             # Agent doesn't support t0s parameter (SAC/TD3)
-            if active_t0s > 0 and debug_level >= 2:
-                logger.debug("act_batch doesn't support t0s")
             return agent.act_batch(states.astype(np.float32))
     else:
         # Fallback: call act() for each environment individually
-        if active_t0s > 0 and debug_level >= 2:
-            logger.debug("Using individual act() calls with t0 flags")
-        
         import inspect
         sig = inspect.signature(agent.act)
         supports_t0 = 't0' in sig.parameters
@@ -523,8 +505,6 @@ def _get_agent_actions_with_t0(
             state = states[i].astype(np.float32)
             if supports_t0:
                 action = agent.act(state, t0=bool(t0_flags[i]))
-                if t0_flags[i] and debug_level >= 2:
-                    logger.debug("Called act(t0=True) for env %d", i)
             else:
                 action = agent.act(state)
             actions.append(action)
@@ -740,6 +720,14 @@ def train_vectorized(
         agent.load(checkpoint_path)
         if verbose:
             logger.info("Loaded agent from %s", checkpoint_path)
+        
+        # This is critical for TDMPC2 which requires sequences in the buffer.
+        training_state.last_warmup_reset_step = training_state.step
+        if verbose:
+            logger.info(
+                "Reset warmup timer for buffer refill: last_warmup_reset_step=%d",
+                training_state.last_warmup_reset_step,
+            )
 
     logger.info("Agent network architecture:")
     logger.info("\n%s\n", agent.log_architecture())
@@ -782,19 +770,10 @@ def train_vectorized(
     episode_started = np.zeros(num_envs, dtype=bool)
 
     while training_state.episode < total_episodes:
-        # Log t0 flags for TDMPC2 debugging
-        if debug_level >= 2 and training_state.step % 100 == 0 and np.any(t0_flags):
-            active_t0 = [i for i in range(num_envs) if t0_flags[i]]
-            logger.info("Step %d: t0_flags active for envs %s", training_state.step, active_t0)
-        
-        # Call on_episode_start BEFORE first action of each new episode (TDMPC2 needs this timing)
-        # This matches the behavior of train_run_refactored.py
+        # Call on_episode_start BEFORE first action of each new episode
         for i in range(num_envs):
             if t0_flags[i] and not episode_started[i]:
                 if hasattr(agent, "on_episode_start"):
-                    if debug_level >= 2:
-                        logger.info("Calling agent.on_episode_start(%d) for env %d (before first action)", 
-                                   training_state.episode, i)
                     agent.on_episode_start(training_state.episode)
                 episode_started[i] = True
         
@@ -816,37 +795,6 @@ def train_vectorized(
         full_actions = np.hstack([actions, actions_opponent])
         next_states, rewards, dones, truncs, infos = env.step(full_actions)
 
-        # Log step data for TDMPC2 analysis - every 100 steps
-        if debug_level >= 2 and training_state.step % 100 == 0:
-            logger.info("=== TDMPC2 Environment Step %d ===", training_state.step)
-            for i in range(num_envs):
-                # Log FULL action vectors
-                action_str = f"[{', '.join(f'{x:.6f}' for x in actions[i])}]"
-                action_opp_str = f"[{', '.join(f'{x:.6f}' for x in actions_opponent[i])}]"
-                
-                # Log FULL state vectors
-                state_str = f"[{', '.join(f'{x:.6f}' for x in states[i])}]"
-                next_state_str = f"[{', '.join(f'{x:.6f}' for x in next_states[i])}]"
-                
-                logger.info("  Env %d - FULL Agent Action: %s", i, action_str)
-                logger.info("  Env %d - FULL Opponent Action: %s", i, action_opp_str)
-                logger.info("  Env %d - Reward: %.8f, Done: %s, Truncated: %s", 
-                           i, rewards[i], dones[i], truncs[i])
-                logger.info("  Env %d - FULL State: %s", i, state_str)
-                logger.info("  Env %d - FULL Next State: %s", i, next_state_str)
-                
-                # Log info dict contents
-                if infos[i]:
-                    logger.info("  Env %d - Info dict:", i)
-                    for key, value in infos[i].items():
-                        if isinstance(value, (int, float)):
-                            logger.info("    %s: %.8f", key, value)
-                        elif hasattr(value, 'shape'):  # numpy array
-                            logger.info("    %s: shape=%s, dtype=%s", key, value.shape, value.dtype)
-                        else:
-                            logger.info("    %s: %s", key, str(value))
-            logger.info("=== End Environment Step ===")
-
         for i in range(num_envs):
             # Apply reward shaping based on curriculum phase config
             shaped_reward = apply_reward_shaping(rewards[i], infos[i], reward_weights)
@@ -857,53 +805,18 @@ def train_vectorized(
             if dones[i] or truncs[i]:
                 if 'terminal_obs' in infos[i]:
                     next_state_for_buffer = infos[i]['terminal_obs']
-                    if debug_level >= 2 and training_state.episode < 10:
-                        logger.info("Episode %d env %d: Using terminal_obs for buffer (shape=%s)", 
-                                   training_state.episode, i, next_state_for_buffer.shape)
                 else:
-                    # CRITICAL BUG FIX: Use states[i] (current state before transition) instead of next_states[i] (reset obs)
-                    logger.error("CRITICAL: terminal_obs missing for env %d episode %d! Using current state instead of reset obs", 
+                    logger.error("CRITICAL: terminal_obs missing for env %d episode %d!", 
                                i, training_state.episode)
                     next_state_for_buffer = states[i]
-                    # Log shapes for debugging
-                    logger.error("  Current state shape: %s, Next state (reset) shape: %s", 
-                               states[i].shape, next_states[i].shape)
             else:
                 next_state_for_buffer = next_states[i]
 
-            # Extract winner only when episode actually ends (for TDMPC2 reward backpropagation)
-            # Must check actual episode ending (dones[i] or truncs[i]), not modified 'done' variable
+            # Extract winner only when episode actually ends
             if dones[i] or truncs[i]:
-                # Episode ended - winner must be in infos (environment always sets it)
                 winner = infos[i]["winner"]
             else:
-                # Mid-episode transition - no winner yet
                 winner = None
-
-            # Log transition details for TDMPC2 debugging
-            if debug_level >= 2 and training_state.episode < 5 and episode_metrics[i].length < 3:
-                logger.info("Env %d step %d: storing transition reward=%.3f winner=%s done=%s", 
-                           i, episode_metrics[i].length, scaled_reward, winner, dones[i])
-            
-            # Log detailed transition for TDMPC2 - every 50 steps per env
-            if debug_level >= 2 and (training_state.step + i) % 50 == 0:
-                # Log FULL transition data
-                state_str = f"[{', '.join(f'{x:.6f}' for x in states[i])}]"
-                next_str = f"[{', '.join(f'{x:.6f}' for x in next_state_for_buffer)}]"
-                action_str = f"[{', '.join(f'{x:.6f}' for x in actions[i])}]"
-                
-                logger.info("=== TDMPC2 FULL Transition Env %d ===", i)
-                logger.info("  State (S):      %s", state_str)
-                logger.info("  Action (A):     %s", action_str) 
-                logger.info("  Reward (R):     %.8f", scaled_reward)
-                logger.info("  Next State (S'):  %s", next_str)
-                logger.info("  Done:           %s", dones[i])
-                logger.info("  Truncated:      %s", truncs[i] if 'truncs' in locals() else False)
-                logger.info("  Winner:         %s", winner)
-                logger.info("  Raw Reward:     %.8f", rewards[i])
-                logger.info("  Shaped Reward:  %.8f", shaped_reward)
-                logger.info("  Reward Scale:   %.8f", curriculum.training.reward_scale)
-                logger.info("=== End FULL Transition ===")
             
             agent.store_transition(
                 (states[i], actions[i], scaled_reward, next_state_for_buffer, dones[i]),
@@ -917,23 +830,14 @@ def train_vectorized(
 
             # Handle episode completion
             if dones[i] or truncs[i]:
-                # Log episode completion for TDMPC2 debugging
-                if debug_level >= 1 and training_state.episode < 10:
-                    logger.info("Episode %d env %d COMPLETED: length=%d reward=%.3f winner=%s", 
-                               training_state.episode, i, episode_metrics[i].length, 
-                               episode_metrics[i].reward, winner)
-                
-                # Call on_episode_end callback before incrementing episode
+                # Call on_episode_end callback
                 if hasattr(agent, "on_episode_end"):
-                    if debug_level >= 2 and training_state.episode < 5:
-                        logger.info("Calling agent.on_episode_end(%d) for env %d", training_state.episode, i)
                     agent.on_episode_end(training_state.episode)
                 
                 # Update metrics
                 training_state.episode += 1
                 
-                # Mark this env as needing on_episode_start for next episode
-                # (will be called at the START of next episode, not here)
+                # Mark for next episode callback
                 episode_started[i] = False
                 
                 training_state.rating = rating_system.estimate_rating(
@@ -946,22 +850,12 @@ def train_vectorized(
                     episode_metrics[i].shaped_reward,
                 )
 
-                env_mode_str = training_state.phase.environment.get_mode_for_episode(0)
-                opponent_type = getattr(
-                    training_state.phase.opponent, "type", training_state.phase.name
-                )
-
                 if verbose:
                     log_parts = [
-                        f"Episode {training_state.episode}: reward={episode_metrics[i].reward:.2f}",
-                        f"shaped_reward={episode_metrics[i].shaped_reward:.2f}",
-                        f"backprop_reward={backprop_reward:.2f}",
+                        f"Ep{training_state.episode}: reward={episode_metrics[i].reward:.2f}",
                         f"steps={episode_metrics[i].length}",
-                        f"phase={training_state.phase.name}",
-                        f"rating={training_state.rating.rating:.2f}",
+                        f"rating={training_state.rating.rating:.1f}",
                         f"buffer={agent.buffer.size}",
-                        f"env={env_mode_str}",
-                        f"opponent={opponent_type}",
                     ]
                     log_parts.extend(_format_losses_for_log(last_train_metrics))
                     logger.info(" | ".join(log_parts))
@@ -989,10 +883,8 @@ def train_vectorized(
                 episode_logs.append(episode_row)
                 episode_metrics[i].reset()
                 
-                # Mark this environment as starting a new episode (for t0 flag)
+                # Mark for next episode
                 t0_flags[i] = True
-                if debug_level >= 2 and training_state.episode < 10:
-                    logger.info("Set t0_flags[%d] = True for episode %d", i, training_state.episode)
 
                 # Check for phase transition
                 new_phase_index, new_phase_local_episode, _ = get_phase_for_episode(
@@ -1035,8 +927,6 @@ def train_vectorized(
             states = new_states
             # After phase switch, all environments start fresh episodes
             t0_flags = np.ones(num_envs, dtype=bool)
-            if debug_level >= 1:
-                logger.info("Phase switch: Set all t0_flags=True for %d envs", num_envs)
             
             # Update reward weights and bonus for new phase
             _, phase_local_episode, _ = get_phase_for_episode(curriculum, training_state.episode)
@@ -1058,78 +948,22 @@ def train_vectorized(
         )
         train_freq_ok = training_state.step % curriculum.training.train_freq == 0
         
-        if warmup_passed and train_freq_ok:
-            # Log training details for TDMPC2 debugging
-            if debug_level >= 2 and training_state.gradient_steps < 10:
-                buffer_size = getattr(agent.buffer, 'size', 'unknown')
-                logger.info("Training step %d: buffer_size=%s, gradient_steps=%d", 
-                           training_state.step, buffer_size, training_state.gradient_steps)
-            
-            # TDMPC2 detailed training logging - every 10th batch
-            batch_count = training_state.gradient_steps // curriculum.training.updates_per_step
-            if debug_level >= 1 and batch_count % 10 == 0 and batch_count > 0:
-                # Log current environment states and recent rewards for TDMPC2 analysis
-                logger.info("=== TDMPC2 Training Batch %d (Step %d, Gradient Steps %d) ===", 
-                           batch_count, training_state.step, training_state.gradient_steps)
-                
-                # Log FULL states for all environments
-                for i in range(num_envs):
-                    # Log complete state vector
-                    state_str = f"[{', '.join(f'{x:.6f}' for x in states[i])}]"
-                    logger.info("  Env %d - FULL State: %s", i, state_str)
-                    
-                    # Log ALL episode rewards so far
-                    if episode_metrics[i].length > 0:
-                        all_rewards = episode_metrics[i].step_rewards
-                        rewards_str = f"[{', '.join(f'{r:.6f}' for r in all_rewards)}]"
-                        logger.info("  Env %d - ALL Episode Rewards (%d steps): %s", 
-                                   i, len(all_rewards), rewards_str)
-                        logger.info("  Env %d - Episode Stats: length=%d, total_reward=%.6f, shaped_reward=%.6f", 
-                                   i, episode_metrics[i].length, episode_metrics[i].reward, episode_metrics[i].shaped_reward)
-                    else:
-                        logger.info("  Env %d - No rewards yet (episode just started)", i)
-                
-                # Log FULL buffer status for TDMPC2
-                buffer_size = getattr(agent.buffer, 'size', 'unknown')
-                if hasattr(agent.buffer, 'win_reward_bonus') and hasattr(agent.buffer, 'win_reward_discount'):
-                    logger.info("  TDMPC2 Buffer: size=%s, win_bonus=%.6f, win_discount=%.6f", 
-                               buffer_size, agent.buffer.win_reward_bonus, agent.buffer.win_reward_discount)
-                    
-                    # Log buffer capacity and utilization
-                    if hasattr(agent.buffer, 'max_size') or hasattr(agent.buffer, 'capacity'):
-                        max_size = getattr(agent.buffer, 'max_size', getattr(agent.buffer, 'capacity', 'unknown'))
-                        utilization = (buffer_size / max_size * 100) if isinstance(buffer_size, int) and isinstance(max_size, int) else 'unknown'
-                        logger.info("  Buffer Utilization: %s/%s (%.1f%%)", buffer_size, max_size, utilization)
-                else:
-                    logger.info("  Buffer: size=%s (no TDMPC2 reward bonus attributes)", buffer_size)
-            
+        # Additional safeguard: check buffer has minimum data before training (prevents TDMPC2 errors)
+        buffer_ready = True
+        if hasattr(agent, "buffer") and agent.buffer is not None:
+            buffer_size = getattr(agent.buffer, "size", 0)
+            if buffer_size < max(curriculum.training.warmup_steps // 2, 1):
+                buffer_ready = False
+                if debug_level >= 2:
+                    logger.debug(
+                        "Buffer not ready for training: size=%d < min_required=%d",
+                        buffer_size,
+                        max(curriculum.training.warmup_steps // 2, 1),
+                    )
+        
+        if warmup_passed and train_freq_ok and buffer_ready:
             metrics = agent.train(steps=curriculum.training.updates_per_step)
             training_state.gradient_steps += curriculum.training.updates_per_step
-            
-            # Log training results for TDMPC2 - every 10th batch
-            if debug_level >= 1 and batch_count % 10 == 0 and batch_count > 0 and metrics:
-                # Log ALL training metrics with full precision
-                logger.info("  FULL Training Metrics:")
-                for key, value in metrics.items():
-                    if isinstance(value, (int, float)):
-                        logger.info("    %s: %.8f", key, value)
-                    elif isinstance(value, (list, tuple)) and len(value) > 0:
-                        if isinstance(value[0], (int, float)):
-                            values_str = f"[{', '.join(f'{v:.8f}' for v in value)}]"
-                            logger.info("    %s: %s (length=%d)", key, values_str, len(value))
-                        else:
-                            logger.info("    %s: %s", key, str(value))
-                    else:
-                        logger.info("    %s: %s", key, str(value))
-                
-                # Log gradient norms if available
-                grad_norms = {k: v for k, v in metrics.items() if 'grad' in k.lower() and 'norm' in k.lower()}
-                if grad_norms:
-                    logger.info("  Gradient Norms:")
-                    for key, value in grad_norms.items():
-                        logger.info("    %s: %.8f", key, value)
-                        
-                logger.info("=== End TDMPC2 Training Batch %d ===", batch_count)
             
             if metrics:
                 last_train_metrics = metrics
