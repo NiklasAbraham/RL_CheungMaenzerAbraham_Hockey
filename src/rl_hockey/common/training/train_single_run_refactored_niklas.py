@@ -141,7 +141,7 @@ if __name__ == "__main__":
         3
     ]  # training -> common -> rl_hockey -> src -> project
     path_to_config = (
-        PROJECT_ROOT / "configs" / "curriculum_tdmpc2_mixed_opponents.json"
+        PROJECT_ROOT / "configs" / "curriculum_tdmpc2_bonus_decay.json"
     ).resolve()
 
     # Auto-detect device
@@ -157,21 +157,21 @@ if __name__ == "__main__":
 
     num_envs = int(os.environ.get("NUM_ENVS", "1"))  # Default to 24 envs if not set
 
-    # train_single_run(
-    #    path_to_config,
-    #    base_output_dir="results/tdmpc2_runs_test",
-    #    device=device,
-    #    num_envs=num_envs,
-    # )
-
-    # Resume from last checkpoint (use same config and num_envs as original run):
     train_single_run(
         path_to_config,
         base_output_dir="results/tdmpc2_runs_test",
         device=device,
         num_envs=num_envs,
-        checkpoint_path="results/tdmpc2_runs_test/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep000800.pt",
-        existing_run_dir="results/tdmpc2_runs_test/2026-02-01_09-55-22",
     )
+
+    # Resume from last checkpoint (use same config and num_envs as original run):
+    #train_single_run(
+    #    path_to_config,
+    #    base_output_dir="results/tdmpc2_runs_test",
+    #    device=device,
+    #    num_envs=num_envs,
+    #    checkpoint_path="results/tdmpc2_runs_test/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep000800.pt",
+    #    existing_run_dir="results/tdmpc2_runs_test/2026-02-01_09-55-22",
+    #)
 
     # nohup python -u src/rl_hockey/common/training/train_single_run_refactored.py > results/sac_runs/train_single_run_refactored.log 2>&1 &

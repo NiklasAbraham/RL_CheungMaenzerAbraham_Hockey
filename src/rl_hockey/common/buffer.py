@@ -481,16 +481,11 @@ class TDMPC2ReplayBuffer:
         self._total_transitions = 0
 
         # For store(transition): accumulate into current episode until done
-        # Support both single-env (backward compat) and multi-env (vectorized) modes
         self._current_obs = []
         self._current_actions = []
         self._current_rewards = []
         self._current_dones = []
         self._current_winner = None
-        
-        # Per-environment tracking for vectorized training
-        # Maps env_id -> dict with keys: obs, actions, rewards, dones, winner
-        self._env_episodes = {}
 
     @property
     def capacity(self):
@@ -559,7 +554,7 @@ class TDMPC2ReplayBuffer:
             t = t.pin_memory()
         return t
 
-    def store(self, transition, winner=None, env_id=None):
+    def store(self, transition, winner=None):
         """Store a transition. When done is True, the current trajectory is
         closed and added as an episode.
 
@@ -567,9 +562,6 @@ class TDMPC2ReplayBuffer:
             transition: (state, action, reward, next_state, done).
             winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
                 Should be provided when done=True to enable reward shaping for wins.
-            env_id: Optional environment ID for vectorized training. When provided,
-                transitions are tracked per-environment to properly separate episodes.
-                When None, uses single-env mode (backward compatible but broken for vectorized).
         """
         state, action, reward, next_state, done = transition
         
@@ -595,15 +587,7 @@ class TDMPC2ReplayBuffer:
             r = torch.as_tensor(r, dtype=torch.float32)
             d = torch.as_tensor(d, dtype=torch.float32)
         
-        if env_id is not None:
-            # Vectorized mode: track episodes per environment
-            self._store_vectorized(state_buf, next_state_buf, a, r, d, done, winner, env_id)
-        else:
-            # Single-env mode (backward compatible)
-            self._store_single(state_buf, next_state_buf, a, r, d, done, winner)
-    
-    def _store_single(self, state_buf, next_state_buf, a, r, d, done, winner):
-        """Store transition in single-env mode (original behavior)."""
+        # Single-env mode only
         if len(self._current_obs) == 0:
             self._current_obs.append(state_buf)
         self._current_obs.append(next_state_buf)
@@ -615,110 +599,6 @@ class TDMPC2ReplayBuffer:
             if winner is not None:
                 self._current_winner = winner
             self._flush_episode()
-    
-    def _store_vectorized(self, state_buf, next_state_buf, a, r, d, done, winner, env_id):
-        """Store transition in vectorized mode (per-environment episode tracking)."""
-        # Initialize per-env storage if needed
-        if env_id not in self._env_episodes:
-            self._env_episodes[env_id] = {
-                'obs': [],
-                'actions': [],
-                'rewards': [],
-                'dones': [],
-                'winner': None
-            }
-        
-        ep = self._env_episodes[env_id]
-        
-        # Add initial state if this is first transition of episode
-        if len(ep['obs']) == 0:
-            ep['obs'].append(state_buf)
-        ep['obs'].append(next_state_buf)
-        ep['actions'].append(a)
-        ep['rewards'].append(r)
-        ep['dones'].append(d)
-        
-        if done:
-            if winner is not None:
-                ep['winner'] = winner
-            self._flush_env_episode(env_id)
-    
-    def _flush_env_episode(self, env_id):
-        """Flush episode for a specific environment in vectorized mode."""
-        if env_id not in self._env_episodes:
-            return
-        
-        ep = self._env_episodes[env_id]
-        
-        if len(ep['actions']) == 0:
-            # Empty episode, just reset
-            self._env_episodes[env_id] = {
-                'obs': [],
-                'actions': [],
-                'rewards': [],
-                'dones': [],
-                'winner': None
-            }
-            return
-        
-        # Build episode tensors
-        if self.use_torch_tensors:
-            obs = torch.stack(ep['obs'], dim=0)
-            action = torch.stack(ep['actions'], dim=0)
-            reward = torch.stack(ep['rewards'], dim=0)
-            terminated = torch.stack(ep['dones'], dim=0)
-        else:
-            obs = np.stack(ep['obs'], axis=0)
-            action = np.stack(ep['actions'], axis=0)
-            reward = np.stack(ep['rewards'], axis=0)
-            terminated = np.stack(ep['dones'], axis=0)
-
-        if reward.ndim == 1:
-            reward = reward.reshape(-1, 1) if not self.use_torch_tensors else reward.unsqueeze(-1)
-        if terminated.ndim == 1:
-            terminated = terminated.reshape(-1, 1) if not self.use_torch_tensors else terminated.unsqueeze(-1)
-
-        # Save original reward before backpropagation
-        if self.use_torch_tensors:
-            reward_original = reward.clone()
-        else:
-            reward_original = reward.copy()
-
-        # Apply reward shaping for winning episodes
-        winner = ep['winner']
-        if (
-            winner == 1
-            and self.win_reward_bonus > 0.0
-            and len(reward) > 0
-        ):
-            reward_flat = reward.flatten()
-            reward_flat, _, _ = apply_win_reward_backprop(
-                reward_flat,
-                winner=winner,
-                win_reward_bonus=self.win_reward_bonus,
-                win_reward_discount=self.win_reward_discount,
-                use_torch=self.use_torch_tensors,
-            )
-            reward = reward_flat.reshape(reward.shape)
-
-        self._add_episode_internal(
-            obs,
-            action,
-            reward,
-            terminated,
-            task=None,
-            winner=winner,
-            reward_original=reward_original,
-        )
-        
-        # Reset this env's episode
-        self._env_episodes[env_id] = {
-            'obs': [],
-            'actions': [],
-            'rewards': [],
-            'dones': [],
-            'winner': None
-        }
 
     def _flush_episode(self):
         """Build one episode from _current_* and add it; clear _current_*.
@@ -961,7 +841,6 @@ class TDMPC2ReplayBuffer:
         self._current_rewards = []
         self._current_dones = []
         self._current_winner = None
-        self._env_episodes = {}  # Clear per-env episodes for vectorized mode
 
 
 class PrioritizedReplayBuffer(ReplayBuffer):
