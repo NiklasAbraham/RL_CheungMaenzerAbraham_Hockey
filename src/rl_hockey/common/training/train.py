@@ -768,6 +768,17 @@ def train_vectorized(
     
     # Track which episodes have called on_episode_start (to avoid double-calling)
     episode_started = np.zeros(num_envs, dtype=bool)
+    
+    # Log checkpoint and evaluation settings
+    if verbose:
+        logger.info("Training settings:")
+        logger.info("  Current step: %d", training_state.step)
+        logger.info("  Current episode: %d / %d", training_state.episode, total_episodes)
+        logger.info("  Checkpoint frequency: %d steps", curriculum.training.checkpoint_frequency)
+        logger.info("  Last checkpoint step: %d", training_state.last_checkpoint_step)
+        logger.info("  Next checkpoint at step: %d", training_state.last_checkpoint_step + curriculum.training.checkpoint_frequency)
+        logger.info("  Eval frequency: %d steps", curriculum.training.eval_frequency)
+        logger.info("  Warmup steps: %d", curriculum.training.warmup_steps)
 
     while training_state.episode < total_episodes:
         # Call on_episode_start BEFORE first action of each new episode
@@ -853,7 +864,8 @@ def train_vectorized(
                 if verbose:
                     log_parts = [
                         f"Ep{training_state.episode}: reward={episode_metrics[i].reward:.2f}",
-                        f"steps={episode_metrics[i].length}",
+                        f"ep_steps={episode_metrics[i].length}",
+                        f"global_step={training_state.step}",
                         f"rating={training_state.rating.rating:.1f}",
                         f"buffer={agent.buffer.size}",
                     ]
@@ -986,11 +998,30 @@ def train_vectorized(
             >= training_state.last_checkpoint_step
         ):
             training_state.last_checkpoint_step = training_state.step
-            agent.save(
-                os.path.join(
-                    models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"
-                )
+            checkpoint_path = os.path.join(
+                models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"
             )
+            agent.save(checkpoint_path)
+            
+            # Save metadata alongside checkpoint
+            metadata = {
+                "episode": training_state.episode,
+                "step": training_state.step,
+                "gradient_steps": training_state.gradient_steps,
+                "phase_index": training_state.phase_index,
+                "rating": training_state.rating.rating,
+            }
+            metadata_path = checkpoint_path.replace(".pt", "_metadata.json")
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+            
+            logger.info(
+                "Checkpoint saved: ep=%d step=%d path=%s",
+                training_state.episode,
+                training_state.step,
+                checkpoint_path,
+            )
+            
             _save_csvs_and_plots(
                 episode_logs=episode_logs,
                 training_metrics=training_metrics,
