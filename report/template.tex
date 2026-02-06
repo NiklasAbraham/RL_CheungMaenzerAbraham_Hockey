@@ -107,6 +107,10 @@ For local planning, TD-MPC2 leverages Model Predictive Path Integral (MPPI) cont
 \end{equation}
 This is optimized by iteratively sampling actions from $\mathcal{N}(\mu, \sigma^2)$, evaluating their returns, and updating $\mu$ and $\sigma$ based on weighted top samples. The termination model predicts early ends in sampled rollouts. To speed up convergence, a fraction of samples comes from the policy $p$, and $\mu$, $\sigma$ are initialized from the previous step.
 
+\subsubsection{Adapting TD-MPC2 for Multi Agent Setting}
+
+
+
 \newpage
 \section{Results}\label{sec:Results}
 

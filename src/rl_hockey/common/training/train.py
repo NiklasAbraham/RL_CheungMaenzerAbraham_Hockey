@@ -703,6 +703,10 @@ def train_vectorized(
     bonus_values = get_reward_bonus_values(phase_local_episode, training_state.phase)
     if bonus_values is not None:
         update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1])
+    else:
+        # Phase has no reward_bonus config — disable buffer bonus to prevent
+        # the buffer's default win_reward_bonus from inflating rewards
+        update_buffer_reward_bonus(agent, 0.0, 0.0)
 
     # Setup metrics
     training_metrics = TrainingMetrics()
@@ -712,13 +716,6 @@ def train_vectorized(
     
     # Track t0 (episode start) flags for each environment
     t0_flags = np.ones(num_envs, dtype=bool)  # All envs start at episode beginning
-
-    # Log initial buffer state
-    if verbose and hasattr(agent, 'buffer'):
-        logger.info("Initial buffer: size=%d, horizon=%d, batch_size=%d", 
-                    agent.buffer.size, 
-                    getattr(agent.buffer, 'horizon', 0),
-                    getattr(agent.buffer, 'batch_size', 0))
 
     while training_state.episode < total_episodes:
         # Get batched agent actions (with t0 flags for TDMPC2)
@@ -743,23 +740,6 @@ def train_vectorized(
             shaped_reward = apply_reward_shaping(rewards[i], infos[i], reward_weights)
             scaled_reward = shaped_reward * curriculum.training.reward_scale
 
-            # Extract winner for TDMPC2 buffer (needed for reward backpropagation)
-            winner = infos[i].get("winner", 0)
-
-            # Done flag logic:
-            # - TDMPC2 (episode-based): needs done=True for any ending to flush episode
-            # - SAC/TD3 (transition-based): needs done=True only for terminal states
-            #   (not truncations, for proper TD target computation)
-            # Check if this is an episode-based buffer (TDMPC2)
-            is_episode_buffer = hasattr(agent.buffer, "sample_sequences")
-
-            if is_episode_buffer:
-                # TDMPC2: flush episode on any ending
-                done = dones[i] or truncs[i]
-            else:
-                # SAC/TD3: only mark terminal states as done, not truncations
-                done = dones[i]
-
             # For terminal transitions, use the terminal observation (from info)
             # instead of next_states which is now the reset observation
             if dones[i] or truncs[i]:
@@ -770,10 +750,18 @@ def train_vectorized(
             else:
                 next_state_for_buffer = next_states[i]
 
+            # Extract winner only when episode actually ends (for TDMPC2 reward backpropagation)
+            # Must check actual episode ending (dones[i] or truncs[i]), not modified 'done' variable
+            if dones[i] or truncs[i]:
+                # Episode ended - winner must be in infos (environment always sets it)
+                winner = infos[i]["winner"]
+            else:
+                # Mid-episode transition - no winner yet
+                winner = None
+
             agent.store_transition(
-                (states[i], actions[i], scaled_reward, next_state_for_buffer, done),
+                (states[i], actions[i], scaled_reward, next_state_for_buffer, dones[i]),
                 winner=winner,
-                env_id=i,  # Critical for TDMPC2 episodic buffer in vectorized mode
             )
 
             episode_metrics[i].reward += rewards[i]
@@ -794,11 +782,6 @@ def train_vectorized(
                 if hasattr(agent, "on_episode_start"):
                     agent.on_episode_start(training_state.episode)
                 
-                # Log first episode completion for debugging
-                if training_state.episode == 1 and verbose:
-                    logger.info("First episode complete: length=%d, buffer_size=%d, done=%s, trunc=%s, winner=%d",
-                               episode_metrics[i].length, agent.buffer.size, dones[i], truncs[i], winner)
-
                 training_state.rating = rating_system.estimate_rating(
                     training_state.rating, opponents[i][1], infos[i]["winner"]
                 )
@@ -867,6 +850,8 @@ def train_vectorized(
                     bonus_values = get_reward_bonus_values(new_phase_local_episode, training_state.phase)
                     if bonus_values is not None:
                         update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1])
+                    else:
+                        update_buffer_reward_bonus(agent, 0.0, 0.0)
 
                 # Sample new opponent
                 opponent, opponent_rating = matchmaker.get_opponent(
@@ -899,6 +884,8 @@ def train_vectorized(
             bonus_values = get_reward_bonus_values(phase_local_episode, training_state.phase)
             if bonus_values is not None:
                 update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1])
+            else:
+                update_buffer_reward_bonus(agent, 0.0, 0.0)
         else:
             states = next_states
 

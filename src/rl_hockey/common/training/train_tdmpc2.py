@@ -8,7 +8,7 @@ from typing import Optional
 from rl_hockey.common.training.train import train_vectorized
 
 # Config: paths and settings for cluster and local runs
-CONFIG_PATH = "./configs/curriculum_tdmpc2_mixed_opponents.json"
+CONFIG_PATH = "./configs/curriculum_tdmpc2_bonus_decay.json"
 RESULT_DIR = "./results/tdmpc2_runs"
 ARCHIVE_DIR = "./archive"
 NUM_ENVS = 1
