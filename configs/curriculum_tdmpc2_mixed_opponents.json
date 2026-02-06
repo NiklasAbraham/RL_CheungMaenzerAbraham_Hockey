@@ -71,7 +71,9 @@
     "updates_per_step": 1,
     "warmup_steps": 5000,
     "reward_scale": 1.0,
-    "checkpoint_save_freq": 200
+    "checkpoint_save_freq": 200,
+    "checkpoint_frequency": 10000,
+    "eval_frequency": 10000
   },
   "agent": {
     "type": "TDMPC2",
