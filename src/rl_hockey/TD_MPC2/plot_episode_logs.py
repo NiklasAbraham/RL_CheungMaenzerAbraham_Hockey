@@ -453,7 +453,7 @@ if __name__ == "__main__":
 
     folder_path_5 = "results/tdmpc2_runs_test/2026-02-01_09-55-22"  # der ganz gute run eigentlich alles
 
-    window_size = 100
+    window_size = 250
 
     plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)

@@ -20,7 +20,7 @@
       },
       {
         "name": "mixed_opponents",
-        "episodes": 7000,
+        "episodes": 12000,
         "environment": {
           "mode": "NORMAL",
           "keep_mode": true
