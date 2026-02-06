@@ -67,6 +67,16 @@
           "WIN_DISCOUNT_START": 0.92,
           "WIN_DISCOUNT_FINAL": 0.92
         }
+      },
+      {
+        "name": "final_self_play_archive",
+        "episodes": 6000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
       }
     ]
   },

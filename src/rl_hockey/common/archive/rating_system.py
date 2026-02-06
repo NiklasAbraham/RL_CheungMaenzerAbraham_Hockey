@@ -178,6 +178,15 @@ class RatingSystem:
         rating1.mu = new_ts1.mu
         rating1.sigma = new_ts1.sigma
         rating1.matches_played += 1
+        if result == 1:
+            rating1.wins += 1
+            rating2.losses += 1
+        elif result == -1:
+            rating1.losses += 1
+            rating2.wins += 1
+        else:
+            rating1.draws += 1
+            rating2.draws += 1
 
         rating2.mu = new_ts2.mu
         rating2.sigma = new_ts2.sigma
@@ -233,6 +242,32 @@ class RatingSystem:
         ]
         leaderboard.sort(key=lambda x: x[1].rating, reverse=True)
         return leaderboard
+
+    def get_agent_record(self, agent_id: str) -> Tuple[int, int, int]:
+        """
+        Get wins, losses, draws for an agent from match history.
+
+        Returns:
+            Tuple of (wins, losses, draws)
+        """
+        wins = losses = draws = 0
+        for match in self.match_history:
+            a1, a2, result = match["agent1_id"], match["agent2_id"], match["result"]
+            if agent_id == a1:
+                if result == 1:
+                    wins += 1
+                elif result == -1:
+                    losses += 1
+                else:
+                    draws += 1
+            elif agent_id == a2:
+                if result == -1:
+                    wins += 1
+                elif result == 1:
+                    losses += 1
+                else:
+                    draws += 1
+        return wins, losses, draws
 
     def get_match_history(self, agent_id: str = None, limit: int = None) -> List[Dict]:
         """

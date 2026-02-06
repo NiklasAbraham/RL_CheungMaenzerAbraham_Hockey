@@ -564,14 +564,14 @@ class TDMPC2ReplayBuffer:
                 Should be provided when done=True to enable reward shaping for wins.
         """
         state, action, reward, next_state, done = transition
-
-        if len(self._current_obs) == 0:
-            self._current_obs.append(
-                self._to_buffer_dtype(state)
-                if self.use_torch_tensors
-                else np.asarray(state, dtype=np.float32)
-            )
-        self._current_obs.append(
+        
+        # Convert data to buffer format
+        state_buf = (
+            self._to_buffer_dtype(state)
+            if self.use_torch_tensors
+            else np.asarray(state, dtype=np.float32)
+        )
+        next_state_buf = (
             self._to_buffer_dtype(next_state)
             if self.use_torch_tensors
             else np.asarray(next_state, dtype=np.float32)
@@ -586,6 +586,11 @@ class TDMPC2ReplayBuffer:
         if self.use_torch_tensors:
             r = torch.as_tensor(r, dtype=torch.float32)
             d = torch.as_tensor(d, dtype=torch.float32)
+        
+        # Single-env mode only
+        if len(self._current_obs) == 0:
+            self._current_obs.append(state_buf)
+        self._current_obs.append(next_state_buf)
         self._current_actions.append(a)
         self._current_rewards.append(r)
         self._current_dones.append(d)

@@ -27,12 +27,14 @@
   qbox/.style = {draw, rounded corners=2pt, fill=blue!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
   termbox/.style = {draw, rounded corners=2pt, fill=green!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
   actionbox/.style = {draw, rounded corners=2pt, fill=purple!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  opponentbox/.style = {draw, rounded corners=2pt, fill=cyan!30, minimum width=2.5cm, minimum height=0.7cm, align=center},
+  opponentboxtext/.style = {draw, rounded corners=5pt, fill=cyan!20, minimum width=2.5cm, minimum height=0.7cm, align=center},
   font=\sffamily,% sans-serif for a clean diagram look
   >=Stealth
 ]
 
 % Column 1: s_t with encoder and image
-\node[vec, inner sep=0pt] (v1) at (0,0) {\(\left[\begin{array}{c} z_{11} \\ z_{12} \\ \vdots \\ z_{1n}\end{array}\right]\)};
+\node[vec, inner sep=0pt] (v1) at (0,0) {\(\left[\begin{array}{c} z_{t,1} \\ z_{t,2} \\ \vdots \\ z_{t,n}\end{array}\right]\)};
 \node[above=2pt of v1] {\(\vec{z}_{t} \in \mathbb{R}^{512}\)};
 
 \node[enc, below=of v1] (e1) {encoder};
@@ -45,7 +47,7 @@
 \node[below=4pt of h1, font=\LARGE] {$s_t$};
 
 % Column 2: s_{t+1} with encoder and image
-\node[vec, inner sep=0pt] (v2) at (\xsep,0) {\(\left[\begin{array}{c} z_{21} \\ z_{22} \\ \vdots \\ z_{2n} \end{array}\right]\)};
+\node[vec, inner sep=0pt] (v2) at (\xsep,0) {\(\left[\begin{array}{c} z_{t+1,1} \\ z_{t+1,2} \\ \vdots \\ z_{t+1,n} \end{array}\right]\)};
 \node[above=2pt of v2] {\(\vec{z}_{t+1} \in \mathbb{R}^{512}\)};
 
 % Between v1 and v2: world model and dynamics
@@ -76,7 +78,7 @@
 \node[below=4pt of h2, font=\LARGE] {$s_{t+1}$};
 
 % Column 3: just vector
-\node[vec, inner sep=0pt] (v3) at (2*\xsep,0) {\(\left[\begin{array}{c} z_{31} \\ z_{32} \\ \vdots \\ z_{3n} \end{array}\right]\)};
+\node[vec, inner sep=0pt] (v3) at (2*\xsep,0) {\(\left[\begin{array}{c} z_{t+2,1} \\ z_{t+2,2} \\ \vdots \\ z_{t+2,n} \end{array}\right]\)};
 \node[above=2pt of v3] {\(\vec{z}_{t+2} \in \mathbb{R}^{512}\)};
 
 % Between v2 and v3: world model and dynamics
@@ -84,7 +86,7 @@
 \node[rewardbox, font=\footnotesize] (wm2_r) at (1.5*\xsep, 1.28cm) {\(R(\vec{z}_{t+1}, a) \rightarrow r\)};
 \node[qbox, below=4pt of wm2_r, font=\footnotesize] (wm2_q) {\(Q(\vec{z}_{t+1}, a) \rightarrow q\)};
 \node[dynamics, below=4pt of wm2_q, font=\footnotesize, fill=yellow!35] (dyn2) {\(d(\vec{z}_{t+1}, a) \rightarrow \vec{z}_{t+2}\)};
-\node[actionbox, below=4pt of dyn2, font=\footnotesize] (wm2_p) {\(p(\vec{z}_{t+1}, a) \rightarrow \hat{a}_{t+2}\)};
+\node[actionbox, below=4pt of dyn2, font=\footnotesize] (wm2_p) {\(p(\vec{z}_{t+1}) \rightarrow \hat{a}_{t+2}\)};
 %\node[termbox, below=4pt of wm2_p, font=\footnotesize] (wm2_t) {\(T(z) \rightarrow T\)};
 
 
@@ -97,10 +99,59 @@
         rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm2_bg) {};
 \end{pgfonlayer}
 
+
+% Right section: Opponent-aware dynamics
+% Column 4: z_new (opponent-aware)
+\node[vec, inner sep=0pt] (v4) at (2.6*\xsep,0) {\(\left[\begin{array}{c} z_{t,1} \\ z_{t,2} \\ \vdots \\ z_{t,n}\end{array}\right]\)};
+\node[above=2pt of v4] {\(\vec{z}_{t} \in \mathbb{R}^{512}\)};
+
+\node[enc, below=of v4] (e4) {encoder};
+\draw[<-, very thick] ([yshift=-0.25cm]v4.south) -- (e4);
+
+\node[env, below=of e4, yshift=0.45cm] (h4)
+      {\includegraphics[width=\imgwidth]{hockey_env_step.png}};
+\draw[-, very thick] (e4) -- (h4);
+
+\node[below=4pt of h4, font=\LARGE] {$s_t$};
+
+% Between v4 and v5: world model with opponent modeling
+% Opponent modeling network
+\node[opponentbox, font=\footnotesize] (opp_net) at (3.1*\xsep, 2.3cm) {\(p_{\text{opp}}(\vec{z}) \rightarrow \hat{a}_{t+1, opp}\)};
+
+% Individual colored boxes for opponent-aware world model
+\node[rewardbox, font=\footnotesize] (wm3_r) at (3.1*\xsep, 1.25cm) {\(R(\vec{z}, a, \hat{a}) \rightarrow r\)};
+\node[qbox, below=4pt of wm3_r, font=\footnotesize] (wm3_q) {\(Q(\vec{z}, a, \hat{a}) \rightarrow q\)};
+\node[dynamics, below=4pt of wm3_q, font=\footnotesize, fill=yellow!35] (dyn3) {\(d(\vec{z}, a, \hat{a}) \rightarrow \vec{z}_{t+1}\)};
+\node[actionbox, below=4pt of dyn3, font=\footnotesize] (wm3_p) {\(p(\vec{z}_{t}) \rightarrow \hat{a}_{t+1}\)};
+
+% Column 5: next latent with opponent
+\node[vec, inner sep=0pt] (v5) at (3.6*\xsep,0) {\(\left[\begin{array}{c} z_{t+1,1} \\ z_{t+1,2} \\ \vdots \\ z_{t+1,n} \end{array}\right]\)};
+\node[above=2pt of v5] {\(\vec{z}_{t+1} \in \mathbb{R}^{512}\)};
+
+% Arrow between v4 and v5
+\begin{pgfonlayer}{background}
+  \draw[->, very thick, line width=2pt] (v4.east) -- (v5.west);
+\end{pgfonlayer}
+
 % Legend, shifted down by 2.5cm and left by 3cm relative to previous placement
 \node[fill=white, rounded corners=4pt, minimum width=3cm, minimum height=4.5cm, 
-      right=1.5cm of v3, yshift=-4.5cm, xshift=-6cm, align=left, font=\footnotesize] (legend) {};
-      
+      right=1.5cm of v3, yshift=-4.5cm, xshift=-6.5cm, align=left, font=\footnotesize] (legend) {};
+
+% Light gray background 
+\begin{pgfonlayer}{background}
+  \node[fit=(wm3_r) (wm3_q) (wm3_p) (dyn3), 
+        rounded corners=4pt, fill=gray!25, draw=none, inner sep=6pt] (wm3_bg) {};
+\end{pgfonlayer}
+
+% Break indicator: dashed vertical line
+\draw[very thick, black] (2*\xsep + 1.55, -6.5) -- (2*\xsep + 1.55, 2.35);
+\draw[very thick, black] (2*\xsep + 1.65, -6.5) -- (2*\xsep + 1.65, 2.35);
+
+% Section labels
+\node[font=\Large\bfseries] at (\xsep, 3.2cm) {a) Standard Dynamics};
+\node[font=\Large\bfseries] at (2.95*\xsep, 3.2cm) {b) Opponent-Aware Dynamics};
+
+
 % Legend entries with colored boxes
 \node[rewardbox, minimum width=1.2cm, minimum height=0.4cm, 
       anchor=west] (leg_r) at ([xshift=0.3cm, yshift=1.2cm]legend.west) {};
@@ -121,6 +172,14 @@
 \node[termbox, minimum width=1.2cm, minimum height=0.4cm, 
       anchor=west] (leg_t) at ([xshift=0.3cm, yshift=-1.2cm]legend.west) {};
 \node[right=2pt of leg_t, anchor=west] {Encoder Network};
+
+% Opponent Network legend on the right side
+\node[opponentbox, minimum width=1.2cm, minimum height=0.4cm, 
+      anchor=west] (v5) at (2.7*\xsep + 1.5, -3.25cm) {};
+\node[right=2pt of v5, anchor=west] {Opponent Network};
+
+\node[opponentboxtext, minimum width=4.5cm, minimum height=2.6cm, text width=4cm, align=center,
+      anchor=west] (opp_text) at (2.7*\xsep + 1.5, -5.0cm) {The opponent model is trained separately, to copy the behavior of the opponent, which are known during training.};
 
 \end{tikzpicture}
 \end{document}

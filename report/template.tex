@@ -69,8 +69,8 @@ Rather than predicting raw future observation states, TD-MPC2 learns to predict 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.68\textwidth]{figures/tdmpc2_flow.pdf}
-    \caption{TD-MPC2 agent architecture and their individual components.}
+    \includegraphics[width=1.0\textwidth]{figures/tdmpc2_flow.pdf}
+    \caption{On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}
     \label{fig:tdmpc2_flow}
 \end{figure}
 
@@ -106,6 +106,10 @@ For local planning, TD-MPC2 leverages Model Predictive Path Integral (MPPI) cont
     \mu^*, \sigma^* = \arg\max_{\mu, \sigma} \mathbb{E}_{a_{t:t+H} \sim \mathcal{N}(\mu, \sigma^2)}\left[\gamma^H Q(\vec{z}_{t+H}, a_{t+H}) + \sum_{\tau=t}^{H} \gamma^\tau R(\vec{z}_\tau, a_\tau)\right].
 \end{equation}
 This is optimized by iteratively sampling actions from $\mathcal{N}(\mu, \sigma^2)$, evaluating their returns, and updating $\mu$ and $\sigma$ based on weighted top samples. The termination model predicts early ends in sampled rollouts. To speed up convergence, a fraction of samples comes from the policy $p$, and $\mu$, $\sigma$ are initialized from the previous step.
+
+\subsubsection{Adapting TD-MPC2 for Multi Agent Setting}
+
+
 
 \newpage
 \section{Results}\label{sec:Results}

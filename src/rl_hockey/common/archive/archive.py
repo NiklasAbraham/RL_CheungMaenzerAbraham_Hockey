@@ -16,7 +16,15 @@ from typing import Any, Dict, List, Optional
 class Rating:
     """Represents a single agent's rating with uncertainty."""
 
-    def __init__(self, mu: float = 25.0, sigma: float = 8.333, matches_played: int = 0):
+    def __init__(
+        self,
+        mu: float = 25.0,
+        sigma: float = 8.333,
+        matches_played: int = 0,
+        wins: int = 0,
+        losses: int = 0,
+        draws: int = 0,
+    ):
         """
         Initialize agent rating.
 
@@ -24,10 +32,16 @@ class Rating:
             mu: Mean skill level (default: 25.0)
             sigma: Uncertainty/standard deviation (default: 8.333)
             matches_played: Number of matches played (default: 0)
+            wins: Number of wins (default: 0)
+            losses: Number of losses (default: 0)
+            draws: Number of draws (default: 0)
         """
         self.mu = mu
         self.sigma = sigma
         self.matches_played = matches_played
+        self.wins = wins
+        self.losses = losses
+        self.draws = draws
 
     @property
     def rating(self) -> float:
@@ -43,13 +57,22 @@ class Rating:
             "sigma": self.sigma,
             "rating": self.rating,
             "matches_played": self.matches_played,
+            "wins": self.wins,
+            "losses": self.losses,
+            "draws": self.draws,
         }
 
     @classmethod
     def from_dict(cls, data: Dict) -> "Rating":
         """Create from dictionary."""
-        rating = cls(mu=data["mu"], sigma=data["sigma"])
-        rating.matches_played = data.get("matches_played", 0)
+        rating = cls(
+            mu=data["mu"],
+            sigma=data["sigma"],
+            matches_played=data.get("matches_played", 0),
+            wins=data.get("wins", 0),
+            losses=data.get("losses", 0),
+            draws=data.get("draws", 0),
+        )
         return rating
 
     def __str__(self):
