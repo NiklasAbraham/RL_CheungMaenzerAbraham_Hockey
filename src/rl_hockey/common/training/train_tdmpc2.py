@@ -35,6 +35,7 @@ def main(
         num_envs=num_envs,
         verbose=verbose,
         resume_from=resume_from,
+        debug_level=2,
     )
 
 
