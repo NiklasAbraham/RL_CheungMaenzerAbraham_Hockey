@@ -65,7 +65,7 @@ For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, in w
 \end{equation}
 The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this approach often leads to only locally optimal policies. To address this limitation, TD-MPC2 additionally utilizes a value function to guide the planning process and improve the policy toward a more globally optimal solution.
 
-Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow}.
+Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow} a).
 
 \begin{figure}[h]
     \centering
@@ -107,7 +107,28 @@ For local planning, TD-MPC2 leverages Model Predictive Path Integral (MPPI) cont
 \end{equation}
 This is optimized by iteratively sampling actions from $\mathcal{N}(\mu, \sigma^2)$, evaluating their returns, and updating $\mu$ and $\sigma$ based on weighted top samples. The termination model predicts early ends in sampled rollouts. To speed up convergence, a fraction of samples comes from the policy $p$, and $\mu$, $\sigma$ are initialized from the previous step.
 
-\subsubsection{Adapting TD-MPC2 for Multi Agent Setting}
+\subsubsection{Modifying TD-MPC2: Opponent-Aware Dynamics}
+
+In the classical TD-MPC2, the dynamics model is trained to predict the next latent state given the current latent state and action. However, in the multi agent setting, with an adversarial opponent, the dynamics model will only receive the current latent state and action, but not receive the action of the opponent. Thus the standard TD-MPC2 implicitly models
+\begin{equation}
+P(s_{t+1} \mid s_t, a_t^{\text{self}})
+=
+\mathbb{E}_{a_t^{\text{opp}} \sim \pi_{\text{opp}}(\cdot \mid s_t)}
+P(s_{t+1} \mid s_t, a_t^{\text{self}}, a_t^{\text{opp}}),
+\end{equation}
+which corresponds to marginalizing over opponent behavior.
+This leads to a mean-opponent model, producing biased long-horizon predictions
+when the opponent policy is multimodal or strategic. To address this, it is not enough to vary the opponents during training or to use self-play, the network architecture needs to be changed.
+
+To model the opponent's behavior, we extend the dynamics model so that it takes the opponent action as an additional input: $\vec{z}_{t+1} = d(\vec{z}_t, a_t^{\text{self}}, a_t^{\text{opp}})$, where $a_t^{\text{opp}}$ is the opponent's action. The same is done for the reward model and Q-value network.
+
+The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent \cite{sec:td3} or the SAC agent \cite{sec:sac} as well as the TD-MPC2 agent without the opponent-aware dynamics. The separate loss is given by
+\begin{equation}
+\mathcal{L}_{\text{opp}} = \| a_t^{\text{opp}} - \pi_{\text{opp}}(\vec{z}_t) \|^2,
+\end{equation}
+where $\pi_{\text{opp}}$ is the opponent network.
+
+During training, opponent actions are taken from the replay buffer; during inference they must be predicted by the opponent network. The opponent action is sampled from $\pi_{\text{opp}}$ and used to predict the next latent state. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). For each rollout, a different opponent action is sampled from the opponent network to obtain diverse and robust planning.
 
 
 
