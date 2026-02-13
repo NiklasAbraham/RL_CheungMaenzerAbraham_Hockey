@@ -66,14 +66,12 @@ For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, in w
 The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this approach often leads to only locally optimal policies. To address this limitation, TD-MPC2 additionally utilizes a value function to guide the planning process and improve the policy toward a more globally optimal solution.
 
 Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow} a).
-
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{figures/tdmpc2_flow.pdf}
     \caption{On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}
     \label{fig:tdmpc2_flow}
 \end{figure}
-
 \begin{itemize}
     \item \textbf{Encoder:} Maps the observed state $s$ to a 512-dimensional latent vector $\vec{z}=h(s)$.
     \item \textbf{Latent Dynamics:} Predicts the next latent $\vec{z}_{t+1}$ from current latent and action: $\vec{z}_{t+1} = d(\vec{z}_t, a)$.
