@@ -51,9 +51,9 @@
     "directory": "archive/agents/0001_SAC_2026-01-30_00-57-20",
     "step": null
   },
-  "0002_TDMPC2_2026-02-05_14-22-11": {
-    "agent_id": "0002_TDMPC2_2026-02-05_14-22-11",
-    "archived_at": "2026-02-05T14:22:11.444822",
+  "0002_TDMPC2_2026-02-13_12-39-15": {
+    "agent_id": "0002_TDMPC2_2026-02-13_12-39-15",
+    "archived_at": "2026-02-13T12:39:15.840177",
     "tags": [
       "tdmpc2",
       "needs_calibration",
@@ -68,12 +68,12 @@
       "losses": 0,
       "draws": 0
     },
-    "directory": "archive/agents/0002_TDMPC2_2026-02-05_14-22-11",
-    "step": 5400
+    "directory": "archive/agents/0002_TDMPC2_2026-02-13_12-39-15",
+    "step": 16000
   },
-  "0003_TDMPC2_2026-02-05_14-24-35": {
-    "agent_id": "0003_TDMPC2_2026-02-05_14-24-35",
-    "archived_at": "2026-02-05T14:24:35.346581",
+  "0003_TDMPC2_2026-02-13_12-41-48": {
+    "agent_id": "0003_TDMPC2_2026-02-13_12-41-48",
+    "archived_at": "2026-02-13T12:41:48.752291",
     "tags": [
       "tdmpc2",
       "needs_calibration",
@@ -88,12 +88,32 @@
       "losses": 0,
       "draws": 0
     },
-    "directory": "archive/agents/0003_TDMPC2_2026-02-05_14-24-35",
+    "directory": "archive/agents/0003_TDMPC2_2026-02-13_12-41-48",
+    "step": 6800
+  },
+  "0004_TDMPC2_2026-02-13_12-43-15": {
+    "agent_id": "0004_TDMPC2_2026-02-13_12-43-15",
+    "archived_at": "2026-02-13T12:43:15.334167",
+    "tags": [
+      "tdmpc2",
+      "needs_calibration",
+      "needs_calibration"
+    ],
+    "rating": {
+      "mu": 25,
+      "sigma": 8.333,
+      "rating": 0.0009999999999976694,
+      "matches_played": 0,
+      "wins": 0,
+      "losses": 0,
+      "draws": 0
+    },
+    "directory": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15",
     "step": 6600
   },
-  "0004_TDMPC2_2026-02-05_14-25-47": {
-    "agent_id": "0004_TDMPC2_2026-02-05_14-25-47",
-    "archived_at": "2026-02-05T14:25:47.100138",
+  "0005_TDMPC2_2026-02-13_12-44-36": {
+    "agent_id": "0005_TDMPC2_2026-02-13_12-44-36",
+    "archived_at": "2026-02-13T12:44:36.240324",
     "tags": [
       "tdmpc2",
       "needs_calibration",
@@ -108,7 +128,7 @@
       "losses": 0,
       "draws": 0
     },
-    "directory": "archive/agents/0004_TDMPC2_2026-02-05_14-25-47",
-    "step": 9400
+    "directory": "archive/agents/0005_TDMPC2_2026-02-13_12-44-36",
+    "step": 5600
   }
 }

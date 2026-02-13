@@ -1,6 +1,6 @@
 {
-  "agent_id": "0003_TDMPC2_2026-02-05_14-24-35",
-  "archived_at": "2026-02-05T14:24:35.346581",
+  "agent_id": "0004_TDMPC2_2026-02-13_12-43-15",
+  "archived_at": "2026-02-13T12:43:15.334167",
   "tags": [
     "tdmpc2",
     "needs_calibration",
@@ -16,8 +16,8 @@
     "draws": 0
   },
   "step": 6600,
-  "checkpoint_path": "archive/agents/0003_TDMPC2_2026-02-05_14-24-35/checkpoint.pt",
-  "config_path": "archive/agents/0003_TDMPC2_2026-02-05_14-24-35/config.json",
+  "checkpoint_path": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15/checkpoint.pt",
+  "config_path": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15/config.json",
   "training_run": "2026-01-31_11-49-35",
   "checkpoint_name": "TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260131_114935_ep006600.pt"
 }
