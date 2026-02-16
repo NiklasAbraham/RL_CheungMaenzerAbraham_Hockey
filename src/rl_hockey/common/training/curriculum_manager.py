@@ -140,8 +140,26 @@ def load_curriculum(config_path: str) -> CurriculumConfig:
     return _parse_config(config_dict)
 
 
+def _parse_agent_only_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
+    """Parse a minimal config that only has 'agent' and 'hyperparameters' (e.g. archive agent configs)."""
+    agent_dict = config_dict['agent']
+    agent_config = AgentConfig(
+        type=agent_dict['type'],
+        hyperparameters=agent_dict.get('hyperparameters', {}),
+        checkpoint_path=agent_dict.get('checkpoint_path')
+    )
+    return CurriculumConfig(
+        phases=[],
+        hyperparameters=config_dict.get('hyperparameters', {}),
+        training=TrainingConfig(),
+        agent=agent_config
+    )
+
+
 def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
     phases = []
+    if 'curriculum' not in config_dict:
+        return _parse_agent_only_config(config_dict)
     for phase_dict in config_dict['curriculum']['phases']:
         env_dict = phase_dict['environment']
         

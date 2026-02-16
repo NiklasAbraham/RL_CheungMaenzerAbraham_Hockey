@@ -66,14 +66,12 @@ For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, in w
 The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this approach often leads to only locally optimal policies. To address this limitation, TD-MPC2 additionally utilizes a value function to guide the planning process and improve the policy toward a more globally optimal solution.
 
 Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow} a).
-
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{figures/tdmpc2_flow.pdf}
     \caption{On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}
     \label{fig:tdmpc2_flow}
 \end{figure}
-
 \begin{itemize}
     \item \textbf{Encoder:} Maps the observed state $s$ to a 512-dimensional latent vector $\vec{z}=h(s)$.
     \item \textbf{Latent Dynamics:} Predicts the next latent $\vec{z}_{t+1}$ from current latent and action: $\vec{z}_{t+1} = d(\vec{z}_t, a)$.
@@ -122,21 +120,68 @@ when the opponent policy is multimodal or strategic. To address this, it is not 
 
 To model the opponent's behavior, we extend the dynamics model so that it takes the opponent action as an additional input: $\vec{z}_{t+1} = d(\vec{z}_t, a_t^{\text{self}}, a_t^{\text{opp}})$, where $a_t^{\text{opp}}$ is the opponent's action. The same is done for the reward model and Q-value network.
 
-The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent \cite{sec:td3} or the SAC agent \cite{sec:sac} as well as the TD-MPC2 agent without the opponent-aware dynamics. The separate loss is given by
+With opponent-aware models, evaluating a candidate self-action sequence $a_t^{\text{self}}, \ldots, a_{t+H-1}^{\text{self}}$ uses the following planning objective and rollout. The return is
+\begin{equation}
+\sum_{\tau=t}^{t+H-1} \gamma^{\tau-t} R(\vec{z}_\tau, a_\tau^{\text{self}}, \hat{a}_\tau^{\text{opp}}) + \gamma^H \tilde{V}(\vec{z}_{t+H}),
+\end{equation}
+where the latent trajectory and predicted opponent actions are obtained by the recursion
+\begin{equation}
+\hat{a}_\tau^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_\tau), \qquad \vec{z}_{\tau+1} = d(\vec{z}_\tau, a_\tau^{\text{self}}, \hat{a}_\tau^{\text{opp}}),
+\end{equation}
+for $\tau = t, \ldots, t+H-1$, with $\vec{z}_t = h(s_t)$. The terminal value $\tilde{V}(\vec{z}_{t+H})$ is given by the Q-ensemble (e.g., $\min_k Q_k(\vec{z}_{t+H}, a)$ at the policy action $a$). MPPI then maximizes this return over sampled self-action sequences, with opponent actions fixed by the recursion above.
+
+The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent \cite{sec:td3} or the SAC agent \cite{sec:sac} as well as the TD-MPC2 agent without the opponent-aware dynamics. During data collection we control both policies (self and opponent), therefore $a_t^{\text{opp}}$ is logged exactly in the replay buffer. The separate loss is given by
 \begin{equation}
 \mathcal{L}_{\text{opp}} = \| a_t^{\text{opp}} - \pi_{\text{opp}}(\vec{z}_t) \|^2,
 \end{equation}
-where $\pi_{\text{opp}}$ is the opponent network.
+where $\pi_{\text{opp}}$ is the opponent network, trained with a frozen encoder in periodic intervals. With this MSE objective, $\pi_{\text{opp}}$ is a deterministic mean predictor: it outputs a single action estimate per latent state.
 
-During training, opponent actions are taken from the replay buffer; during inference they must be predicted by the opponent network. The opponent action is sampled from $\pi_{\text{opp}}$ and used to predict the next latent state. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). For each rollout, a different opponent action is sampled from the opponent network to obtain diverse and robust planning.
+During training, opponent actions are taken from the replay buffer; during inference they must be predicted by the opponent network. We use the opponent action deterministically: $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$. This predicted action is fed into the dynamics to obtain the next latent state (Figure~\ref{fig:tdmpc2_flow} b). When multiple opponent models are used (e.g., different cloned policies), each rollout can be assigned a fixed opponent model for the full horizon; diversity across rollouts then comes from varying which opponent model is used, not from sampling different actions from a stochastic $\pi_{\text{opp}}$.
 
 
 
 \newpage
 \section{Results}\label{sec:Results}
 
+\subsection{TD-MPC2 Hyperparameters and Curriculum}\label{sec:tdmpc2_hyperparameters_and_curriculum}
+
+To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with different horizons and evaluated the performance. The horizons tested were 4, 6, 8, 10, and 12. The runs were done with the following hyperparameters: learning rate 0.0003, batch size 512, network size of three layers with 256 units each, a latent dimension of 256, 5 Q-networks, a gamma of 0.99, a temperature of 0.5, a vmin of -10, a vmax of 10, a win reward bonus of 10, and a win reward discount of 0.92. The runs were done with the following curriculum: 4000 episodes of full competency, with a basic strong opponent. The results are shown in Figure~\ref{fig:tdmpc2_hyperparameters_and_curriculum}. Addtionally with the same hyperparameters, the modified opponent aware dynamics was tested, for this three internal opponent models were used: the TD-MPC2 agent without the opponent-aware dynamics, the SAC agent and the DECOYPOLICY agent, which was trained to mimick the basic strong opponent. The results are shown in the same figure, but with the label "opponent aware dynamics".
+
+\begin{figure}[h]
+    \centering
+    \includegraphics{figures/horizon_ratings.png}
+    \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
+    \label{fig:tdmpc2_hyperparameters_and_curriculum}
+\end{figure}
+
+
+
 \newpage
+
+\section{Conclusion}\label{sec:Conclusion}
+...
+
+\section{Future Work}\label{sec:Future Work}
+...
+
+\section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}
+We would like to thank the instructors and the staff of the Reinforcement Learning course for their help and support.
+All of our code can be found on our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+
 \bibliographystyle{abbrv}
 \bibliography{main}
+
+% appendix
+\appendix
+\section{Appendix}\label{sec:appendix}
+
+\subsection{Episode Logs}\label{sec:episode_logs}
+The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics are shown in Figure~\ref{fig:episode_logs}. These logs were plotted fro all runs periodically, and this example is representative for the other runs.
+\begin{figure*}[h]
+    \centering
+    \includegraphics[width=\textwidth]{figures/episode_logs.png}
+    \caption{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}
+    \label{fig:episode_logs}
+\end{figure*}
 
 \end{document}

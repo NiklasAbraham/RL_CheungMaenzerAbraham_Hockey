@@ -58,6 +58,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _get_scheduler_job_id() -> Optional[str]:
+    """Return job/queue ID from scheduler env vars (SLURM, PBS, etc.) or None."""
+    return (
+        os.environ.get("SLURM_JOB_ID")
+        or os.environ.get("PBS_JOBID")
+        or os.environ.get("JOB_ID")
+    )
+
+
 @dataclass
 class TrainingState:
     """Holds the state of training."""
@@ -296,10 +305,12 @@ def update_buffer_reward_bonus(
     buffer = getattr(agent, "buffer", None)
     if buffer is None:
         return
-    
+
     # Log buffer bonus updates for TDMPC2 debugging
-    has_bonus_attrs = hasattr(buffer, "win_reward_bonus") and hasattr(buffer, "win_reward_discount")
-    
+    has_bonus_attrs = hasattr(buffer, "win_reward_bonus") and hasattr(
+        buffer, "win_reward_discount"
+    )
+
     if has_bonus_attrs:
         old_bonus = getattr(buffer, "win_reward_bonus", None)
         old_discount = getattr(buffer, "win_reward_discount", None)
@@ -307,8 +318,13 @@ def update_buffer_reward_bonus(
         buffer.win_reward_discount = win_reward_discount
         if debug_level >= 2:
             logger = logging.getLogger(__name__)
-            logger.debug("Buffer reward bonus updated: %.3f->%.3f, discount: %.3f->%.3f", 
-                        old_bonus or 0, win_reward_bonus, old_discount or 0, win_reward_discount)
+            logger.debug(
+                "Buffer reward bonus updated: %.3f->%.3f, discount: %.3f->%.3f",
+                old_bonus or 0,
+                win_reward_bonus,
+                old_discount or 0,
+                win_reward_discount,
+            )
     elif debug_level >= 2:
         logger = logging.getLogger(__name__)
         logger.debug("Buffer has no reward bonus attributes (SAC/TD3 buffer)")
@@ -449,17 +465,21 @@ def _get_opponent_actions(
 
 
 def _get_agent_actions_with_t0(
-    agent: Agent, states: np.ndarray, num_envs: int, t0_flags: np.ndarray, debug_level: int = 0
+    agent: Agent,
+    states: np.ndarray,
+    num_envs: int,
+    t0_flags: np.ndarray,
+    debug_level: int = 0,
 ) -> np.ndarray:
     """Get batched agent actions with t0 flags for agents that need episode-start signals (e.g. TDMPC2).
-    
+
     Args:
         agent: The agent to get actions from
         states: (num_envs, state_dim) observations
         num_envs: Number of parallel environments
         t0_flags: (num_envs,) bool array indicating which envs are at episode start
         debug_level: Debug logging level (0=off, 2=detailed)
-        
+
     Returns:
         actions: (num_envs, action_dim) continuous actions
     """
@@ -468,28 +488,30 @@ def _get_agent_actions_with_t0(
     if num_envs == 1:
         state = states[0].astype(np.float32)
         t0 = bool(t0_flags[0])
-        
+
         # Try to use t0 parameter (TDMPC2 needs this)
-        if hasattr(agent, 'act'):
+        if hasattr(agent, "act"):
             import inspect
+
             sig = inspect.signature(agent.act)
-            if 't0' in sig.parameters:
+            if "t0" in sig.parameters:
                 action = agent.act(state, t0=t0)
             else:
                 # Agent doesn't support t0 (SAC/TD3)
                 action = agent.act(state)
         else:
             action = agent.act(state)
-        
+
         return np.array([action])
-    
+
     # For multiple environments, use batched approach
     # Check if agent supports batched actions with t0
     if hasattr(agent, "act_batch"):
         # Check if act_batch supports t0s parameter
         import inspect
+
         sig = inspect.signature(agent.act_batch)
-        if 't0s' in sig.parameters:
+        if "t0s" in sig.parameters:
             return agent.act_batch(states.astype(np.float32), t0s=t0_flags)
         else:
             # Agent doesn't support t0s parameter (SAC/TD3)
@@ -497,9 +519,10 @@ def _get_agent_actions_with_t0(
     else:
         # Fallback: call act() for each environment individually
         import inspect
+
         sig = inspect.signature(agent.act)
-        supports_t0 = 't0' in sig.parameters
-        
+        supports_t0 = "t0" in sig.parameters
+
         actions = []
         for i in range(num_envs):
             state = states[i].astype(np.float32)
@@ -578,25 +601,17 @@ def _get_resume_state(resume_from: str) -> Tuple[str, str, Dict[str, Any]]:
     configs_dir = base / "configs"
     models_dir = base / "models"
     if not configs_dir.is_dir():
-        raise FileNotFoundError(
-            f"Resume directory has no configs/: {resume_from}"
-        )
+        raise FileNotFoundError(f"Resume directory has no configs/: {resume_from}")
     if not models_dir.is_dir():
-        raise FileNotFoundError(
-            f"Resume directory has no models/: {resume_from}"
-        )
+        raise FileNotFoundError(f"Resume directory has no models/: {resume_from}")
     config_files = list(configs_dir.glob("*.json"))
     if not config_files:
-        raise FileNotFoundError(
-            f"No config JSON found in {configs_dir}"
-        )
+        raise FileNotFoundError(f"No config JSON found in {configs_dir}")
     run_name = config_files[0].stem
 
     pt_files = list(models_dir.glob("*.pt"))
     if not pt_files:
-        raise FileNotFoundError(
-            f"No .pt checkpoints found in {models_dir}"
-        )
+        raise FileNotFoundError(f"No .pt checkpoints found in {models_dir}")
     ep_re = re.compile(r"_ep(\d+)\.pt$")
 
     def episode_from_path(p: Path) -> int:
@@ -648,6 +663,9 @@ def train_vectorized(
         logger.info(
             "Curriculum: %d phases, %d episodes", len(curriculum.phases), total_episodes
         )
+    job_id = _get_scheduler_job_id()
+    if job_id is not None:
+        logger.info("Scheduler job/queue ID: %s", job_id)
 
     is_resume = resume_from is not None
     if is_resume:
@@ -672,7 +690,9 @@ def train_vectorized(
         }
         run_name = run_manager.generate_run_name(config_dict)
         run_manager.save_config(run_name, config_dict)
-        shutil.copy(config_path, os.path.join(str(run_manager.base_output_dir), "config.json"))
+        shutil.copy(
+            config_path, os.path.join(str(run_manager.base_output_dir), "config.json")
+        )
         if verbose:
             logger.info("Parameters (config):")
             logger.info("\n%s", json.dumps(config_dict, indent=2))
@@ -720,7 +740,7 @@ def train_vectorized(
         agent.load(checkpoint_path)
         if verbose:
             logger.info("Loaded agent from %s", checkpoint_path)
-        
+
         # This is critical for TDMPC2 which requires sequences in the buffer.
         training_state.last_warmup_reset_step = training_state.step
         if verbose:
@@ -747,9 +767,11 @@ def train_vectorized(
     switch = False
 
     # Calculate initial reward weights based on phase config (for reward shaping)
-    _, phase_local_episode, _ = get_phase_for_episode(curriculum, training_state.episode)
+    _, phase_local_episode, _ = get_phase_for_episode(
+        curriculum, training_state.episode
+    )
     reward_weights = calculate_reward_weights(phase_local_episode, training_state.phase)
-    
+
     # Initialize buffer reward bonus if agent supports it (TDMPC2)
     # Only override if phase specifies reward_bonus; otherwise use agent's hyperparameter defaults
     bonus_values = get_reward_bonus_values(phase_local_episode, training_state.phase)
@@ -762,21 +784,29 @@ def train_vectorized(
     episode_logs: List[Dict[str, Any]] = []
     episode_metrics = [EpisodeMetrics() for _ in range(num_envs)]
     last_train_metrics: Dict[str, Any] = {}
-    
+
     # Track t0 (episode start) flags for each environment
     t0_flags = np.ones(num_envs, dtype=bool)  # All envs start at episode beginning
-    
+
     # Track which episodes have called on_episode_start (to avoid double-calling)
     episode_started = np.zeros(num_envs, dtype=bool)
-    
+
     # Log checkpoint and evaluation settings
     if verbose:
         logger.info("Training settings:")
         logger.info("  Current step: %d", training_state.step)
-        logger.info("  Current episode: %d / %d", training_state.episode, total_episodes)
-        logger.info("  Checkpoint frequency: %d steps", curriculum.training.checkpoint_frequency)
+        logger.info(
+            "  Current episode: %d / %d", training_state.episode, total_episodes
+        )
+        logger.info(
+            "  Checkpoint frequency: %d steps", curriculum.training.checkpoint_frequency
+        )
         logger.info("  Last checkpoint step: %d", training_state.last_checkpoint_step)
-        logger.info("  Next checkpoint at step: %d", training_state.last_checkpoint_step + curriculum.training.checkpoint_frequency)
+        logger.info(
+            "  Next checkpoint at step: %d",
+            training_state.last_checkpoint_step
+            + curriculum.training.checkpoint_frequency,
+        )
         logger.info("  Eval frequency: %d steps", curriculum.training.eval_frequency)
         logger.info("  Warmup steps: %d", curriculum.training.warmup_steps)
 
@@ -787,10 +817,12 @@ def train_vectorized(
                 if hasattr(agent, "on_episode_start"):
                     agent.on_episode_start(training_state.episode)
                 episode_started[i] = True
-        
+
         # Get batched agent actions (with t0 flags for TDMPC2)
-        actions = _get_agent_actions_with_t0(agent, states, num_envs, t0_flags, debug_level)
-        
+        actions = _get_agent_actions_with_t0(
+            agent, states, num_envs, t0_flags, debug_level
+        )
+
         # Reset t0 flags immediately after getting actions
         # (will be set to True again for episodes that complete during this step)
         t0_flags = np.zeros(num_envs, dtype=bool)
@@ -799,7 +831,7 @@ def train_vectorized(
         obs_opponent = env.obs_agent_two()
         if hasattr(agent, "collect_opponent_demonstrations"):
             for i in range(num_envs):
-                agent.collect_opponent_demonstrations(obs_opponent[i])
+                agent.collect_opponent_demonstrations(states[i], obs_opponent[i])
         actions_opponent = _get_opponent_actions(opponents, obs_opponent, num_envs)
 
         # Step all environments
@@ -814,11 +846,14 @@ def train_vectorized(
             # For terminal transitions, use the terminal observation (from info)
             # instead of next_states which is now the reset observation
             if dones[i] or truncs[i]:
-                if 'terminal_obs' in infos[i]:
-                    next_state_for_buffer = infos[i]['terminal_obs']
+                if "terminal_obs" in infos[i]:
+                    next_state_for_buffer = infos[i]["terminal_obs"]
                 else:
-                    logger.error("CRITICAL: terminal_obs missing for env %d episode %d!", 
-                               i, training_state.episode)
+                    logger.error(
+                        "CRITICAL: terminal_obs missing for env %d episode %d!",
+                        i,
+                        training_state.episode,
+                    )
                     next_state_for_buffer = states[i]
             else:
                 next_state_for_buffer = next_states[i]
@@ -828,7 +863,7 @@ def train_vectorized(
                 winner = infos[i]["winner"]
             else:
                 winner = None
-            
+
             agent.store_transition(
                 (states[i], actions[i], scaled_reward, next_state_for_buffer, dones[i]),
                 winner=winner,
@@ -844,13 +879,13 @@ def train_vectorized(
                 # Call on_episode_end callback
                 if hasattr(agent, "on_episode_end"):
                     agent.on_episode_end(training_state.episode)
-                
+
                 # Update metrics
                 training_state.episode += 1
-                
+
                 # Mark for next episode callback
                 episode_started[i] = False
-                
+
                 training_state.rating = rating_system.estimate_rating(
                     training_state.rating, opponents[i][1], infos[i]["winner"]
                 )
@@ -894,7 +929,7 @@ def train_vectorized(
                     episode_row[k] = _to_scalar_loss(v)
                 episode_logs.append(episode_row)
                 episode_metrics[i].reset()
-                
+
                 # Mark for next episode
                 t0_flags[i] = True
 
@@ -906,13 +941,23 @@ def train_vectorized(
                     switch = True
                 else:
                     # Update reward weights and bonus for new episode (within same phase)
-                    reward_weights = calculate_reward_weights(new_phase_local_episode, training_state.phase)
-                    bonus_values = get_reward_bonus_values(new_phase_local_episode, training_state.phase)
+                    reward_weights = calculate_reward_weights(
+                        new_phase_local_episode, training_state.phase
+                    )
+                    bonus_values = get_reward_bonus_values(
+                        new_phase_local_episode, training_state.phase
+                    )
                     if bonus_values is not None:
                         if debug_level >= 2 and training_state.episode < 10:
-                            logger.info("Updating buffer reward bonus: win_bonus=%.3f win_discount=%.3f (episode %d)", 
-                                       bonus_values[0], bonus_values[1], training_state.episode)
-                        update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1], debug_level)
+                            logger.info(
+                                "Updating buffer reward bonus: win_bonus=%.3f win_discount=%.3f (episode %d)",
+                                bonus_values[0],
+                                bonus_values[1],
+                                training_state.episode,
+                            )
+                        update_buffer_reward_bonus(
+                            agent, bonus_values[0], bonus_values[1], debug_level
+                        )
                     # If no phase-specific reward_bonus, keep agent's hyperparameter defaults
 
                 # Sample new opponent
@@ -939,16 +984,27 @@ def train_vectorized(
             states = new_states
             # After phase switch, all environments start fresh episodes
             t0_flags = np.ones(num_envs, dtype=bool)
-            
+
             # Update reward weights and bonus for new phase
-            _, phase_local_episode, _ = get_phase_for_episode(curriculum, training_state.episode)
-            reward_weights = calculate_reward_weights(phase_local_episode, training_state.phase)
-            bonus_values = get_reward_bonus_values(phase_local_episode, training_state.phase)
+            _, phase_local_episode, _ = get_phase_for_episode(
+                curriculum, training_state.episode
+            )
+            reward_weights = calculate_reward_weights(
+                phase_local_episode, training_state.phase
+            )
+            bonus_values = get_reward_bonus_values(
+                phase_local_episode, training_state.phase
+            )
             if bonus_values is not None:
                 if debug_level >= 1:
-                    logger.info("Phase switch: Updated buffer reward bonus: win_bonus=%.3f win_discount=%.3f", 
-                               bonus_values[0], bonus_values[1])
-                update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1], debug_level)
+                    logger.info(
+                        "Phase switch: Updated buffer reward bonus: win_bonus=%.3f win_discount=%.3f",
+                        bonus_values[0],
+                        bonus_values[1],
+                    )
+                update_buffer_reward_bonus(
+                    agent, bonus_values[0], bonus_values[1], debug_level
+                )
             # If no phase-specific reward_bonus, keep agent's hyperparameter defaults
         else:
             states = next_states
@@ -959,7 +1015,7 @@ def train_vectorized(
             >= training_state.last_warmup_reset_step
         )
         train_freq_ok = training_state.step % curriculum.training.train_freq == 0
-        
+
         # Additional safeguard: check buffer has minimum data before training (prevents TDMPC2 errors)
         buffer_ready = True
         if hasattr(agent, "buffer") and agent.buffer is not None:
@@ -972,22 +1028,33 @@ def train_vectorized(
                         buffer_size,
                         max(curriculum.training.warmup_steps // 2, 1),
                     )
-        
+
         if warmup_passed and train_freq_ok and buffer_ready:
             metrics = agent.train(steps=curriculum.training.updates_per_step)
             training_state.gradient_steps += curriculum.training.updates_per_step
-            
+
             if metrics:
                 last_train_metrics = metrics
                 training_metrics.add_update(step=training_state.step, **metrics)
-            
+
             # Log first few training steps for debugging
-            if training_state.gradient_steps <= curriculum.training.updates_per_step * 3 and debug_level >= 1:
-                buffer_size = getattr(agent.buffer, 'size', 'unknown')
-                logger.info("Training step %d: buffer_size=%s, gradient_steps=%d, metrics=%s",
-                           training_state.step, buffer_size, training_state.gradient_steps,
-                           {k: f"{v:.4f}" if isinstance(v, float) else v 
-                            for k, v in (metrics or {}).items() if 'loss' in k.lower()})
+            if (
+                training_state.gradient_steps
+                <= curriculum.training.updates_per_step * 3
+                and debug_level >= 1
+            ):
+                buffer_size = getattr(agent.buffer, "size", "unknown")
+                logger.info(
+                    "Training step %d: buffer_size=%s, gradient_steps=%d, metrics=%s",
+                    training_state.step,
+                    buffer_size,
+                    training_state.gradient_steps,
+                    {
+                        k: f"{v:.4f}" if isinstance(v, float) else v
+                        for k, v in (metrics or {}).items()
+                        if "loss" in k.lower()
+                    },
+                )
 
         training_state.step += num_envs
 
@@ -1002,7 +1069,7 @@ def train_vectorized(
                 models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"
             )
             agent.save(checkpoint_path)
-            
+
             # Save metadata alongside checkpoint
             metadata = {
                 "episode": training_state.episode,
@@ -1014,14 +1081,14 @@ def train_vectorized(
             metadata_path = checkpoint_path.replace(".pt", "_metadata.json")
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f, indent=2)
-            
+
             logger.info(
                 "Checkpoint saved: ep=%d step=%d path=%s",
                 training_state.episode,
                 training_state.step,
                 checkpoint_path,
             )
-            
+
             _save_csvs_and_plots(
                 episode_logs=episode_logs,
                 training_metrics=training_metrics,

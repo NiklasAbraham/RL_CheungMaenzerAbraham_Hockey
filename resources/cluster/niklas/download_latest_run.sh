@@ -6,12 +6,13 @@
 # Configuration
 SERVER="${1:-tcml-login1}"
 # SSH config should handle the full hostname mapping
-REMOTE_BASE="/home/stud421/RL_CheungMaenzerAbraham_Hockey/results"
+REMOTE_PROJECT_BASE="/home/stud421/RL_CheungMaenzerAbraham_Hockey"
+REMOTE_BASE="${REMOTE_PROJECT_BASE}/results"
 LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOCAL_BASE="${LOCAL_PROJECT_DIR}/results"
 
 # Folders to download: tdmpc2_runs, decoy_policies, sac_runs
-FOLDERS=("tdmpc2_runs" "decoy_policies" "sac_runs" "tdmpc2_runs_test")
+FOLDERS=("tdmpc2_runs" "decoy_policies" "sac_runs" "tdmpc2_runs_test" "tdmpc2_runs_horizon")
 NUM_LATEST=30
 
 echo "Connecting to ${SERVER}..."
@@ -70,6 +71,24 @@ for FOLDER in "${FOLDERS[@]}"; do
         fi
     done <<< "${LATEST_DIRS}"
 done
+
+# Sync archive (registry.json, match_history.json, agents) so calibration updates are visible locally
+echo ""
+echo "========== Syncing archive (registry + match history) =========="
+REMOTE_ARCHIVE="${REMOTE_PROJECT_BASE}/archive"
+LOCAL_ARCHIVE="${LOCAL_PROJECT_DIR}/archive"
+if ssh "${SERVER}" "test -d ${REMOTE_ARCHIVE}" 2>/dev/null; then
+    mkdir -p "${LOCAL_ARCHIVE}"
+    rsync -avz --progress "${SERVER}:${REMOTE_ARCHIVE}/" "${LOCAL_ARCHIVE}/"
+    if [ $? -eq 0 ]; then
+        echo "Archive synced (registry and match history updated locally)."
+    else
+        echo "Warning: archive sync failed."
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+    fi
+else
+    echo "No remote archive directory, skipping."
+fi
 
 echo "=========================================="
 echo "Download summary:"
