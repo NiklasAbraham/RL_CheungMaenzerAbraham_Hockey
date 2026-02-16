@@ -239,7 +239,7 @@ def plot_episode_logs(
     opponent_loss_keys = sorted(
         k for k in all_loss_keys if "opponent" in k.lower() and "cloning" in k.lower()
     )
-    skip_loss_keys = {"length", "step", "total_loss", "rating", "loss"}
+    skip_loss_keys = {"length", "step", "rating", "loss"}
     other_loss_keys = sorted(
         k
         for k in all_loss_keys
@@ -268,7 +268,7 @@ def plot_episode_logs(
     n_rows = (n_plots + n_cols - 1) // n_cols
     if USE_TUEPLOTS:
         base = figsizes.neurips2024(nrows=n_rows, ncols=n_cols)["figure.figsize"]
-        figsize = (base[0] * 1.5, base[1] * 1.25)
+        figsize = (base[0] * 1.5, base[1] * 1.35)
     else:
         figsize = (18, 5.5 * n_rows)
     fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
@@ -356,9 +356,7 @@ def plot_episode_logs(
                 ax.tick_params(axis="y", labelcolor=color_left)
             else:
                 ax2 = ax.twinx()
-                ax2.plot(
-                    loss_eps, loss_vals, alpha=0.3, label=label, color=color_right
-                )
+                ax2.plot(loss_eps, loss_vals, alpha=0.3, label=label, color=color_right)
                 ax2.plot(
                     loss_eps,
                     mov,
@@ -445,7 +443,7 @@ def plot_episode_logs(
     plt.tight_layout(rect=[0, 0, 1, 0.98])
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / f"{save_name}.png"
-    plt.savefig(out_path, dpi=300, bbox_inches="tight")
+    plt.savefig(out_path, dpi=500, bbox_inches="tight")
     plt.close()
     print(f"Episode logs plot saved to: {out_path}")
 

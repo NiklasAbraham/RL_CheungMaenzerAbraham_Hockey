@@ -7,12 +7,12 @@
     "needs_calibration"
   ],
   "rating": {
-    "mu": 27.689749383293748,
-    "sigma": 1.6758749897313991,
-    "rating": 22.66212441409955,
-    "matches_played": 16,
-    "wins": 4,
-    "losses": 6,
+    "mu": 29.109692834803166,
+    "sigma": 1.4747463581580786,
+    "rating": 24.68545376032893,
+    "matches_played": 22,
+    "wins": 9,
+    "losses": 7,
     "draws": 6
   },
   "step": 6600,

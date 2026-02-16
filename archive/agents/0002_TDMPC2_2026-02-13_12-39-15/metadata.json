@@ -7,11 +7,11 @@
     "needs_calibration"
   ],
   "rating": {
-    "mu": 32.850292481679915,
-    "sigma": 1.5624327107038554,
-    "rating": 28.16299434956835,
-    "matches_played": 25,
-    "wins": 18,
+    "mu": 33.79037341762997,
+    "sigma": 1.4472993309704363,
+    "rating": 29.448475424718662,
+    "matches_played": 31,
+    "wins": 24,
     "losses": 6,
     "draws": 1
   },
