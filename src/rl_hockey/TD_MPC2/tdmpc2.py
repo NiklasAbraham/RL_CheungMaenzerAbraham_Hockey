@@ -38,24 +38,49 @@ logger = logging.getLogger(__name__)
 
 
 class DynamicsWithOpponentWrapper(torch.nn.Module):
-    """Wraps DynamicsOpponent with opponent cloning; predicts opponent actions and samples opponent per forward."""
+    """Wraps DynamicsOpponent with opponent cloning.
 
-    def __init__(
-        self, dynamics_opponent, opponent_cloning_networks, current_opponent_id=0
-    ):
+    Supports three opponent selection modes (checked in order):
+    1. Batch assignment: each row in the batch has a pre-assigned opponent_id,
+       set via assign_opponents_for_batch(). Used by the planner so that each
+       trajectory uses one fixed opponent for all horizon steps.
+    2. Forced opponent: a single opponent_id forced via set_current_opponent().
+    3. Random fallback: a random opponent is sampled per forward call.
+    """
+
+    def __init__(self, dynamics_opponent, opponent_cloning_networks):
         super().__init__()
         self.dynamics_opponent = dynamics_opponent
         self.opponent_cloning_networks = opponent_cloning_networks
-        self.current_opponent_id = current_opponent_id
         self.opponent_ids = (
             list(opponent_cloning_networks.keys()) if opponent_cloning_networks else []
         )
         self.force_opponent_id = None
+        self._batch_opponent_ids = None
 
     def forward(self, latent, action):
+        batch_size = latent.shape[0] if latent.dim() > 1 else 1
+
+        # Mode 1: per-trajectory batch assignment (planner sets this)
+        if (
+            self._batch_opponent_ids is not None
+            and self._batch_opponent_ids.shape[0] == batch_size
+        ):
+            opponent_action = torch.zeros_like(action)
+            for oid in self._batch_opponent_ids.unique().tolist():
+                if oid in self.opponent_cloning_networks:
+                    mask = self._batch_opponent_ids == oid
+                    net = self.opponent_cloning_networks[oid]["network"]
+                    with torch.no_grad():
+                        pred = net.mean_action(latent[mask])
+                        opponent_action[mask] = pred.to(opponent_action.dtype)
+            return self.dynamics_opponent(latent, action, opponent_action)
+
+        # Mode 2: single forced opponent
         if self.force_opponent_id is not None:
             opponent_id = self.force_opponent_id
         elif self.opponent_ids:
+            # Mode 3: random per-forward fallback
             opponent_id = self.opponent_ids[
                 torch.randint(0, len(self.opponent_ids), (1,)).item()
             ]
@@ -65,10 +90,26 @@ class DynamicsWithOpponentWrapper(torch.nn.Module):
         if opponent_id is not None and opponent_id in self.opponent_cloning_networks:
             cloning_network = self.opponent_cloning_networks[opponent_id]["network"]
             with torch.no_grad():
-                opponent_action = cloning_network.mean_action(latent)
+                opponent_action = cloning_network.mean_action(latent).to(action.dtype)
         else:
             opponent_action = torch.zeros_like(action)
         return self.dynamics_opponent(latent, action, opponent_action)
+
+    def assign_opponents_for_batch(self, batch_size, device=None):
+        """Assign one fixed opponent per trajectory for the entire rollout."""
+        if not self.opponent_ids:
+            self._batch_opponent_ids = None
+            return
+        if device is None:
+            device = next(self.dynamics_opponent.parameters()).device
+        n_opponents = len(self.opponent_ids)
+        indices = torch.randint(0, n_opponents, (batch_size,), device=device)
+        id_tensor = torch.tensor(self.opponent_ids, device=device, dtype=indices.dtype)
+        self._batch_opponent_ids = id_tensor[indices]
+
+    def clear_batch_opponents(self):
+        """Clear per-trajectory assignments (reverts to random fallback)."""
+        self._batch_opponent_ids = None
 
     def set_current_opponent(self, opponent_id):
         """Force a specific opponent for non-planning rollouts."""
@@ -341,40 +382,6 @@ class TDMPC2(Agent):
 
         self.scale = RunningScale(tau=self.tau).to(self.device)
 
-        if self.opponent_simulation_enabled:
-            if self.dynamics_wrapper is None:
-                self.dynamics_wrapper = DynamicsWithOpponentWrapper(
-                    self.dynamics, self.opponent_cloning_networks, current_opponent_id=0
-                )
-            else:
-                self.dynamics_wrapper.update_opponent_networks(
-                    self.opponent_cloning_networks
-                )
-            dynamics_for_planner = self.dynamics_wrapper
-        else:
-            dynamics_for_planner = self.dynamics
-
-        self.planner = MPPIPlannerSimplePaper(
-            dynamics_for_planner,
-            self.reward,
-            self.termination,
-            self.target_q_ensemble,
-            self.policy,
-            horizon,
-            num_samples,
-            num_iterations,
-            temperature,
-            self.gamma,
-            std_init=2.0,
-            std_min=0.05,
-            num_bins=num_bins,
-            vmin=vmin,
-            vmax=vmax,
-            num_pi_trajs=num_pi_trajs,
-            num_elites=num_elites,
-        )
-        self.planners = None
-
         self._model_params = (
             list(self.encoder.parameters())
             + list(self.dynamics.parameters())
@@ -382,7 +389,6 @@ class TDMPC2(Agent):
             + list(self.termination.parameters())
             + list(self.q_ensemble.parameters())
         )
-
         batch_size = self.config.get("batch_size", 256)
         buffer_device = self.config.get("buffer_device", "cpu")
         self.buffer = TDMPC2ReplayBuffer(
@@ -466,6 +472,39 @@ class TDMPC2(Agent):
                     f"torch.compile failed for policy: {e}. Using eager mode."
                 )
 
+        if self.opponent_simulation_enabled:
+            if self.dynamics_wrapper is None:
+                self.dynamics_wrapper = DynamicsWithOpponentWrapper(
+                    self.dynamics, self.opponent_cloning_networks
+                )
+            else:
+                self.dynamics_wrapper.update_opponent_networks(
+                    self.opponent_cloning_networks
+                )
+            dynamics_for_planner = self.dynamics_wrapper
+        else:
+            dynamics_for_planner = self.dynamics
+
+        self.planner = MPPIPlannerSimplePaper(
+            dynamics_for_planner,
+            self.reward,
+            self.termination,
+            self.target_q_ensemble,
+            self.policy,
+            horizon,
+            num_samples,
+            num_iterations,
+            temperature,
+            self.gamma,
+            std_init=2.0,
+            std_min=0.05,
+            num_bins=num_bins,
+            vmin=vmin,
+            vmax=vmax,
+            num_pi_trajs=num_pi_trajs,
+            num_elites=num_elites,
+        )
+        self.planners = None
         self.planner.to(self.device)
 
     def store_transition(self, transition, winner=None):
@@ -516,7 +555,7 @@ class TDMPC2(Agent):
         obs = torch.FloatTensor(obs).to(self.device)
 
         with torch.amp.autocast("cuda", enabled=self.use_amp):
-            z = self.encoder(obs.unsqueeze(0)).squeeze(0)
+            z = self.encoder(obs.unsqueeze(0)).squeeze(0).clone()
             action = self.planner.plan(z, return_mean=deterministic, t0=t0)
 
         return action.cpu().numpy()
@@ -739,19 +778,21 @@ class TDMPC2(Agent):
         }
 
         cloning_losses = {}
-        if self.opponent_simulation_enabled and self.opponent_cloning_frequency > 0:
-            if (
-                self.training_step_counter % self.opponent_cloning_frequency == 0
-                and self.training_step_counter > 0
-            ):
-                logger.info(
-                    f"Training opponent cloning networks at step {self.training_step_counter}"
-                )
-                cloning_losses = self._train_opponent_cloning()
-                all_losses.update(cloning_losses)
 
         for _ in range(steps):
             self.training_step_counter += 1
+
+            if self.opponent_simulation_enabled and self.opponent_cloning_frequency > 0:
+                if (
+                    self.training_step_counter % self.opponent_cloning_frequency == 0
+                    and self.training_step_counter > 0
+                ):
+                    logger.info(
+                        f"Training opponent cloning networks at step {self.training_step_counter}"
+                    )
+                    cloning_losses = self._train_opponent_cloning()
+                    all_losses.update(cloning_losses)
+
             if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
 
@@ -809,26 +850,40 @@ class TDMPC2(Agent):
                         horizon, device=self.device, dtype=torch.float32
                     )
 
+                    # Assign one opponent per batch element, fixed for all horizon steps
+                    if (
+                        self.opponent_simulation_enabled
+                        and self.opponent_cloning_networks
+                    ):
+                        opp_ids_list = list(self.opponent_cloning_networks.keys())
+                        n_opps = len(opp_ids_list)
+                        _opp_indices = torch.randint(0, n_opps, (batch_size_actual,))
+                        batch_opp_ids = [opp_ids_list[i] for i in _opp_indices.tolist()]
+                        batch_opp_unique = set(batch_opp_ids)
+                    else:
+                        batch_opp_ids = None
+
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
                         z_target = z_seq[:, t + 1].detach()
 
                         with torch.amp.autocast("cuda", enabled=self.use_amp):
                             if self.opponent_simulation_enabled:
-                                if self.opponent_cloning_networks:
-                                    opponent_id = 0
-                                    if opponent_id in self.opponent_cloning_networks:
-                                        cloning_network = (
-                                            self.opponent_cloning_networks[opponent_id][
-                                                "network"
-                                            ]
+                                if batch_opp_ids is not None:
+                                    opponent_action_t = torch.zeros_like(a_t)
+                                    for oid in batch_opp_unique:
+                                        mask = torch.tensor(
+                                            [bid == oid for bid in batch_opp_ids],
+                                            device=self.device,
+                                            dtype=torch.bool,
                                         )
+                                        net = self.opponent_cloning_networks[oid][
+                                            "network"
+                                        ]
                                         with torch.no_grad():
-                                            opponent_action_t = (
-                                                cloning_network.mean_action(z_pred)
-                                            )
-                                    else:
-                                        opponent_action_t = torch.zeros_like(a_t)
+                                            opponent_action_t[mask] = net.mean_action(
+                                                z_pred[mask]
+                                            ).to(opponent_action_t.dtype)
                                 else:
                                     opponent_action_t = torch.zeros_like(a_t)
                                 z_next_pred = self.dynamics(
@@ -1350,7 +1405,7 @@ class TDMPC2(Agent):
                 )
             else:
                 self.dynamics_wrapper = DynamicsWithOpponentWrapper(
-                    self.dynamics, self.opponent_cloning_networks, current_opponent_id=0
+                    self.dynamics, self.opponent_cloning_networks
                 )
                 self.planner.dynamics = self.dynamics_wrapper
 
@@ -1366,15 +1421,18 @@ class TDMPC2(Agent):
                 "Opponent simulation not enabled, cannot set current opponent"
             )
 
-    def store_opponent_action(self, obs, opponent_action, opponent_id):
-        """Store opponent demonstration (obs, action) pair in the corresponding buffer.
+    def store_opponent_action(self, obs_agent1, opponent_action, opponent_id):
+        """Store opponent demonstration (obs_agent1, action) pair in the cloning buffer.
 
-        Use this only when the acting opponent is one of your loaded reference bots.
-        Prefer collect_opponent_demonstrations(obs) to fill all buffers in parallel
-        regardless of who the training opponent is.
+        obs_agent1 must be the agent's own observation (agent perspective), NOT the
+        opponent's observation.  This ensures the cloning network trains on the same
+        latent distribution it will see at planning time.
+
+        Prefer collect_opponent_demonstrations(obs_agent1, obs_agent2) to fill all
+        buffers in parallel regardless of who the training opponent is.
 
         Args:
-            obs: Observation (numpy array or torch tensor)
+            obs_agent1: Agent-perspective observation (numpy array or torch tensor)
             opponent_action: Action taken by opponent (numpy array or torch tensor)
             opponent_id: ID of the opponent (int)
         """
@@ -1387,18 +1445,21 @@ class TDMPC2(Agent):
             )
             return
 
-        self.opponent_cloning_buffers[opponent_id].add(obs, opponent_action)
+        self.opponent_cloning_buffers[opponent_id].add(obs_agent1, opponent_action)
 
-    def collect_opponent_demonstrations(self, obs_agent2):
-        """Run each loaded reference opponent on the given observation and store
-        (obs, action) in that opponent's cloning buffer.
+    def collect_opponent_demonstrations(self, obs_agent1, obs_agent2):
+        """Run each loaded reference opponent on obs_agent2 and store
+        (obs_agent1, action_opponent) in each opponent's cloning buffer.
 
-        Call this every environment step with the opponent's observation (obs_agent2).
-        Buffers fill regardless of who the actual training opponent is; we simulate
-        what each reference opponent would do at this step in parallel.
+        Call this every environment step.  The opponent acts on its own
+        observation (obs_agent2), but the buffer stores the agent's observation
+        (obs_agent1) paired with that action.  This ensures the cloning network
+        trains on the same latent distribution it sees during planning.
 
         Args:
-            obs_agent2: Observation from opponent's perspective (numpy or torch),
+            obs_agent1: Agent-perspective observation (numpy or torch),
+                shape (obs_dim,) or (1, obs_dim).
+            obs_agent2: Opponent-perspective observation (numpy or torch),
                 shape (obs_dim,) or (1, obs_dim).
         """
         if not self.opponent_simulation_enabled:
@@ -1407,13 +1468,19 @@ class TDMPC2(Agent):
         if not self.loaded_opponent_agents or not self.opponent_cloning_buffers:
             return
 
-        obs = obs_agent2
-        if isinstance(obs, torch.Tensor):
-            obs_np = obs.cpu().numpy()
-            obs_flat = obs_np.reshape(-1) if obs_np.size > 0 else obs_np
+        # Prepare opponent obs for running the reference opponents
+        if isinstance(obs_agent2, torch.Tensor):
+            opp_np = obs_agent2.cpu().numpy()
         else:
-            obs_np = np.asarray(obs, dtype=np.float32)
-            obs_flat = obs_np.reshape(-1) if obs_np.size > 0 else obs_np
+            opp_np = np.asarray(obs_agent2, dtype=np.float32)
+        opp_flat = opp_np.reshape(-1) if opp_np.size > 0 else opp_np
+
+        # Prepare agent obs for storing in the cloning buffer
+        if isinstance(obs_agent1, torch.Tensor):
+            agent_np = obs_agent1.cpu().numpy()
+        else:
+            agent_np = np.asarray(obs_agent1, dtype=np.float32)
+        agent_flat = agent_np.reshape(-1) if agent_np.size > 0 else agent_np
 
         for opponent_id in list(self.opponent_cloning_buffers.keys()):
             if opponent_id not in self.loaded_opponent_agents:
@@ -1426,25 +1493,26 @@ class TDMPC2(Agent):
                     opponent_agent, "encoder"
                 ):
                     obs_batch = (
-                        torch.from_numpy(obs_np).float().reshape(1, -1).to(self.device)
+                        torch.from_numpy(opp_np).float().reshape(1, -1).to(self.device)
                     )
                     with torch.amp.autocast("cuda", enabled=False):
                         z = opponent_agent.encoder(obs_batch)
                         action = opponent_agent.policy.mean_action(z)
                     action = action[0].cpu().numpy()
                 elif hasattr(opponent_agent, "act_batch"):
-                    batch = obs_flat.reshape(1, -1)
+                    batch = opp_flat.reshape(1, -1)
                     action_batch = opponent_agent.act_batch(batch, deterministic=True)
                     action = np.asarray(action_batch[0], dtype=np.float32)
                 elif hasattr(opponent_agent, "act"):
                     action = np.asarray(
-                        opponent_agent.act(obs_flat, deterministic=True),
+                        opponent_agent.act(opp_flat, deterministic=True),
                         dtype=np.float32,
                     )
                 else:
                     continue
 
-                self.opponent_cloning_buffers[opponent_id].add(obs_flat, action)
+                # Store agent-perspective obs with opponent action
+                self.opponent_cloning_buffers[opponent_id].add(agent_flat, action)
 
     def _train_opponent_cloning(self):
         """Train cloning networks using stored opponent demonstrations.

@@ -48,24 +48,9 @@ echo "Node: $SLURM_NODELIST"
 echo "Start time: $(date)"
 echo "=========================================="
 
-# Step 1: Add agents to archive (edit CONFIG in add_tdmpc2_to_archive.py)
+# Calibrate agents
 echo ""
-echo "Step 1: Adding TDMPC2 agents to archive..."
-singularity exec \
-    --nv \
-    --bind "$PROJECT_DIR:$PROJECT_DIR" \
-    --pwd "$PROJECT_DIR" \
-    "$SINGULARITY_IMAGE" \
-    /bin/bash -c "
-        source /venv/bin/activate && \
-        export PYTHONUNBUFFERED=1 && \
-        export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && \
-        python3 -u '$PROJECT_DIR/src/rl_hockey/common/archive/add_tdmpc2_to_archive.py'
-    "
-
-# Step 2: Calibrate agents
-echo ""
-echo "Step 2: Calibrating agents..."
+echo "Calibrating agents..."
 singularity exec \
     --nv \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
@@ -77,7 +62,7 @@ singularity exec \
         export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && \
         python3 -u '$PROJECT_DIR/src/rl_hockey/common/archive/calibrate.py' \
             --archive '$PROJECT_DIR/archive' \
-            --matches 100 \
+            --matches 250 \
             --baseline-ratio 0.2 \
             --random-ratio 0.1
     "
@@ -86,3 +71,4 @@ echo ""
 echo "=========================================="
 echo "Job completed at: $(date)"
 echo "=========================================="
+echo ""

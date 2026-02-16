@@ -446,7 +446,6 @@ def _plot_reward_distribution_histogram(
 
 
 if __name__ == "__main__":
-    folder_path_1 = "results/tdmpc2_runs/2026-01-31_11-50-00"  # 94 -> 16
     folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"  # 93 -> 16
     folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"  # 92 -> 8
     folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"  # 103 -> 8 aber opponents
@@ -455,7 +454,6 @@ if __name__ == "__main__":
 
     window_size = 250
 
-    plot_episode_logs(folder_path_1, window_size=window_size)
     plot_episode_logs(folder_path_2, window_size=window_size)
     plot_episode_logs(folder_path_3, window_size=window_size)
     plot_episode_logs(folder_path_4, window_size=window_size)
