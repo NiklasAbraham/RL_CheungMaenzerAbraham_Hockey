@@ -5,13 +5,13 @@
     "needs_calibration"
   ],
   "rating": {
-    "mu": 32.831032408086145,
-    "sigma": 0.9199913226089369,
-    "rating": 30.071058440259335,
-    "matches_played": 215,
-    "wins": 12,
-    "losses": 16,
-    "draws": 1
+    "mu": 29.98321217353415,
+    "sigma": 0.7883095843062715,
+    "rating": 27.618283420615334,
+    "matches_played": 272,
+    "wins": 22,
+    "losses": 47,
+    "draws": 17
   },
   "checkpoint_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/checkpoint.pt",
   "step": null,
