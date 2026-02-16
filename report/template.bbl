@@ -1,5 +1,11 @@
 \begin{thebibliography}{1}
 
+\bibitem{rl_cheung_maenzer_abraham_hockey}
+A.~Cheung, J.~Mänzer, and N.~Abraham.
+\newblock Rl-course 2025/26: Final project report.
+\newblock
+  \url{https://github.com/NiklasAbraham/RL_CheungMaenzerAbraham_Hockey}, 2026.
+
 \bibitem{hansen2024tdmpc2scalablerobustworld}
 N.~Hansen, H.~Su, and X.~Wang.
 \newblock Td-mpc2: Scalable, robust world models for continuous control, 2024.
