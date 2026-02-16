@@ -133,8 +133,32 @@ During training, opponent actions are taken from the replay buffer; during infer
 \newpage
 \section{Results}\label{sec:Results}
 
+\subsection{TD-MPC2 Hyperparameters and Curriculum}\label{sec:tdmpc2_hyperparameters_and_curriculum}
+
+To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with different horizons and evaluated the performance. The horizons tested were 4, 6, 8, 10, and 12. The runs were done with the following hyperparameters: learning rate 0.0003, batch size 512, network size of three layers with 256 units each, a latent dimension of 256, 5 Q-networks, a gamma of 0.99, a temperature of 0.5, a vmin of -10, a vmax of 10, a win reward bonus of 10, and a win reward discount of 0.92. The runs were done with the following curriculum: 4000 episodes of full competency, with a basic strong opponent. The results are shown in Figure~\ref{fig:tdmpc2_hyperparameters_and_curriculum}. Addtionally with the same hyperparameters, the modified opponent aware dynamics was tested, for this three internal opponent models were used: the TD-MPC2 agent without the opponent-aware dynamics, the SAC agent and the DECOYPOLICY agent, which was trained to mimick the basic strong opponent. The results are shown in the same figure, but with the label "opponent aware dynamics".
+
+\begin{figure}[h]
+    \centering
+    \includegraphics{figures/horizon_ratings.png}
+    \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
+    \label{fig:tdmpc2_hyperparameters_and_curriculum}
+\end{figure}
+
 \newpage
 \bibliographystyle{abbrv}
 \bibliography{main}
+
+% appendix
+\appendix
+\section{Appendix}\label{sec:appendix}
+
+\subsection{Episode Logs}\label{sec:episode_logs}
+The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics are shown in Figure~\ref{fig:episode_logs}. These logs were plotted fro all runs periodically, and this example is representative for the other runs.
+\begin{figure}[h]
+    \centering
+    \includegraphics{figures/episode_logs.png}
+    \caption{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}
+    \label{fig:episode_logs}
+\end{figure}
 
 \end{document}

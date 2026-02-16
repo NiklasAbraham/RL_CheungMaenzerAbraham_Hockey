@@ -1,7 +1,3 @@
-
-
-
-
 ### 002
 - results/tdmpc2_runs_test/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep016000.pt
 - full internal opponents and full self play with the opponets but not archive stuff

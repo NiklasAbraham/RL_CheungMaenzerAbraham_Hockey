@@ -41,9 +41,22 @@ export PYTHONUNBUFFERED=1
 USER_PACKAGES_DIR="$PROJECT_DIR/.user_packages"
 mkdir -p "$USER_PACKAGES_DIR"
 
+echo "=========================================="
+echo "TDMPC2 Training Job"
+echo "=========================================="
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURM_NODELIST"
+echo "Start time: $(date)"
+echo "=========================================="
+
 singularity exec \
     --nv \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
     /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_tdmpc2.py'"
+
+echo ""
+echo "=========================================="
+echo "Job completed at: $(date)"
+echo "=========================================="
