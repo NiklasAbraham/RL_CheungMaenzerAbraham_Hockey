@@ -16,6 +16,7 @@ rsync -avz --progress \
     --exclude='.git' \
     --exclude='__pycache__' \
     --exclude='*.pyc' \
+    --exclude='archive/' \
     --exclude='*.pyo' \
     --exclude='.pytest_cache' \
     --exclude='.ipynb_checkpoints' \

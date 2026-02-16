@@ -117,8 +117,7 @@ def plot_agent_ratings(registry: dict, output_path: Path = Path("plots")):
     ax.set_ylabel("TrueSkill Rating", fontsize=12, fontweight="bold")
     ax.set_title(
         "Agent Performance Ratings (with 3-sigma confidence intervals)",
-        fontsize=14,
-        fontweight="bold",
+        fontsize=11,
     )
     ax.set_xticks(range(len(agents)))
     ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
@@ -198,9 +197,7 @@ def plot_win_matrix(
         ax=ax,
     )
 
-    ax.set_title(
-        "Win Percentage Matrix (Row vs Column)", fontsize=14, fontweight="bold"
-    )
+    ax.set_title("Win Percentage Matrix (Row vs Column)", fontsize=11)
     ax.set_xlabel("Opponent", fontsize=12, fontweight="bold")
     ax.set_ylabel("Agent", fontsize=12, fontweight="bold")
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
@@ -274,8 +271,7 @@ def plot_rating_uncertainty(registry: dict, output_path: Path = Path("plots")):
     ax.set_ylabel("Uncertainty (Sigma)", fontsize=12, fontweight="bold")
     ax.set_title(
         "Rating vs Uncertainty (bubble size = matches played)",
-        fontsize=14,
-        fontweight="bold",
+        fontsize=11,
     )
     ax.grid(True, alpha=0.3)
 
@@ -329,15 +325,116 @@ def plot_matches_played(registry: dict, output_path: Path = Path("plots")):
 
     ax.set_xlabel("Agent ID", fontsize=12, fontweight="bold")
     ax.set_ylabel("Number of Matches Played", fontsize=12, fontweight="bold")
-    ax.set_title(
-        "Calibration Progress: Matches Played per Agent", fontsize=14, fontweight="bold"
-    )
+    ax.set_title("Calibration Progress: Matches Played per Agent", fontsize=11)
     ax.set_xticks(range(len(agents)))
     ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
     ax.grid(axis="y", alpha=0.3)
 
     plt.tight_layout()
     plt.savefig(output_path / "matches_played.png", dpi=300, bbox_inches="tight")
+    plt.close()
+
+
+def _collect_horizon_series(
+    registry: dict,
+    agent_numbers: tuple,
+    horizon_start: int,
+    horizon_step: int,
+):
+    """Collect rating and sigma per horizon for one group of agents. Returns (ratings, sigmas, horizon_labels)."""
+    ratings = []
+    sigmas = []
+    horizon_labels = []
+
+    for i, num in enumerate(agent_numbers):
+        prefix = f"{num:04d}_"
+        agent_id, data = next((p for p in registry.items() if p[0].startswith(prefix)))
+        ratings.append(data["rating"]["rating"])
+        sigmas.append(data["rating"]["sigma"] * 3)
+        horizon_labels.append(f"horizon {horizon_start + i * horizon_step}")
+
+    return ratings, sigmas, horizon_labels
+
+
+def plot_horizon_ratings(
+    registry: dict,
+    agent_numbers: tuple = (6, 7, 8, 9, 10),
+    agent_numbers_b: tuple | None = (11, 12, 13, 14, 15),
+    group_label: str = "no internal opponent modelling",
+    group_label_b: str = "internal opponent modelling",
+    horizon_start: int = 4,
+    horizon_step: int = 2,
+    output_path: Path = Path("plots"),
+):
+    """Bar plot of rating (mean and deviation) by horizon, optionally grouped by two agent series.
+
+    agent_numbers: first set of archive agent numbers (e.g. 006-010).
+    agent_numbers_b: second set (e.g. 011-015). If None, only the first set is plotted.
+    group_label, group_label_b: legend labels for the two series.
+    horizon_start, horizon_step: horizon labels (e.g. 4, 6, 8, 10, 12).
+    """
+    output_path.mkdir(exist_ok=True)
+
+    ratings_a, sigmas_a, labels_a = _collect_horizon_series(
+        registry, agent_numbers, horizon_start, horizon_step
+    )
+
+    if agent_numbers_b is not None:
+        ratings_b, sigmas_b, labels_b = _collect_horizon_series(
+            registry, agent_numbers_b, horizon_start, horizon_step
+        )
+        n_horizons = len(labels_a)
+        horizon_labels = labels_a
+        x = np.arange(n_horizons)
+        bar_width = 0.35
+        fig, ax = plt.subplots(figsize=(max(FIG_BAR[0], n_horizons * 1.5), FIG_BAR[1]))
+        ax.bar(
+            x - bar_width / 2,
+            ratings_a,
+            bar_width,
+            yerr=sigmas_a,
+            capsize=3,
+            label=group_label,
+            color="#2ca02c",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        ax.bar(
+            x + bar_width / 2,
+            ratings_b,
+            bar_width,
+            yerr=sigmas_b,
+            capsize=3,
+            label=group_label_b,
+            color="#1f77b4",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels(horizon_labels)
+    else:
+        x = range(len(labels_a))
+        fig, ax = plt.subplots(figsize=FIG_BAR)
+        ax.bar(
+            x,
+            ratings_a,
+            yerr=sigmas_a,
+            capsize=5,
+            color="#2ca02c",
+            alpha=0.7,
+            edgecolor="black",
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels_a)
+
+    ax.set_xlabel("Horizon", fontsize=12, fontweight="bold")
+    ax.set_ylabel("TrueSkill Rating", fontsize=12, fontweight="bold")
+    ax.set_title("Agent ratings by horizon", fontsize=11)
+    ax.grid(axis="y", alpha=0.3)
+    ax.axhline(y=25, color="red", linestyle="--", alpha=0.5, label="Initial rating")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(output_path / "horizon_ratings.png", dpi=300, bbox_inches="tight")
     plt.close()
 
 
@@ -392,7 +489,7 @@ def create_summary_table(registry: dict, output_path: Path = Path("plots")):
             if i % 2 == 0:
                 table[(i, j)].set_facecolor("#f0f0f0")
 
-    plt.title("Agent Performance Summary Table", fontsize=16, fontweight="bold", pad=20)
+    plt.title("Agent Performance Summary Table", fontsize=11, pad=20)
     plt.savefig(output_path / "agent_summary_table.png", dpi=300, bbox_inches="tight")
     plt.close()
 
@@ -418,3 +515,15 @@ if __name__ == "__main__":
     output_path = Path(__file__).parent.parent.parent.parent.parent / "plots"
 
     generate_all_plots(archive_root, output_path)
+
+    registry, match_history = load_data(archive_root)
+    plot_horizon_ratings(
+        registry,
+        agent_numbers=(6, 7, 8, 9, 10),
+        agent_numbers_b=(11, 12, 13, 14, 15),
+        group_label="no internal opponent modelling",
+        group_label_b="internal opponent modelling",
+        horizon_start=4,
+        horizon_step=2,
+        output_path=output_path,
+    )

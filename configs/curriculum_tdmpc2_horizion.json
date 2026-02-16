@@ -3,7 +3,7 @@
     "phases": [
       {
         "name": "full_competency",
-        "episodes": 10000,
+        "episodes": 4000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {"type": "basic_strong", "weight": 1.0}
       }
@@ -23,18 +23,18 @@
   "agent": {
     "type": "TDMPC2",
     "hyperparameters": {
-      "latent_dim": 512,
+      "latent_dim": 256,
       "hidden_dim": {
-        "encoder": [512, 512, 512],
-        "dynamics": [512, 512, 512],
-        "reward": [512, 512, 512],
-        "termination": [512, 512],
-        "q_function": [512, 512, 512],
-        "policy": [512, 512, 512]
+        "encoder": [256, 256, 256],
+        "dynamics": [256, 256, 256],
+        "reward": [256, 256, 256],
+        "termination": [256, 256],
+        "q_function": [256, 256, 256],
+        "policy": [256, 256, 256]
       },
       "num_q": 5,
       "gamma": 0.99,
-      "horizon": 4,
+      "horizon": 12,
       "num_samples": 512,
       "num_iterations": 6,
       "temperature": 0.5,
