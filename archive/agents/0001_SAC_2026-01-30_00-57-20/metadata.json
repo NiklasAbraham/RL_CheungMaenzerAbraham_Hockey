@@ -1,17 +1,15 @@
 {
   "agent_id": "0001_SAC_2026-01-30_00-57-20",
   "archived_at": "2026-01-30T00:57:20.369811",
-  "tags": [
-    "needs_calibration"
-  ],
+  "tags": [],
   "rating": {
-    "mu": 29.98321217353415,
-    "sigma": 0.7883095843062715,
-    "rating": 27.618283420615334,
-    "matches_played": 272,
-    "wins": 22,
-    "losses": 47,
-    "draws": 17
+    "mu": 29.815217505164746,
+    "sigma": 0.8063816053113869,
+    "rating": 27.396072689230586,
+    "matches_played": 606,
+    "wins": 178,
+    "losses": 192,
+    "draws": 50
   },
   "checkpoint_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/checkpoint.pt",
   "step": null,

@@ -6,13 +6,13 @@
     "needs_calibration"
   ],
   "rating": {
-    "mu": 28.30402892357656,
-    "sigma": 0.7642760960686996,
-    "rating": 26.01120063537046,
-    "matches_played": 331,
-    "wins": 119,
-    "losses": 130,
-    "draws": 82
+    "mu": 27.956851832769154,
+    "sigma": 0.7751103594381817,
+    "rating": 25.63152075445461,
+    "matches_played": 408,
+    "wins": 141,
+    "losses": 173,
+    "draws": 94
   },
   "step": 4000,
   "checkpoint_path": "archive/agents/0009_TDMPC2_2026-02-16_09-45-39/checkpoint.pt",
