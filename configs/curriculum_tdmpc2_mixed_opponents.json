@@ -52,7 +52,7 @@
       },
       {
         "name": "final_self_play_archive",
-        "episodes": 6000,
+        "episodes": 60000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "archive"
@@ -64,7 +64,7 @@
   },
   "hyperparameters": {
     "learning_rate": 0.0003,
-    "batch_size": 512
+    "batch_size": 1024
   },
   "training": {
     "max_episode_steps": 500,
@@ -72,8 +72,8 @@
     "warmup_steps": 5000,
     "reward_scale": 1.0,
     "checkpoint_save_freq": 200,
-    "checkpoint_frequency": 10000,
-    "eval_frequency": 10000
+    "checkpoint_frequency": 80000,
+    "eval_frequency": 80000
   },
   "agent": {
     "type": "TDMPC2",

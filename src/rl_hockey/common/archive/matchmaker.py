@@ -1,7 +1,7 @@
-import json
+import logging
 import random
-from pathlib import Path
 from typing import Optional, Tuple
+
 import hockey.hockey_env as h_env
 import numpy as np
 
@@ -9,25 +9,32 @@ from rl_hockey.common.agent import Agent
 from rl_hockey.common.archive import Archive
 from rl_hockey.common.archive.archive import AgentMetadata, Rating
 from rl_hockey.common.archive.rating_system import RatingSystem
-from rl_hockey.common.training.curriculum_manager import OpponentConfig, AgentConfig
-from rl_hockey.sac.sac import SAC
-from rl_hockey.common.training.curriculum_manager import load_curriculum
 from rl_hockey.common.training.agent_factory import create_agent
+from rl_hockey.common.training.curriculum_manager import (
+    AgentConfig,
+    OpponentConfig,
+    load_curriculum,
+)
 from rl_hockey.common.training.opponent_manager import load_agent_checkpoint
-
 
 Opponent = Agent | h_env.BasicOpponent
 
 
 class Matchmaker:
-    def __init__(self, archive: Optional[Archive] = None, rating_system: Optional[RatingSystem] = None):
+    def __init__(
+        self,
+        archive: Optional[Archive] = None,
+        rating_system: Optional[RatingSystem] = None,
+    ):
         """Initializes the Matchmaker."""
         self.archive = archive
         self.rating_system = rating_system
 
         self.loaded_agents: dict[str, Agent] = {}
 
-    def get_opponent(self, config: OpponentConfig, rating: Optional[float] = None) -> Tuple[Opponent, Rating]:
+    def get_opponent(
+        self, config: OpponentConfig, rating: Optional[float] = None
+    ) -> Tuple[Opponent, Rating]:
         """
         Get an opponent based on the provided configuration.
         Args:
@@ -48,7 +55,18 @@ class Matchmaker:
                     rating = self.rating_system.get_rating("basic_strong")
                 return h_env.BasicOpponent(weak=False), rating
             case "archive":
-                opponent, _, rating = self.sample_archive_opponent(rating, config.distribution, config.skill_range, config.deterministic)
+                opponent, agent_id, rating = self.sample_archive_opponent(
+                    rating,
+                    config.distribution,
+                    config.skill_range,
+                    config.deterministic,
+                )
+                msg = (
+                    f"Archive opponent chosen: agent_id={agent_id} "
+                    f"rating={rating.rating:.2f} (mu={rating.mu:.2f} sigma={rating.sigma:.2f})"
+                )
+                print(msg, flush=True)
+                logging.info("%s", msg)
                 return opponent, rating
             case "self_play":
                 opponent = self._load_self_play_opponent(config)
@@ -59,10 +77,10 @@ class Matchmaker:
                 raise ValueError(f"Unknown opponent type: {config.type}")
 
         # Normalize weights
-        weights = [opp.get('weight', 1.0) for opp in config.opponents]
+        weights = [opp.get("weight", 1.0) for opp in config.opponents]
         total_weight = sum(weights)
         normalized_weights = [w / total_weight for w in weights]
-        
+
         # Recursively sample opponent
         index = np.random.choice(len(config.opponents), p=normalized_weights)
         opponent_dict = config.opponents[index]
@@ -71,9 +89,14 @@ class Matchmaker:
 
         return self.get_opponent(config, rating)
 
-
-    def sample_archive_opponent(self, rating: float = None, distribution: dict[str, float] = None, skill_range: float = 50, deterministic: bool = True) -> Tuple[Opponent, str, Rating]:
-        """"Sample an opponent from the archive based on skill distribution.
+    def sample_archive_opponent(
+        self,
+        rating: float = None,
+        distribution: dict[str, float] = None,
+        skill_range: float = 50,
+        deterministic: bool = True,
+    ) -> Tuple[Opponent, str, Rating]:
+        """ "Sample an opponent from the archive based on skill distribution.
 
         Args:
             rating: Current agent's rating
@@ -86,11 +109,7 @@ class Matchmaker:
         if not self.archive:
             raise ValueError("Archive is not set for Matchmaker.")
 
-        distribution = distribution or {
-            "skill": 0.8,
-            "random": 0.1,
-            "baseline": 0.1
-        }
+        distribution = distribution or {"skill": 0.8, "random": 0.1, "baseline": 0.1}
 
         total_weight = sum(distribution.values())
         distribution = {k: v / total_weight for k, v in distribution.items()}
@@ -135,7 +154,7 @@ class Matchmaker:
         if agent is None:
             agents = self.archive.get_agents()
             agent = random.choice(agents) if agents else None
-        
+
         return self.load_opponent(agent, deterministic), agent.agent_id, agent.rating
 
     def _load_self_play_opponent(self, config: OpponentConfig) -> Opponent:
@@ -150,7 +169,9 @@ class Matchmaker:
         action_dim = env.action_space.shape[0] // 2
         env.close()
         agent_type = config.agent_type or "SAC"
-        dummy_config = AgentConfig(type=agent_type, hyperparameters={}, checkpoint_path=None)
+        dummy_config = AgentConfig(
+            type=agent_type, hyperparameters={}, checkpoint_path=None
+        )
         opponent = load_agent_checkpoint(
             checkpoint_path=config.checkpoint,
             agent_config=dummy_config,
@@ -162,7 +183,9 @@ class Matchmaker:
         self.loaded_agents[cache_key] = opponent
         return opponent
 
-    def load_opponent(self, metadata: AgentMetadata, deterministic: bool = True) -> Opponent:
+    def load_opponent(
+        self, metadata: AgentMetadata, deterministic: bool = True
+    ) -> Opponent:
         """Load an agent from metadata checkpoint."""
         if "baseline" in metadata.tags:
             if metadata.agent_id == "basic_weak":
@@ -171,7 +194,7 @@ class Matchmaker:
                 return h_env.BasicOpponent(weak=False)
             else:
                 raise ValueError(f"Unknown baseline: {metadata.agent_id}")
-            
+
         if metadata.agent_id in self.loaded_agents:
             return self.loaded_agents[metadata.agent_id]
 
@@ -188,7 +211,7 @@ class Matchmaker:
             action_dim=action_dim,
             common_hyperparams=config.hyperparameters,
             checkpoint_path=metadata.checkpoint_path,
-            deterministic=deterministic
+            deterministic=deterministic,
         )
 
         self.loaded_agents[metadata.agent_id] = agent

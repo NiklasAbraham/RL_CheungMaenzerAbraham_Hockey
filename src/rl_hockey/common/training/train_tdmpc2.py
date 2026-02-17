@@ -8,7 +8,7 @@ from typing import Optional
 from rl_hockey.common.training.train import train_vectorized
 
 # Config: paths and settings for cluster and local runs
-CONFIG_PATH = "./configs/curriculum_tdmpc2_horizion.json"
+CONFIG_PATH = "./configs/curriculum_tdmpc2_mixed_opponents.json"
 RESULT_DIR = "./results/tdmpc2_runs_horizon"
 ARCHIVE_DIR = "./archive"
 NUM_ENVS = 1
@@ -40,5 +40,5 @@ def main(
 
 if __name__ == "__main__":
     # To continue from an existing run, pass the run directory path:
-    # main(resume_from="./results/tdmpc2_runs_test/2026-02-01_09-55-22")
-    main()
+    main(resume_from="./results/tdmpc2_runs_test/2026-02-01_09-55-22")
+    # main()
