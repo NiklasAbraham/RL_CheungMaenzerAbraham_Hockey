@@ -62,7 +62,6 @@ class REDQTD3(Agent):
             "expl_noise": 0.1,
             "policy_noise": 0.2,
             "noise_clip": 0.5,
-            "policy_freq": 2,
             "batch_size": 256,
             "latent_dim": [256, 256],
             "activation": nn.ReLU,
@@ -90,6 +89,9 @@ class REDQTD3(Agent):
         # set up other things
         self.mse_criterion = nn.MSELoss()
 
+        # total iterations
+        self.total_it = 0
+
         # store other hyperparameters
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -111,7 +113,6 @@ class REDQTD3(Agent):
         self.expl_noise = self.config["expl_noise"]
         self.policy_noise = self.config["policy_noise"]
         self.noise_clip = self.config["noise_clip"]
-        self.policy_freq = self.config["policy_freq"]
         self.batch_size = self.config["batch_size"]
         self.priority_replay = self.config["priority_replay"]
 
@@ -119,7 +120,7 @@ class REDQTD3(Agent):
         # used to determine whether we should get action from policy or take random starting actions
         return self.buffer.size
 
-    def act(self, state, deterministic=False, t0s=None):
+    def act(self, state, deterministic=False, t0=None):
         with torch.no_grad():
             state = torch.FloatTensor(state).unsqueeze(0).to(DEVICE)
             action = self.actor(state).squeeze(0).cpu().numpy()
@@ -220,12 +221,19 @@ class REDQTD3(Agent):
         target_Q = reward + (1-done) * self.discount * target_Q
         return target_Q, sample_idxs
 
-    def train(self, steps=20):
+    def train(self, steps=None):
         critic_losses = []
         actor_losses = []
 
+        steps = self.utd_ratio
+
         for i_update in range(steps):
-            state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
+            self.total_it += 1
+            if self.priority_replay:
+                (state, action, reward, next_state, done), tree_indices, importance_weights = self.buffer.sample(self.batch_size)
+                importance_weights = torch.from_numpy(importance_weights).to(dtype=torch.float32, device=DEVICE).unsqueeze(-1)
+            else:
+                state, action, reward, next_state, done = self.buffer.sample(self.batch_size)
 
             state = torch.from_numpy(state).to(dtype=torch.float32, device=DEVICE)
             action = torch.from_numpy(action).to(dtype=torch.float32, device=DEVICE)
@@ -243,7 +251,22 @@ class REDQTD3(Agent):
                 q_prediction_list.append(q_prediction)
             q_prediction_cat = torch.cat(q_prediction_list, dim=1)
             target_Q = target_Q.expand((-1, self.num_Q)) if target_Q.shape[1] == 1 else target_Q
-            q_loss_all = self.mse_criterion(q_prediction_cat, target_Q) * self.num_Q
+
+            if self.priority_replay:
+                td_errors = q_prediction_cat - target_Q
+                mse_per_sample = (td_errors ** 2).sum(dim=1, keepdim=True)
+                weighted_loss = mse_per_sample * importance_weights
+                q_loss_all = weighted_loss.mean()
+
+                with torch.no_grad():
+                    new_priorities = torch.abs(td_errors).mean(dim=1).cpu().numpy()
+
+                for i in range(self.batch_size):
+                    idx = tree_indices[i]
+                    self.buffer.update(idx, new_priorities[i] + 1e-6)
+            else:
+                q_loss_all = self.mse_criterion(q_prediction_cat, target_Q) * self.num_Q
+
             critic_losses.append(q_loss_all.item())
 
             for q_i in range(self.num_Q):
@@ -251,7 +274,7 @@ class REDQTD3(Agent):
             q_loss_all.backward()
 
             """actor loss"""
-            if ((i_update + 1) % self.policy_update_delay == 0) or i_update == steps - 1:
+            if (self.total_it % self.policy_update_delay == 0):
                 # get actor loss
                 next_action = self.actor(state)
                 q_a_tilda_list = []
@@ -270,14 +293,16 @@ class REDQTD3(Agent):
 
             """update networks"""
             for q_i in range(self.num_Q):
+                torch.nn.utils.clip_grad_norm_(self.critic_net_list[q_i].parameters(), max_norm=1.0)
                 self.critic_optimizer_list[q_i].step()
 
-            if ((i_update + 1) % self.policy_update_delay == 0) or i_update == steps - 1:
+            if (self.total_it % self.policy_update_delay == 0):
                 self.actor_optimizer.step()
 
-            # polyak averaged Q target networks
-            for q_i in range(self.num_Q):
-                soft_update_model1_with_model2(self.critic_target_net_list[q_i], self.critic_net_list[q_i], self.polyak)
+                # polyak averaged Q target networks
+                for q_i in range(self.num_Q):
+                    soft_update_model1_with_model2(self.critic_target_net_list[q_i], self.critic_net_list[q_i], self.polyak)
+                soft_update_model1_with_model2(self.actor_target, self.actor, self.polyak)
 
         return {"critic_loss": critic_losses, "actor_loss": actor_losses}
 
