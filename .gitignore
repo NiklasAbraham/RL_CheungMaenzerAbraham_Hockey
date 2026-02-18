@@ -8,6 +8,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Model checkpoints
+checkpoint.pt
+
 Output/
 data/
 old/

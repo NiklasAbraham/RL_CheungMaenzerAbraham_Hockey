@@ -1,0 +1,181 @@
+bootstrap: docker
+from: ubuntu:24.04
+
+%files
+    requirements.txt /opt/requirements.txt
+
+%post
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+
+    echo "deb http://archive.ubuntu.com/ubuntu noble universe" >> /etc/apt/sources.list
+    apt-get update
+
+    apt-get install -y graphviz
+
+    # Install base Python and build tools
+    apt-get install -y python3-dev python3-pip python3-full swig git
+    
+    # Install system Python packages that are available via apt but not PyPI
+    # These are packages that pip freeze captures but need to be installed via apt
+    # Most are not needed for RL project, but installing common ones that might be dependencies
+    # Uncomment the ones you actually need for your project:
+    # apt-get install -y python3-apt python3-dbus python3-gi python3-cairo python3-brlapi
+
+    python3 -m venv /venv
+    . /venv/bin/activate
+
+    # Install setuptools and wheel first
+    pip install --upgrade pip setuptools wheel
+
+    # This must be installed before other requirements to ensure correct CUDA dependencies
+    pip install torch==2.7.1 torchvision==0.22.1 torchaudio==2.7.1 --index-url https://download.pytorch.org/whl/cu126
+
+    pip install tensordict
+    pip install pink-noise-rl
+    pip install matplotlib
+    pip install torchviz
+    pip install omegaconf
+    pip install trueskill
+    pip install psutil
+    pip install tqdm
+    pip install imageio imageio-ffmpeg
+
+    # Install hockey environment (must be done separately as it's from git)
+    pip install "hockey @ git+https://git@github.com/martius-lab/hockey-env.git"
+
+    # Install requirements from /opt/requirements.txt (copied via %files section)
+    echo "Checking for requirements.txt..."
+    
+    if [ -f /opt/requirements.txt ]; then
+        echo "✓ Found requirements.txt at /opt/requirements.txt"
+        echo "Total lines in requirements.txt: $(wc -l < /opt/requirements.txt)"
+        echo "Filtering out rl_hockey, hockey, torch packages, triton, CUDA packages, and system-specific packages..."
+        # NOTE: pip freeze captures ALL packages, including system packages installed via apt.
+        # These packages (like Brlapi, cupshelpers, python-apt, etc.) are available in your
+        # local Ubuntu system Python but are NOT available on PyPI. They need to be installed
+        # via apt, not pip. Most of these are not needed for the RL project.
+        # We use a conservative exclusion list - only exclude packages that are known to be
+        # system packages or already installed separately.
+        # Create a pattern file for system packages to exclude
+        cat > /tmp/exclude_patterns.txt << 'EXCLUDE_PATTERNS'
+^rl_hockey
+^hockey
+^torch
+^triton
+^nvidia-
+^Brlapi
+^cloud-init
+^ubuntu-drivers-common
+^ubuntu-pro-client
+^ufw
+^unattended-upgrades
+^usb-creator
+^command-not-found
+^language-selector
+^python-apt
+^python-debian
+^systemd-python
+^distro-info
+^xkit
+^cupshelpers
+^dbus-python
+^duplicity
+^eduvpn-client
+^eduvpn-common
+^gpg
+^launchpadlib
+^lazr\.
+^louis
+^pycairo
+^pycups
+^PyGObject
+^jeepney
+^defer
+==0\.0\.0$
+EXCLUDE_PATTERNS
+        
+        # Filter requirements using the pattern file
+        grep -vEf /tmp/exclude_patterns.txt /opt/requirements.txt > /tmp/filtered_requirements.txt
+        rm -f /tmp/exclude_patterns.txt
+        echo "Packages to install: $(wc -l < /tmp/filtered_requirements.txt)"
+        echo "First few packages to install:"
+        head -5 /tmp/filtered_requirements.txt
+        echo ""
+        echo "Installing packages from requirements.txt (this may take several minutes)..."
+        # Install packages with better error handling
+        # Continue installation even if some packages fail (they might be system packages)
+        set +e  # Don't exit on error
+        # Install packages and capture output
+        # Use a subshell to capture exit code in a portable way
+        pip install -r /tmp/filtered_requirements.txt > /tmp/install.log 2>&1
+        install_exit_code=$?
+        # Display the output
+        cat /tmp/install.log
+        set -e  # Re-enable exit on error
+        
+        if [ $install_exit_code -ne 0 ]; then
+            echo ""
+            echo "WARNING: Some packages failed to install. Analyzing failures..."
+            echo ""
+            
+            # Extract failed packages that are not available on PyPI
+            failed_packages=$(grep -E "ERROR: Could not find a version|ERROR: No matching distribution found" /tmp/install.log 2>/dev/null | \
+                sed -n 's/.*requirement \([^ ]*\) (from.*/\1/p' | \
+                sed 's/==.*//' | sort -u || true)
+            
+            if [ -n "$failed_packages" ]; then
+                echo "The following packages could not be found on PyPI (likely system packages):"
+                echo "$failed_packages"
+                echo ""
+                echo "These packages are typically installed via apt, not pip."
+                echo "If you need them, add them to the apt-get install section in container.def"
+                echo ""
+            fi
+            
+            # Check if there were other types of errors
+            other_errors=$(grep -vE "ERROR: Could not find a version|ERROR: No matching distribution found|WARNING:" /tmp/install.log | grep -i "error" | head -5 || true)
+            if [ -n "$other_errors" ]; then
+                echo "Other installation errors detected:"
+                echo "$other_errors"
+                echo ""
+            fi
+            
+            # Count how many packages were successfully installed vs failed
+            installed_count=$(grep -c "Successfully installed" /tmp/install.log 2>/dev/null || echo "0")
+            echo "Installation summary:"
+            echo "  - Successfully installed packages detected in log"
+            echo "  - Some packages may have failed (see above)"
+            echo ""
+            echo "The container build will continue. Failed packages may need to be:"
+            echo "  1. Added to the exclude list if they're system packages"
+            echo "  2. Installed manually at runtime if they're actually needed"
+            echo "  3. Added to requirements.txt with correct versions if missing"
+        else
+            echo "✓ All packages installed successfully"
+        fi
+        rm -f /tmp/install.log
+        echo "✓ Finished installing requirements.txt packages"
+        rm -f /tmp/filtered_requirements.txt
+    else
+        echo "ERROR: requirements.txt not found at /opt/requirements.txt"
+        exit 1
+    fi
+
+    # cleanup
+    apt-get clean
+    pip cache purge
+
+%runscript
+    . /venv/bin/activate
+    
+    # Install rl_hockey package if not already installed (needed for opponent loading)
+    # Try to find setup.py in common bind-mount locations
+    for search_dir in /workspace "$PWD" "$HOME/RL_CheungMaenzerAbraham_Hockey"; do
+        if [ -d "$search_dir" ] && [ -f "$search_dir/setup.py" ]; then
+            echo "Installing rl_hockey package from $search_dir..."
+            pip install -e "$search_dir" --quiet 2>/dev/null && echo "✓ rl_hockey package installed" && break
+        fi
+    done
+    
+    "$@"

@@ -7,6 +7,7 @@ from datetime import datetime
 
 import hockey.hockey_env as h_env
 import numpy as np
+from PIL import Image, ImageDraw, ImageFont
 
 from rl_hockey.common.utils import (
     discrete_to_continuous_action_with_fineness,
@@ -35,35 +36,41 @@ class ALSAFilter:
 if sys.platform == "linux":
     sys.stderr = ALSAFilter(sys.stderr)
 
-# Allow MODEL_PATH to be overridden via environment variable
-# If relative path, convert to absolute based on script location or PROJECT_DIR
-_DEFAULT_MODEL_PATH = "results/tdmpc2_runs/2026-01-19_16-45-53/models/TDMPC2_run_lr3e04_bs512_h128_128_128_f2354251_20260119_164553_ep000220.pt"
-_MODEL_PATH_ENV = os.environ.get("MODEL_PATH", _DEFAULT_MODEL_PATH)
 
-if os.path.isabs(_MODEL_PATH_ENV):
-    MODEL_PATH = _MODEL_PATH_ENV
-else:
-    # Try to resolve relative path based on PROJECT_DIR or script location
-    project_dir = os.environ.get("PROJECT_DIR")
-    if project_dir and os.path.exists(project_dir):
-        MODEL_PATH = os.path.join(project_dir, _MODEL_PATH_ENV)
-    else:
-        # Fall back to relative path from script location
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        # Script is at: PROJECT_ROOT/src/rl_hockey/scripts/
-        # Go up 3 levels to reach PROJECT_ROOT
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
-        MODEL_PATH = os.path.join(project_root, _MODEL_PATH_ENV)
-NUM_GAMES = 25
-OPPONENT_TYPE = "basic_strong"
-PAUSE_BETWEEN_GAMES = 1.5
-FRAME_DELAY = (
-    0.05  # Delay in video playback (seconds per frame). Execution runs at full speed.
-)
-MAX_STEPS = 250
-VIDEO_FPS = 50
-ACTION_FINENESS = None  # Set to None to auto-detect, or specify 3, 5, 7, etc.
-ENV_MODE = "NORMAL"  # "NORMAL" (250 steps), "TRAIN_SHOOTING" (80 steps), or "TRAIN_DEFENSE" (80 steps)
+def _project_root():
+    """Project root from script location (script is at PROJECT_ROOT/src/rl_hockey/scripts/)."""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.dirname(os.path.dirname(os.path.dirname(script_dir)))
+
+
+def _resolve_path(path, root=None):
+    """If path is relative, join with root (default: project root). Otherwise return as is."""
+    if path is None or path == "":
+        return path
+    if os.path.isabs(path):
+        return path
+    root = root or _project_root()
+    return os.path.normpath(os.path.join(root, path))
+
+
+# Single config dict: edit here for runs. Paths are relative to project root unless absolute.
+CONFIG = {
+    # "model_path": "results/reference_bots/TDMPC2/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt",
+    "model_path": "results/tdmpc2_runs_test/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep009200.pt",
+    "opponent_type": "agent",
+    "opponent_model_path": "results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
+    "num_games": 25,
+    "pause_between_games": 1.5,
+    "frame_delay": 0.05,
+    "max_steps": 250,
+    "video_fps": 50,
+    "action_fineness": None,
+    "env_mode": "NORMAL",
+    "video_output_dir": None,
+}
+# opponent_type: "basic_weak", "basic_strong", "random", "agent", "decoy"
+# env_mode: "NORMAL", "TRAIN_SHOOTING", "TRAIN_DEFENSE"
+# video_output_dir: None = PROJECT_ROOT/videos, or set path
 
 
 def infer_fineness_from_action_dim(action_dim, keep_mode=True):
@@ -80,13 +87,14 @@ def infer_fineness_from_action_dim(action_dim, keep_mode=True):
 
 
 def detect_algorithm_from_filename(model_path):
-    """Detect algorithm type from model filename."""
-    filename = os.path.basename(model_path)
-    if "TDMPC2" in filename or "tdmpc2" in filename.lower():
+    """Detect algorithm type from model path (filename and parent path)."""
+    path_lower = model_path.lower()
+    path_upper = model_path
+    if "TDMPC2" in path_upper or "tdmpc2" in path_lower:
         return "TDMPC2"
-    elif "DDDQN" in filename or "ddqn" in filename.lower():
+    if "DDDQN" in path_upper or "ddqn" in path_lower:
         return "DDDQN"
-    elif "SAC" in filename or "sac" in filename.lower():
+    if "SAC" in path_upper or "sac" in path_lower:
         return "SAC"
     return None
 
@@ -109,12 +117,15 @@ def load_agent(model_path, state_dim, action_dim, algorithm=None):
 
         from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
 
-        checkpoint = torch.load(model_path, map_location="cpu")
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
         obs_dim = checkpoint.get("obs_dim", state_dim)
         action_dim_checkpoint = checkpoint.get("action_dim", action_dim)
         latent_dim = checkpoint.get("latent_dim", 512)
         hidden_dim = checkpoint.get("hidden_dim", [256, 256, 256])
         num_q = checkpoint.get("num_q", 5)
+        opponent_simulation_enabled = checkpoint.get(
+            "opponent_simulation_enabled", False
+        )
 
         agent = TDMPC2(
             obs_dim=obs_dim,
@@ -122,6 +133,7 @@ def load_agent(model_path, state_dim, action_dim, algorithm=None):
             latent_dim=latent_dim,
             hidden_dim=hidden_dim,
             num_q=num_q,
+            opponent_simulation_enabled=opponent_simulation_enabled,
         )
         agent.load(model_path)
         logger.info("TDMPC2 model loaded successfully!")
@@ -149,11 +161,87 @@ def load_agent(model_path, state_dim, action_dim, algorithm=None):
         raise ValueError(f"Unsupported algorithm: {algorithm}")
 
 
-def create_blank_frames(frame_shape, duration_seconds, fps=50):
+def load_decoy(model_path, state_dim=None, action_dim=None):
+    """Load DecoyPolicy from checkpoint. Uses checkpoint obs_dim/action_dim if state_dim/action_dim not provided."""
+    import torch
+
+    from rl_hockey.Decoy_Policy.decoy_policy import DecoyPolicy
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(f"Decoy checkpoint not found: {model_path}")
+    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
+    obs_dim = state_dim if state_dim is not None else checkpoint.get("obs_dim", 18)
+    action_dim_loaded = (
+        action_dim if action_dim is not None else checkpoint.get("action_dim", 4)
+    )
+    hidden_layers = checkpoint.get("hidden_layers", [256, 256])
+    agent = DecoyPolicy(
+        obs_dim=obs_dim,
+        action_dim=action_dim_loaded,
+        hidden_layers=hidden_layers,
+    )
+    agent.load(model_path)
+    logger.info(f"DecoyPolicy loaded from {model_path}")
+    return agent, "DecoyPolicy"
+
+
+def _default_font(size=16):
+    try:
+        return ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size
+        )
+    except OSError:
+        try:
+            return ImageFont.truetype(
+                "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf", size
+            )
+        except OSError:
+            return ImageFont.load_default()
+
+
+def add_agent_labels(frame, label_p1, label_p2):
+    """Draw agent labels on frame (mutates frame in place).
+    P1 top-left, P2 top-right to match env: Player 1 is left (red), Player 2 is right (blue)."""
+    if not label_p1 and not label_p2:
+        return
+    pil = Image.fromarray(frame)
+    draw = ImageDraw.Draw(pil)
+    font = _default_font(18)
+    pad = 6
+    if label_p1:
+        text_p1 = f"P1: {label_p1}"
+        bbox = draw.textbbox((0, 0), text_p1, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        draw.rectangle(
+            [0, 0, w + 2 * pad, h + 2 * pad], fill=(0, 0, 0), outline=(255, 255, 255)
+        )
+        draw.text((pad, pad), text_p1, fill=(255, 255, 255), font=font)
+    if label_p2:
+        text_p2 = f"P2: {label_p2}"
+        bbox = draw.textbbox((0, 0), text_p2, font=font)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = frame.shape[1] - w - 2 * pad
+        draw.rectangle(
+            [x, 0, x + w + 2 * pad, h + 2 * pad],
+            fill=(0, 0, 0),
+            outline=(255, 255, 255),
+        )
+        draw.text((x + pad, pad), text_p2, fill=(255, 255, 255), font=font)
+    frame[:] = np.array(pil)
+
+
+def create_blank_frames(
+    frame_shape, duration_seconds, fps=50, label_p1=None, label_p2=None
+):
     num_frames = int(duration_seconds * fps)
     blank_frame = np.zeros(frame_shape, dtype=np.uint8)
-    # Use list comprehension with copy to avoid repeated allocations
-    return [blank_frame.copy() for _ in range(num_frames)]
+    out = []
+    for _ in range(num_frames):
+        f = blank_frame.copy()
+        if label_p1 or label_p2:
+            add_agent_labels(f, label_p1, label_p2)
+        out.append(f)
+    return out
 
 
 def apply_frame_delay(frames, frame_delay, fps=50):
@@ -430,6 +518,9 @@ def run_game(
     action_fineness=None,
     algorithm="DDDQN",
     collect_stats=False,
+    opponent_algorithm=None,
+    label_p1=None,
+    label_p2=None,
 ):
     """
     Run a game at full speed (no delays during execution).
@@ -462,6 +553,8 @@ def run_game(
     for step in range(max_steps):
         frame = env.render(mode="rgb_array")
         frames.append(frame)
+        if label_p1 or label_p2:
+            add_agent_labels(frames[-1], label_p1, label_p2)
         # Convert observation to float32 for agent
         obs_float = obs.astype(np.float32) if obs.dtype != np.float32 else obs
 
@@ -528,7 +621,28 @@ def run_game(
                 action_p1 = env.discrete_to_continous_action(discrete_action)
 
         if opponent is not None:
-            action_p2 = opponent.act(obs_agent2)
+            if opponent_algorithm == "TDMPC2":
+                obs_agent2_float = (
+                    obs_agent2.astype(np.float32)
+                    if obs_agent2.dtype != np.float32
+                    else obs_agent2
+                )
+                action_p2 = opponent.act(
+                    obs_agent2_float, deterministic=True, t0=(step == 0)
+                )
+            elif opponent_algorithm == "SAC" or opponent_algorithm == "DecoyPolicy":
+                obs_agent2_float = (
+                    obs_agent2.astype(np.float32)
+                    if obs_agent2.dtype != np.float32
+                    else obs_agent2
+                )
+                action_p2 = opponent.act(obs_agent2_float, deterministic=True)
+            else:
+                action_p2 = opponent.act(obs_agent2)
+            if isinstance(action_p2, (list, tuple)):
+                action_p2 = np.array(action_p2)
+            if action_p2.ndim > 1:
+                action_p2 = action_p2.flatten()
         else:
             action_p2 = np.random.uniform(-1, 1, action_dim)
         action = np.hstack([action_p1, action_p2])
@@ -611,7 +725,7 @@ def run_game(
 def find_available_models(base_dir=None, max_results=10):
     """Find available model files in the results directory."""
     if base_dir is None:
-        base_dir = os.environ.get("PROJECT_DIR", os.getcwd())
+        base_dir = _project_root()
 
     model_files = []
     results_dir = os.path.join(base_dir, "results")
@@ -637,7 +751,18 @@ def find_available_models(base_dir=None, max_results=10):
     return model_files[:max_results]
 
 
-def get_video_filename(base_folder="videos", base_name="agent_games"):
+def _get_video_base_folder(config=None):
+    """Video output folder: config['video_output_dir'] or PROJECT_ROOT/videos."""
+    cfg = config or CONFIG
+    out = cfg.get("video_output_dir")
+    if out:
+        return _resolve_path(out) if not os.path.isabs(out) else out
+    return os.path.join(_project_root(), "videos")
+
+
+def get_video_filename(base_folder=None, base_name="agent_games"):
+    if base_folder is None:
+        base_folder = _get_video_base_folder()
     now = datetime.now()
     dt_str = now.strftime("%Y-%m-%d_%H-%M-%S")
     if not os.path.exists(base_folder):
@@ -646,17 +771,22 @@ def get_video_filename(base_folder="videos", base_name="agent_games"):
     return os.path.join(base_folder, filename)
 
 
-def main(
-    model_path=MODEL_PATH,
-    num_games=NUM_GAMES,
-    opponent_type=OPPONENT_TYPE,
-    pause_between_games=PAUSE_BETWEEN_GAMES,
-    frame_delay=FRAME_DELAY,
-    max_steps=MAX_STEPS,
-    video_fps=VIDEO_FPS,
-    action_fineness=ACTION_FINENESS,
-    env_mode=ENV_MODE,
-):
+def main(config=None):
+    """Run agent games and save to MP4. Uses CONFIG if config is None."""
+    cfg = config if config is not None else CONFIG
+    model_path = _resolve_path(cfg["model_path"])
+    opponent_type = cfg["opponent_type"]
+    opponent_model_path = cfg.get("opponent_model_path") or None
+    if opponent_model_path:
+        opponent_model_path = _resolve_path(opponent_model_path)
+    num_games = cfg["num_games"]
+    pause_between_games = cfg["pause_between_games"]
+    frame_delay = cfg["frame_delay"]
+    max_steps = cfg["max_steps"]
+    video_fps = cfg["video_fps"]
+    action_fineness = cfg.get("action_fineness")
+    env_mode = cfg["env_mode"]
+
     # Validate model path exists
     if not os.path.exists(model_path):
         abs_path = os.path.abspath(model_path)
@@ -680,21 +810,21 @@ def main(
                 if len(available_models) > 5:
                     error_msg += f"  ... and {len(available_models) - 5} more\n"
                 error_msg += (
-                    "\nTo use one of these models, set MODEL_PATH environment variable:\n"
-                    f"  export MODEL_PATH='$PROJECT_DIR/{available_models[0][1]}'\n"
-                    "Or modify the MODEL_PATH constant in the script.\n"
+                    "\nTo use one of these models, edit CONFIG['model_path'] in the script:\n"
+                    f"  'model_path': '{available_models[0][1]}'\n"
                 )
             else:
                 error_msg += (
                     "No model files found in results directories.\n"
-                    "Please check if models exist or set MODEL_PATH to the correct path.\n"
+                    "Edit CONFIG['model_path'] to point to a valid checkpoint.\n"
                 )
         except Exception as e:
             error_msg += f"Could not search for available models: {e}\n"
 
         raise FileNotFoundError(error_msg)
 
-    output_file = get_video_filename()
+    base_folder = _get_video_base_folder(cfg)
+    output_file = get_video_filename(base_folder=base_folder)
     logger.info("=" * 60)
     logger.info("Agent Video Recording")
     logger.info("=" * 60)
@@ -703,6 +833,8 @@ def main(
     logger.info(f"Output: {output_file}")
     logger.info(f"Games: {num_games}")
     logger.info(f"Opponent: {opponent_type}")
+    if opponent_type in ("agent", "decoy") and opponent_model_path:
+        logger.info(f"Opponent model: {opponent_model_path}")
     logger.info(f"Environment mode: {env_mode}")
     logger.info(f"Max steps per game: {max_steps}")
     logger.info(f"Frame delay in video: {frame_delay}s per frame")
@@ -808,6 +940,7 @@ def main(
 
     algorithm = detected_algorithm
     opponent = None
+    opponent_algorithm = None
     if opponent_type == "basic_weak":
         opponent = h_env.BasicOpponent(weak=True)
         logger.info("Using weak BasicOpponent")
@@ -817,8 +950,49 @@ def main(
     elif opponent_type == "random":
         opponent = None
         logger.info("Using random actions for player 2")
+    elif opponent_type == "agent":
+        if not opponent_model_path or not os.path.exists(opponent_model_path):
+            raise FileNotFoundError(
+                f"opponent_type is 'agent' but opponent model not found: {opponent_model_path}. "
+                "Edit CONFIG['opponent_model_path'] to a valid checkpoint."
+            )
+        opponent, opponent_algorithm = load_agent(
+            opponent_model_path, state_dim, action_dim
+        )
+        logger.info(
+            f"Using loaded agent as opponent (player 2): {opponent_model_path} ({opponent_algorithm})"
+        )
+    elif opponent_type == "decoy":
+        if not opponent_model_path or not os.path.exists(opponent_model_path):
+            raise FileNotFoundError(
+                f"opponent_type is 'decoy' but decoy model not found: {opponent_model_path}. "
+                "Edit CONFIG['opponent_model_path'] to a valid decoy checkpoint."
+            )
+        action_dim_opponent = 4 if env.keep_mode else 3
+        opponent, opponent_algorithm = load_decoy(
+            opponent_model_path,
+            state_dim=state_dim,
+            action_dim=action_dim_opponent,
+        )
+        logger.info(f"Using DecoyPolicy as opponent (player 2): {opponent_model_path}")
     else:
-        raise ValueError(f"Unknown opponent_type: {opponent_type}")
+        raise ValueError(
+            f"Unknown opponent_type: {opponent_type}. "
+            "Use 'basic_weak', 'basic_strong', 'random', 'agent', or 'decoy'."
+        )
+    label_p1 = algorithm
+    if opponent_algorithm:
+        label_p2 = opponent_algorithm
+    elif opponent_type == "basic_weak":
+        label_p2 = "Basic weak"
+    elif opponent_type == "basic_strong":
+        label_p2 = "Basic strong"
+    elif opponent_type == "random":
+        label_p2 = "Random"
+    elif opponent_type == "decoy":
+        label_p2 = "DecoyPolicy"
+    else:
+        label_p2 = ""
     # Get frame shape without extra reset
     obs_temp, _ = env.reset()
     frame_temp = env.render(mode="rgb_array")
@@ -843,6 +1017,9 @@ def main(
             action_fineness=action_fineness,
             algorithm=algorithm,
             collect_stats=collect_stats,
+            opponent_algorithm=opponent_algorithm,
+            label_p1=label_p1,
+            label_p2=label_p2,
         )
         all_frames.extend(frames)
         game_results.append(
@@ -859,7 +1036,11 @@ def main(
         if game_num < num_games:
             logger.info(f"  Adding {pause_between_games}s pause (blank screen)...")
             blank_frames = create_blank_frames(
-                frame_shape, pause_between_games, fps=video_fps
+                frame_shape,
+                pause_between_games,
+                fps=video_fps,
+                label_p1=label_p1,
+                label_p2=label_p2,
             )
             all_frames.extend(blank_frames)
     execution_time = time.time() - start_time

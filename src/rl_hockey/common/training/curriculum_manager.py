@@ -40,11 +40,27 @@ class EnvironmentConfig:
 
 @dataclass
 class OpponentConfig:
-    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture"
+    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture", "archive"
     weight: float = 1.0
     checkpoint: Optional[str] = None
     deterministic: bool = True
     opponents: Optional[List[Dict[str, Any]]] = None  # For weighted_mixture
+    skill_range: float = 50.0  # For archive sampling
+    distribution: Optional[Dict[str, float]] = None  # For archive sampling
+    agent_type: Optional[str] = None  # Agent type for loading checkpoints: "SAC", "TD3", "TDMPC2", "DECOYPOLICY", etc.
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'OpponentConfig':
+        return cls(
+            type=data['type'],
+            weight=data.get('weight', 1.0),
+            checkpoint=data.get('checkpoint'),
+            deterministic=data.get('deterministic', True),
+            opponents=data.get('opponents'),
+            skill_range=data.get('skill_range'),
+            distribution=data.get('distribution'),
+            agent_type=data.get('agent_type')
+        )
 
 
 @dataclass
@@ -83,6 +99,7 @@ class PhaseConfig:
     environment: EnvironmentConfig
     opponent: OpponentConfig
     reward_shaping: Optional[RewardShapingConfig] = None
+    clear_buffer: bool = True
     reward_bonus: Optional[RewardBonusConfig] = None
 
 
@@ -90,13 +107,30 @@ class PhaseConfig:
 class AgentConfig:
     type: str  # "DDDQN", "SAC", "TD3"
     hyperparameters: Dict[str, Any]
+    checkpoint_path: Optional[str] = None
+
+
+@dataclass
+class TrainingConfig:
+    """Single training config used by curriculum, train_run_refactored, and train.py."""
+    warmup_steps: int = 10_000
+    updates_per_step: int = 1
+    eval_frequency: int = 100_000
+    checkpoint_frequency: int = 100_000
+    reward_scale: float = 1.0
+    max_episode_steps: int = 500
+    checkpoint_save_freq: int = 100
+    train_freq: int = 1
+    resource_log_freq: int = 10
+    episode_resource_window: int = 10
+    episode_resource_samples: int = 5
 
 
 @dataclass
 class CurriculumConfig:
     phases: List[PhaseConfig]
     hyperparameters: Dict[str, Any]
-    training: Dict[str, Any]
+    training: TrainingConfig
     agent: AgentConfig
 
 
@@ -106,8 +140,26 @@ def load_curriculum(config_path: str) -> CurriculumConfig:
     return _parse_config(config_dict)
 
 
+def _parse_agent_only_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
+    """Parse a minimal config that only has 'agent' and 'hyperparameters' (e.g. archive agent configs)."""
+    agent_dict = config_dict['agent']
+    agent_config = AgentConfig(
+        type=agent_dict['type'],
+        hyperparameters=agent_dict.get('hyperparameters', {}),
+        checkpoint_path=agent_dict.get('checkpoint_path')
+    )
+    return CurriculumConfig(
+        phases=[],
+        hyperparameters=config_dict.get('hyperparameters', {}),
+        training=TrainingConfig(),
+        agent=agent_config
+    )
+
+
 def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
     phases = []
+    if 'curriculum' not in config_dict:
+        return _parse_agent_only_config(config_dict)
     for phase_dict in config_dict['curriculum']['phases']:
         env_dict = phase_dict['environment']
         
@@ -140,7 +192,10 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             weight=opponent_dict.get('weight', 1.0),
             checkpoint=opponent_dict.get('checkpoint'),
             deterministic=opponent_dict.get('deterministic', True),
-            opponents=opponent_dict.get('opponents')
+            opponents=opponent_dict.get('opponents'),
+            skill_range=opponent_dict.get('skill_range', 50),
+            distribution=opponent_dict.get('distribution'),
+            agent_type=opponent_dict.get('agent_type')
         )
         
         reward_shaping_dict = phase_dict.get('reward_shaping')
@@ -161,6 +216,7 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
             environment=env_config,
             opponent=opponent_config,
             reward_shaping=reward_shaping,
+            clear_buffer=phase_dict.get('clear_buffer', True),
             reward_bonus=reward_bonus
         )
         phases.append(phase)
@@ -168,13 +224,30 @@ def _parse_config(config_dict: Dict[str, Any]) -> CurriculumConfig:
     agent_dict = config_dict['agent']
     agent_config = AgentConfig(
         type=agent_dict['type'],
-        hyperparameters=agent_dict.get('hyperparameters', {})
+        hyperparameters=agent_dict.get('hyperparameters', {}),
+        checkpoint_path=agent_dict.get('checkpoint_path')
+    )
+
+    training_raw = config_dict.get('training', {})
+    training_dict = training_raw if isinstance(training_raw, dict) else {}
+    training_config = TrainingConfig(
+        warmup_steps=training_dict.get('warmup_steps', 10_000),
+        updates_per_step=training_dict.get('updates_per_step', 1),
+        eval_frequency=training_dict.get('eval_frequency', 100_000),
+        checkpoint_frequency=training_dict.get('checkpoint_frequency', 100_000),
+        reward_scale=training_dict.get('reward_scale', 1.0),
+        max_episode_steps=training_dict.get('max_episode_steps', 500),
+        checkpoint_save_freq=training_dict.get('checkpoint_save_freq', 100),
+        train_freq=training_dict.get('train_freq', 1),
+        resource_log_freq=training_dict.get('resource_log_freq', 10),
+        episode_resource_window=training_dict.get('episode_resource_window', 10),
+        episode_resource_samples=training_dict.get('episode_resource_samples', 5),
     )
     
     curriculum_config = CurriculumConfig(
         phases=phases,
         hyperparameters=config_dict.get('hyperparameters', {}),
-        training=config_dict.get('training', {}),
+        training=training_config,
         agent=agent_config
     )
     

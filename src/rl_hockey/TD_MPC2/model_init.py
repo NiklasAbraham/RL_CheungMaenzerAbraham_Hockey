@@ -1,5 +1,4 @@
-# TD-MPC2 weight initialization.
-# tdmpc2 calls init_encoder, init_dynamics, ... after building each module.
+"""Weight initialization for TD-MPC2 networks."""
 
 import torch.nn as nn
 
