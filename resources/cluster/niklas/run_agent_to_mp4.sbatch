@@ -35,9 +35,19 @@ SINGULARITY_IMAGE="$HOME/RL_CheungMaenzerAbraham_Hockey/singularity_build/rl_hoc
 PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 cd "$PROJECT_DIR"
 
-# Set MODEL_PATH to the most recent model file
-# Update this path to use a different model if needed
-export MODEL_PATH="$PROJECT_DIR/results/tdmpc2_runs/2026-01-22_08-42-36/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260121_161543_ep003700.pt"
+# Player 1 (recorded agent): SAC reference bot
+export MODEL_PATH="$PROJECT_DIR/results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt"
+
+# Player 2 (opponent): your TD-MPC2 agent. Path may be deeper on the cluster, e.g.:
+#   results/tdmpc2_runs/DATE/run_name/models/MODEL.pt
+# Update to your latest run and correct nesting (models/ can be one or two levels deep).
+export OPPONENT_MODEL_PATH="$PROJECT_DIR/results/tdmpc2_runs/2026-01-25_11-40-04/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt"
+
+# Use loaded agent as opponent (SAC vs TD-MPC2)
+export OPPONENT_TYPE="agent"
+
+# Video output: under project root so it is found regardless of job cwd depth
+export VIDEO_OUTPUT_DIR="$PROJECT_DIR/videos"
 
 # Run the agent video script using singularity
 # Since the container is read-only, we can't install packages into /venv
@@ -47,4 +57,4 @@ singularity exec \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && export PROJECT_DIR='$PROJECT_DIR' && export MODEL_PATH='$MODEL_PATH' && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/scripts/run_agent_to_mp4.py'"
+    /bin/bash -c "source /venv/bin/activate && export PROJECT_DIR='$PROJECT_DIR' && export MODEL_PATH='$MODEL_PATH' && export OPPONENT_MODEL_PATH='$OPPONENT_MODEL_PATH' && export OPPONENT_TYPE='$OPPONENT_TYPE' && export VIDEO_OUTPUT_DIR='$VIDEO_OUTPUT_DIR' && export PYTHONPATH='$PROJECT_DIR/src:\$PYTHONPATH' && python3 '$PROJECT_DIR/src/rl_hockey/scripts/run_agent_to_mp4.py'"

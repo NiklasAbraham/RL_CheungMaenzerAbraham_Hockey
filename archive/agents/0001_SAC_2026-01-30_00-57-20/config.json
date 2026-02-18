@@ -1,0 +1,57 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "easy",
+        "episodes": 20000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.80},
+            {"type": "basic_strong", "weight": 0.20}
+          ]
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "hard",
+        "episodes": 60000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "weighted_mixture",
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.10},
+            {"type": "basic_strong", "weight": 0.90}
+          ]
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.001,
+    "batch_size": 256
+  },
+  "training": {
+    "max_episode_steps": 250,
+    "updates_per_step": 1,
+    "warmup_steps": 10000,
+    "reward_scale": 0.5,
+    "checkpoint_frequency": 1000000,
+    "eval_frequency": 500000
+  },
+  "agent": {
+    "type": "SAC",
+    "hyperparameters": {
+      "discount": 0.99,
+      "tau": 0.005,
+      "alpha": 0.2,
+      "learn_alpha": true,
+      "noise": "pink",
+      "max_episode_steps": 250
+    }
+  }
+}

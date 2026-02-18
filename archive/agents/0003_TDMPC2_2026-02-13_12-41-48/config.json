@@ -1,0 +1,88 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "full_competency",
+        "episodes": 10000,
+        "environment": {
+          "mode": "NORMAL",
+          "keep_mode": true
+        },
+        "opponent": {
+          "type": "basic_strong",
+          "weight": 1.0,
+          "checkpoint": null,
+          "deterministic": true,
+          "opponents": null
+        },
+        "reward_shaping": null,
+        "reward_bonus": null
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "batch_size": 512
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 5000,
+    "reward_scale": 1.0,
+    "checkpoint_save_freq": 200
+  },
+  "agent": {
+    "type": "TDMPC2",
+    "hyperparameters": {
+      "latent_dim": 512,
+      "hidden_dim": {
+        "encoder": [
+          512,
+          512,
+          512
+        ],
+        "dynamics": [
+          512,
+          512,
+          512
+        ],
+        "reward": [
+          512,
+          512,
+          512
+        ],
+        "termination": [
+          512,
+          512
+        ],
+        "q_function": [
+          512,
+          512,
+          512
+        ],
+        "policy": [
+          512,
+          512,
+          512
+        ]
+      },
+      "num_q": 5,
+      "gamma": 0.99,
+      "horizon": 16,
+      "num_samples": 512,
+      "num_iterations": 6,
+      "temperature": 0.5,
+      "vmin": -10.0,
+      "vmax": 10.0,
+      "win_reward_bonus": 10.0,
+      "win_reward_discount": 0.92,
+      "opponent_simulation": {
+        "enabled": false,
+        "cloning_frequency": 5000,
+        "cloning_steps": 100,
+        "cloning_samples": 1000,
+        "opponent_agents": []
+      }
+    }
+  }
+}

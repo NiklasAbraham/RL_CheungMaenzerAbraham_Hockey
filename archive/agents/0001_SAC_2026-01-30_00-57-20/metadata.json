@@ -1,0 +1,19 @@
+{
+  "agent_id": "0001_SAC_2026-01-30_00-57-20",
+  "archived_at": "2026-01-30T00:57:20.369811",
+  "tags": [
+    "needs_calibration"
+  ],
+  "rating": {
+    "mu": 32.831032408086145,
+    "sigma": 0.9199913226089369,
+    "rating": 30.071058440259335,
+    "matches_played": 215,
+    "wins": 12,
+    "losses": 16,
+    "draws": 1
+  },
+  "checkpoint_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/checkpoint.pt",
+  "step": null,
+  "config_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/config.json"
+}

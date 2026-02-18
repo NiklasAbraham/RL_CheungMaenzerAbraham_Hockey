@@ -1,12 +1,9 @@
-"""
-Plotting function for TD-MPC2 episode logs.
-Reads all episode log CSV files (including checkpoints) and creates comprehensive plots.
-"""
+"""Plot TD-MPC2 episode logs from CSV (including checkpoints)."""
 
 import csv
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 import numpy as np
@@ -36,8 +33,6 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
                 else 0.0,
                 "losses": {},
             }
-
-            # Extract all loss columns
             for key, value in row.items():
                 if (
                     key
@@ -63,13 +58,9 @@ def load_episode_logs_from_csv(csv_path: Path) -> List[Dict[str, Any]]:
 def find_all_episode_log_files(csvs_dir: Path, run_name: str) -> List[Path]:
     """Find all episode log CSV files for a run (including checkpoints)."""
     log_files = []
-
-    # Main episode logs file
     main_file = csvs_dir / f"{run_name}_episode_logs.csv"
     if main_file.exists():
         log_files.append(main_file)
-
-    # Checkpoint episode logs files (pattern: {run_name}_ep{episode}_episode_logs.csv)
     pattern = f"{run_name}_ep*_episode_logs.csv"
     checkpoint_files = sorted(csvs_dir.glob(pattern))
     log_files.extend(checkpoint_files)
@@ -85,25 +76,15 @@ def combine_episode_logs(log_files: List[Path]) -> List[Dict[str, Any]]:
         logs = load_episode_logs_from_csv(log_file)
         for log in logs:
             episode_num = log["episode"]
-            # Keep the latest entry if there are duplicates
             all_logs[episode_num] = log
-
-    # Sort by episode number
     sorted_logs = [all_logs[ep] for ep in sorted(all_logs.keys())]
     return sorted_logs
 
 
 def plot_episode_logs(
-    folder_path: str, window_size: int = 10, save_path: Optional[Path] = None
+    folder_path: str, window_size: int = 500, save_path: Optional[Path] = None
 ):
-    """
-    Plot episode logs including all loss types.
-
-    Args:
-        folder_path: Path to the run folder (e.g., "results/tdmpc2_runs/2026-01-18_12-24-23")
-        window_size: Window size for moving average
-        save_path: Optional custom path for saving plot
-    """
+    """Plot episode logs (rewards, shaped reward, losses)."""
     folder = Path(folder_path)
 
     if not folder.exists():
@@ -115,53 +96,43 @@ def plot_episode_logs(
     if not csvs_dir.exists():
         raise ValueError(f"Could not find csvs directory in {folder_path}")
 
-    # Find all episode log CSV files to determine run name
     episode_log_files = list(csvs_dir.glob("*_episode_logs.csv"))
 
     if not episode_log_files:
         raise ValueError(f"No episode log files found in {csvs_dir}")
 
-    # Extract run name from the first file (remove _episode_logs.csv or _ep*_episode_logs.csv)
     first_file = episode_log_files[0]
-    filename = first_file.stem  # Get filename without extension
-
-    # Remove checkpoint suffix if present (e.g., _ep001500_episode_logs)
-    # Pattern: _ep followed by digits, then _episode_logs
+    filename = first_file.stem
     match = re.search(r"_ep\d+_episode_logs$", filename)
     if match:
-        # Remove _epXXXXX_episode_logs suffix
         run_name = filename[: match.start()]
     else:
-        # Just remove _episode_logs suffix
         run_name = filename.replace("_episode_logs", "")
-
-    # Find all episode log files for this run
     log_files = find_all_episode_log_files(csvs_dir, run_name)
 
     if not log_files:
         print(f"Warning: No episode log files found for run {run_name}")
         return
 
-    # Combine logs from all files
     episode_logs = combine_episode_logs(log_files)
 
     if not episode_logs:
         print(f"Warning: No episode logs loaded for run {run_name}")
         return
 
-    # Extract data
     episodes = [log["episode"] for log in episode_logs]
     rewards = [log["reward"] for log in episode_logs]
     shaped_rewards = [log["shaped_reward"] for log in episode_logs]
 
-    # Extract all loss types
     all_loss_keys = set()
     for log in episode_logs:
         all_loss_keys.update(log["losses"].keys())
 
-    sorted_loss_keys = sorted(all_loss_keys)
-
-    # Prepare loss data (only episodes that have training)
+    opponent_loss_keys = sorted(
+        [k for k in all_loss_keys if "opponent" in k.lower() and "cloning" in k.lower()]
+    )
+    other_loss_keys = sorted([k for k in all_loss_keys if k not in opponent_loss_keys])
+    sorted_loss_keys = other_loss_keys + opponent_loss_keys
     loss_data = {key: [] for key in sorted_loss_keys}
     loss_episodes = {key: [] for key in sorted_loss_keys}
 
@@ -223,13 +194,16 @@ def plot_episode_logs(
     # Create figure with subplots
     num_losses = len(sorted_loss_keys)
     if num_losses == 0:
-        # Only rewards, no losses
-        fig, axes = plt.subplots(2, 1, figsize=(12, 10))
+        # Only rewards + reward distribution histogram
+        n_plots = 3  # rewards, shaped_rewards, reward distribution
+        n_cols = 2
+        n_rows = (n_plots + n_cols - 1) // n_cols
+        fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
         axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
         plot_rewards_only = False
     else:
-        # Calculate grid size for subplots: rewards + shaped rewards + all losses
-        n_plots = 2 + num_losses  # rewards, shaped_rewards, and all loss types
+        # rewards, shaped_rewards, reward distribution histogram, and all losses
+        n_plots = 3 + num_losses
         n_cols = 2
         n_rows = (n_plots + n_cols - 1) // n_cols
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
@@ -250,6 +224,7 @@ def plot_episode_logs(
         color="blue",
         linewidth=2,
     )
+    _add_rolling_percentile_bands(axes[ax_idx], episodes, rewards, window=500)
     axes[ax_idx].set_xlabel("Episode")
     axes[ax_idx].set_ylabel("Reward")
     axes[ax_idx].set_title("Reward per Episode")
@@ -270,15 +245,27 @@ def plot_episode_logs(
             color="green",
             linewidth=2,
         )
+        _add_rolling_percentile_bands(
+            axes[ax_idx], episodes, shaped_rewards, window=500
+        )
         axes[ax_idx].set_xlabel("Episode")
         axes[ax_idx].set_ylabel("Shaped Reward")
         axes[ax_idx].set_title("Shaped Reward per Episode")
         axes[ax_idx].legend()
         axes[ax_idx].grid(True, alpha=0.3)
 
-    # Plot each loss type with reward overlay
-    colors = plt.cm.tab10(np.linspace(0, 1, len(sorted_loss_keys)))
-    for i, loss_key in enumerate(sorted_loss_keys):
+    ax_idx += 1
+    _plot_reward_distribution_histogram(axes[ax_idx], rewards, n_last=1000)
+    # ax_idx stays so next plot (first loss or hide) uses ax_idx + 1 via loop increment
+
+    # Plot each loss type
+    colors = plt.cm.tab10(np.linspace(0, 1, len(other_loss_keys)))
+    opponent_colors = plt.cm.Reds(
+        np.linspace(0.4, 0.9, max(1, len(opponent_loss_keys)))
+    )
+
+    # Plot other losses
+    for i, loss_key in enumerate(other_loss_keys):
         if not plot_rewards_only:
             ax_idx += 1
         if ax_idx >= len(axes):
@@ -303,6 +290,39 @@ def plot_episode_logs(
             axes[ax_idx].set_xlabel("Episode")
             axes[ax_idx].set_ylabel("Loss")
             axes[ax_idx].set_title(f"{loss_key} per Episode")
+            axes[ax_idx].legend()
+            axes[ax_idx].grid(True, alpha=0.3)
+
+    # Plot opponent cloning losses (combine in one plot if multiple opponents)
+    if opponent_loss_keys:
+        if not plot_rewards_only:
+            ax_idx += 1
+        if ax_idx < len(axes):
+            for i, loss_key in enumerate(opponent_loss_keys):
+                loss_values = loss_data[loss_key]
+                loss_eps = loss_episodes[loss_key]
+
+                if loss_values:
+                    moving_avg_losses = _moving_average(loss_values, window_size)
+                    # Extract opponent ID from loss key (e.g., "opponent_0_cloning_loss" -> "Opponent 0")
+                    opponent_label = loss_key.replace("opponent_", "Opponent ").replace(
+                        "_cloning_loss", ""
+                    )
+
+                    axes[ax_idx].plot(
+                        loss_eps, loss_values, alpha=0.2, color=opponent_colors[i]
+                    )
+                    axes[ax_idx].plot(
+                        loss_eps,
+                        moving_avg_losses,
+                        label=opponent_label,
+                        color=opponent_colors[i],
+                        linewidth=2,
+                    )
+
+            axes[ax_idx].set_xlabel("Episode")
+            axes[ax_idx].set_ylabel("Cloning Loss (MSE)")
+            axes[ax_idx].set_title("Opponent Cloning Losses per Episode")
             axes[ax_idx].legend()
             axes[ax_idx].grid(True, alpha=0.3)
 
@@ -335,14 +355,106 @@ def _moving_average(data: List[float], window_size: int) -> List[float]:
     return moving_averages
 
 
+def _rolling_percentiles(
+    values: List[float], window: int, upper_p: float
+) -> Tuple[List[float], List[float]]:
+    """For each index i, compute upper and lower percentile over values[i-window+1:i+1]. Lower = 100 - upper."""
+    if not values or window < 1:
+        return [], []
+    lower_p = 100.0 - upper_p
+    upper_line: List[float] = []
+    lower_line: List[float] = []
+    for i in range(len(values)):
+        start = max(0, i - window + 1)
+        w = values[start : i + 1]
+        upper_line.append(float(np.percentile(w, upper_p)))
+        lower_line.append(float(np.percentile(w, lower_p)))
+    return upper_line, lower_line
+
+
+def _add_rolling_percentile_bands(
+    ax: plt.Axes,
+    episodes: List[int],
+    values: List[float],
+    window: int = 500,
+) -> None:
+    """Draw rolling 90/10 percentile band over the full episode range."""
+    if not episodes or not values or len(episodes) != len(values):
+        return
+    window = min(window, len(values))
+    u90, l10 = _rolling_percentiles(values, window, 90.0)
+    ax.plot(
+        episodes,
+        u90,
+        color="gray",
+        linestyle="--",
+        linewidth=2.2,
+        alpha=0.95,
+        label=f"90/10 %ile (w={window})",
+    )
+    ax.plot(episodes, l10, color="gray", linestyle="--", linewidth=2.2, alpha=0.95)
+
+
+def _plot_reward_distribution_histogram(
+    ax: plt.Axes,
+    values: List[float],
+    n_last: int = 1000,
+) -> None:
+    """Histogram of reward distribution over the last n_last episodes (or all if fewer). Show mean, std, 10/50/90 percentiles."""
+    if not values:
+        return
+    n = min(n_last, len(values))
+    data = np.array(values[-n:], dtype=float)
+    mean = float(np.mean(data))
+    std = float(np.std(data))
+    p10, p50, p90 = (
+        float(np.percentile(data, 10)),
+        float(np.percentile(data, 50)),
+        float(np.percentile(data, 90)),
+    )
+    bins = min(50, max(10, n // 20))
+    ax.hist(
+        data, bins=bins, color="steelblue", alpha=0.7, edgecolor="black", density=False
+    )
+    ax.axvline(mean, color="green", linewidth=2, label=f"Mean = {mean:.2f}")
+    ax.axvline(
+        mean - std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean \u2212 \u03c3 = {mean - std:.2f}",
+    )
+    ax.axvline(
+        mean + std,
+        color="orange",
+        linestyle="--",
+        linewidth=1.5,
+        label=f"Mean + \u03c3 = {mean + std:.2f}",
+    )
+    ax.axvline(
+        p10, color="gray", linestyle=":", linewidth=1.5, label=f"10th %ile = {p10:.2f}"
+    )
+    ax.axvline(p50, color="red", linewidth=1.5, label=f"50th %ile = {p50:.2f}")
+    ax.axvline(
+        p90, color="gray", linestyle="-.", linewidth=1.5, label=f"90th %ile = {p90:.2f}"
+    )
+    ax.set_xlabel("Reward")
+    ax.set_ylabel("Count")
+    ax.set_title(f"Reward distribution (last {n} episodes)")
+    ax.legend(loc="upper right", fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+
 if __name__ == "__main__":
-    # folder_path_1 = "results/tdmpc2_runs/2026-01-21_14-54-11"
-    # folder_path_2 = "results/tdmpc2_runs/2026-01-21_15-07-45"
-    # folder_path_3 = "results/tdmpc2_runs/2026-01-21_16-15-43"
-    # folder_path_4 = "results/tdmpc2_runs/2026-01-21_19-12-44"
+    folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"  # 93 -> 16
+    folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"  # 92 -> 8
+    folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"  # 103 -> 8 aber opponents
 
-    folder_path_1 = "results/tdmpc2_runs/2026-01-23_21-00-09"
+    folder_path_5 = "results/tdmpc2_runs_test/2026-02-01_09-55-22"  # der ganz gute run eigentlich alles
 
-    window_size = 20
+    window_size = 250
 
-    plot_episode_logs(folder_path_1, window_size=window_size)
+    plot_episode_logs(folder_path_2, window_size=window_size)
+    plot_episode_logs(folder_path_3, window_size=window_size)
+    plot_episode_logs(folder_path_4, window_size=window_size)
+    plot_episode_logs(folder_path_5, window_size=window_size)

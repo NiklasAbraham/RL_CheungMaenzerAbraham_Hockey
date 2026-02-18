@@ -8,7 +8,9 @@ from rl_hockey.common.agent import Agent
 from rl_hockey.common.training.curriculum_manager import AgentConfig
 from rl_hockey.common.utils import get_discrete_action_dim
 from rl_hockey.DDDQN import DDDQN, DDQN_PER
+from rl_hockey.Decoy_Policy.decoy_policy import DecoyPolicy
 from rl_hockey.sac.sac import SAC
+from rl_hockey.td3.td3 import TD3
 from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
 from rl_hockey.TD_MPC2_repo.tdmpc2_repo_wrapper import TDMPC2RepoWrapper
 
@@ -30,6 +32,10 @@ def get_action_space_info(
         # TDMPC2 uses continuous actions, but also needs discretized action space for hockey
         action_dim = 4 if env.keep_mode else 3
         is_discrete = False
+    elif agent_type == "DecoyPolicy":
+        # DecoyPolicy uses continuous actions
+        action_dim = 4 if env.keep_mode else 3
+        is_discrete = False
     else:
         # continuous action space with 3 or 4 dimensions depending on keep_mode
         action_dim = 3 if not env.keep_mode else 4
@@ -43,7 +49,10 @@ def create_agent(
     state_dim: int,
     action_dim: int,
     common_hyperparams: dict,
+    checkpoint_path: Optional[str] = None,
+    deterministic: bool = False,
     device: str = None,
+    config_path: str = None,
 ) -> Agent:
     agent_hyperparams = agent_config.hyperparameters.copy()
     agent_hyperparams.update(
@@ -53,9 +62,12 @@ def create_agent(
         }
     )
 
+    # FIXME handle deterministic flag for other agent types
+
+    agent = None
     if agent_config.type == "DDDQN":
         hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256])
-        return DDDQN(
+        agent = DDDQN(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=hidden_dim,
@@ -64,7 +76,7 @@ def create_agent(
     elif agent_config.type == "DDQN_PER":
         hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256])
         use_per = agent_hyperparams.pop("use_per", True)
-        return DDQN_PER(
+        agent = DDQN_PER(
             state_dim=state_dim,
             action_dim=action_dim,
             hidden_dim=hidden_dim,
@@ -72,7 +84,12 @@ def create_agent(
             **agent_hyperparams,
         )
     elif agent_config.type == "SAC":
-        return SAC(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
+        agent = SAC(
+            state_dim=state_dim,
+            action_dim=action_dim,
+            deterministic=deterministic,
+            **agent_hyperparams
+        )
     elif agent_config.type == "TDMPC2":
         # TD-MPC2 specific parameters
         latent_dim = agent_hyperparams.pop("latent_dim", 512)
@@ -94,13 +111,45 @@ def create_agent(
         win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
         win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
 
+        # Opponent simulation (optional nested config)
+        opponent_sim = agent_hyperparams.pop("opponent_simulation", None)
+        opponent_simulation_enabled = False
+        opponent_cloning_frequency = 5000
+        opponent_cloning_steps = 100
+        opponent_cloning_samples = 1000
+        opponent_agents = []
+        if opponent_sim is not None and opponent_sim.get("enabled", False):
+            opponent_simulation_enabled = True
+            opponent_cloning_frequency = opponent_sim.get("cloning_frequency", 5000)
+            opponent_cloning_steps = opponent_sim.get("cloning_steps", 100)
+            opponent_cloning_samples = opponent_sim.get("cloning_samples", 1000)
+            opponent_agents = opponent_sim.get("opponent_agents", [])
+
+            # Resolve relative paths to absolute paths
+            if opponent_agents and config_path:
+                import os
+
+                config_dir = os.path.dirname(os.path.abspath(config_path))
+                # Get project root (config is in configs/, so go up one level)
+                project_root = os.path.dirname(config_dir)
+
+                for opponent_info in opponent_agents:
+                    if "path" in opponent_info:
+                        path = opponent_info["path"]
+                        # If path is relative, resolve it relative to project root
+                        if not os.path.isabs(path):
+                            opponent_info["path"] = os.path.join(project_root, path)
+                            print(
+                                f"Resolved opponent path: {path} -> {opponent_info['path']}"
+                            )
+
         # Use provided device or default to CPU/CUDA
         if device is None:
             import torch
 
             device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        return TDMPC2(
+        agent = TDMPC2(
             obs_dim=state_dim,
             action_dim=action_dim,
             latent_dim=latent_dim,
@@ -124,6 +173,11 @@ def create_agent(
             n_step=n_step,
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,
+            opponent_simulation_enabled=opponent_simulation_enabled,
+            opponent_cloning_frequency=opponent_cloning_frequency,
+            opponent_cloning_steps=opponent_cloning_steps,
+            opponent_cloning_samples=opponent_cloning_samples,
+            opponent_agents=opponent_agents,
         )
     elif agent_config.type == "TDMPC2_REPO":
         # TD-MPC2 reference repo wrapper specific parameters
@@ -163,7 +217,7 @@ def create_agent(
         seed = agent_hyperparams.pop("seed", 1)
         win_reward_bonus = agent_hyperparams.pop("win_reward_bonus", 10.0)
         win_reward_discount = agent_hyperparams.pop("win_reward_discount", 0.92)
-        
+
         # Extract batch_size and learning_rate before passing **agent_hyperparams
         batch_size = agent_hyperparams.pop("batch_size", 256)
         learning_rate = agent_hyperparams.pop("learning_rate", 3e-4)
@@ -221,7 +275,24 @@ def create_agent(
         )
     elif agent_config.type == "TD3":
         return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
+    elif agent_config.type == "DecoyPolicy":
+        hidden_layers = agent_hyperparams.pop("hidden_layers", [256, 256])
+        buffer_max_size = agent_hyperparams.pop("buffer_max_size", 100_000)
+        return DecoyPolicy(
+            obs_dim=state_dim,
+            action_dim=action_dim,
+            hidden_layers=hidden_layers,
+            learning_rate=agent_hyperparams.get("learning_rate", 3e-4),
+            buffer_max_size=buffer_max_size,
+        )
     elif agent_config.type == "REDQTD3":
         return REDQTD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
     else:
         raise ValueError(f"Unknown agent type: {agent_config.type}")
+
+    if checkpoint_path is not None:
+        agent.load(checkpoint_path)
+    elif agent_config.checkpoint_path is not None:
+        agent.load(agent_config.checkpoint_path)
+
+    return agent

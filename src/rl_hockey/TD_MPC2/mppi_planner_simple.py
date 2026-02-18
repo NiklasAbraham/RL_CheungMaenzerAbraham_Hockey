@@ -1,4 +1,4 @@
-# MPPI planner from TD-MPC2.
+"""MPPI planner for TD-MPC2."""
 
 import torch
 import torch.nn as nn
@@ -67,7 +67,7 @@ class MPPIPlannerSimplePaper(nn.Module):
         """Rollout trajectories in latent space."""
         num_samples, horizon, action_dim = actions.shape
 
-        z = z_init.unsqueeze(0).expand(num_samples, -1)
+        z = z_init.unsqueeze(0).expand(num_samples, -1).clone()
 
         returns = torch.zeros(num_samples, device=z.device)
         termination_probs = torch.zeros(num_samples, device=z.device)
@@ -114,6 +114,12 @@ class MPPIPlannerSimplePaper(nn.Module):
             )
 
         if self.policy is not None and self.num_pi_trajs > 0:
+            # Assign one opponent per pi-trajectory for coherent action generation
+            if hasattr(self.dynamics, "assign_opponents_for_batch"):
+                self.dynamics.assign_opponents_for_batch(
+                    self.num_pi_trajs, device=latent.device
+                )
+
             pi_actions = torch.empty(
                 self.horizon, self.num_pi_trajs, self.action_dim, device=latent.device
             )
@@ -125,7 +131,7 @@ class MPPIPlannerSimplePaper(nn.Module):
             for t in range(self.horizon - 1):
                 pi_action, _, _, _ = self.policy.sample(_z)
                 pi_actions[t] = pi_action
-                _z = self.dynamics(_z, pi_actions[t])
+                _z = self.dynamics(_z, pi_actions[t]).clone()
             pi_action, _, _, _ = self.policy.sample(_z)
             pi_actions[-1] = pi_action
 
@@ -146,6 +152,12 @@ class MPPIPlannerSimplePaper(nn.Module):
 
         if self.policy is not None and self.num_pi_trajs > 0:
             actions[:, : self.num_pi_trajs] = pi_actions
+
+        # Assign one opponent per trajectory, fixed for all MPPI iterations
+        if hasattr(self.dynamics, "assign_opponents_for_batch"):
+            self.dynamics.assign_opponents_for_batch(
+                self.num_samples, device=latent.device
+            )
 
         planning_stats = {
             "elite_returns_per_iter": [],
@@ -223,6 +235,10 @@ class MPPIPlannerSimplePaper(nn.Module):
                 / (score.sum() + 1e-9)
             ).sqrt()
             std = std.clamp(self.std_min, self.std_init)
+
+        # Clear per-trajectory opponent assignments
+        if hasattr(self.dynamics, "clear_batch_opponents"):
+            self.dynamics.clear_batch_opponents()
 
         if self._prev_mean is not None:
             self._prev_mean.copy_(mean)

@@ -59,7 +59,35 @@ class TD3(Agent):
 
         self.total_it = 0
 
-    def act(self, state, deterministic=False):
+    def log_architecture(self):
+        """Log agent architecture and config."""
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        lines = []
+        lines.append("=" * 80)
+        lines.append("TD3 agent architecture")
+        lines.append("=" * 80)
+        lines.append(f"Observation dim: {self.state_dim}")
+        lines.append(f"Action dim: {self.action_dim}")
+        lines.append("Configuration:")
+        for key, value in self.config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+        lines.append("1. Actor (policy):")
+        lines.append(str(self.actor))
+        lines.append(f"   trainable parameters: {count_parameters(self.actor):,}")
+        lines.append("")
+        lines.append("2. Critic:")
+        lines.append(str(self.critic))
+        lines.append(f"   trainable parameters: {count_parameters(self.critic):,}")
+        total = count_parameters(self.actor) + count_parameters(self.critic)
+        lines.append("")
+        lines.append(f"Total trainable parameters: {total:,}")
+        lines.append("=" * 80)
+        return "\n".join(lines)
+
+    def act(self, state, deterministic=False, t0=None, **kwargs):
         with torch.no_grad():
             state = torch.FloatTensor(state).unsqueeze(0).to(DEVICE)
             action = self.actor(state).squeeze(0).cpu().numpy()
@@ -70,7 +98,7 @@ class TD3(Agent):
 
             return action
         
-    def act_batch(self, states, deterministic=False):
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             states = torch.from_numpy(states).to(DEVICE)

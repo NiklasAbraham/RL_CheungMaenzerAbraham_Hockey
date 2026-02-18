@@ -1,121 +1,101 @@
 #!/bin/bash
 
-# Script to download the latest 5 tdmpc2 runs from the cluster
+# Script to download the latest runs from tdmpc2_runs, decoy_policies, and sac_runs
 # Usage: ./resources/download_latest_run.sh [server_address]
 
 # Configuration
 SERVER="${1:-tcml-login1}"
 # SSH config should handle the full hostname mapping
-REMOTE_RUNS_DIR1="/home/stud421/RL_CheungMaenzerAbraham_Hockey/results/tdmpc2_runs"
-REMOTE_RUNS_DIR2="/home/stud421/RL_CheungMaenzerAbraham_Hockey/results/sac_runs"
-LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-LOCAL_RUNS_DIR1="${LOCAL_PROJECT_DIR}/../../results/tdmpc2_runs"
-LOCAL_RUNS_DIR2="${LOCAL_PROJECT_DIR}/../../results/sac_runs"
+REMOTE_PROJECT_BASE="/home/stud421/RL_CheungMaenzerAbraham_Hockey"
+REMOTE_BASE="${REMOTE_PROJECT_BASE}/results"
+LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+LOCAL_BASE="${LOCAL_PROJECT_DIR}/results"
+
+# Folders to download: tdmpc2_runs, decoy_policies, sac_runs
+FOLDERS=("tdmpc2_runs" "decoy_policies" "sac_runs" "tdmpc2_runs_test" "tdmpc2_runs_horizon")
+NUM_LATEST=30
+
 echo "Connecting to ${SERVER}..."
-echo "Remote runs directory: ${REMOTE_RUNS_DIR1}"
-echo "Local runs directory: ${LOCAL_RUNS_DIR1}"
-echo "Remote runs directory: ${REMOTE_RUNS_DIR2}"
-echo "Local runs directory: ${LOCAL_RUNS_DIR2}"
+echo "Remote base: ${REMOTE_BASE}"
+echo "Local base: ${LOCAL_BASE}"
 
-# Find the latest 30 timestamped directories on the remote server
-echo ""
-echo "Finding latest 30 tdmpc2 run directories..."
-LATEST_DIRS1=$(ssh "${SERVER}" "cd ${REMOTE_RUNS_DIR1} && ls -td */ 2>/dev/null | head -30 | sed 's|/$||'")
-echo "Finding latest 30 sac run directories..."
-LATEST_DIRS2=$(ssh "${SERVER}" "cd ${REMOTE_RUNS_DIR2} && ls -td */ 2>/dev/null | head -30 | sed 's|/$||'")
+TOTAL_SUCCESS=0
+TOTAL_FAILED=0
 
-if [ -z "${LATEST_DIRS1}" ] && [ -z "${LATEST_DIRS2}" ]; then
-    echo "Error: No run directories found on remote server."
-    exit 1
-fi
+for FOLDER in "${FOLDERS[@]}"; do
+    REMOTE_RUNS_DIR="${REMOTE_BASE}/${FOLDER}"
+    LOCAL_RUNS_DIR="${LOCAL_BASE}/${FOLDER}"
 
-# Count how many directories were found
-DIR_COUNT1=$(echo "${LATEST_DIRS1}" | grep -v '^$' | wc -l)
-DIR_COUNT2=$(echo "${LATEST_DIRS2}" | grep -v '^$' | wc -l)
-if [ ${DIR_COUNT1} -gt 0 ]; then
-    echo "Found ${DIR_COUNT1} tdmpc2 directory/directories to download:"
-    echo "${LATEST_DIRS1}" | nl
-fi
-if [ ${DIR_COUNT2} -gt 0 ]; then
-    echo "Found ${DIR_COUNT2} sac directory/directories to download:"
-    echo "${LATEST_DIRS2}" | nl
-fi
-
-# Create local directories if they don't exist
-mkdir -p "${LOCAL_RUNS_DIR1}"
-mkdir -p "${LOCAL_RUNS_DIR2}"
-
-# Download each directory using rsync (more efficient than scp)
-echo ""
-SUCCESS_COUNT1=0
-FAILED_COUNT1=0
-SUCCESS_COUNT2=0
-FAILED_COUNT2=0
-
-# Download tdmpc2 runs
-if [ ${DIR_COUNT1} -gt 0 ]; then
-    echo "Starting download of ${DIR_COUNT1} tdmpc2 run(s)..."
-    echo "This may take a while depending on the size of the run data..."
     echo ""
-    
+    echo "========== Processing ${FOLDER} =========="
+    echo "Remote: ${REMOTE_RUNS_DIR}"
+    echo "Local: ${LOCAL_RUNS_DIR}"
+
+    # Find the latest directories on the remote server
+    LATEST_DIRS=$(ssh "${SERVER}" "cd ${REMOTE_RUNS_DIR} 2>/dev/null && ls -td */ 2>/dev/null | head -${NUM_LATEST} | sed 's|/$||'")
+
+    if [ -z "${LATEST_DIRS}" ]; then
+        echo "No directories found in ${FOLDER}, skipping..."
+        continue
+    fi
+
+    DIR_COUNT=$(echo "${LATEST_DIRS}" | wc -l)
+    echo "Found ${DIR_COUNT} directory/directories to download:"
+    echo "${LATEST_DIRS}" | nl
+
+    mkdir -p "${LOCAL_RUNS_DIR}"
+
+    echo ""
+    echo "Starting download of ${DIR_COUNT} run(s) from ${FOLDER}..."
+    echo ""
+
     while IFS= read -r DIR; do
         if [ -n "${DIR}" ]; then
             echo "=========================================="
-            echo "Downloading tdmpc2: ${DIR}"
+            echo "Downloading ${FOLDER}/${DIR}"
             echo "=========================================="
-            
-            rsync -avz --progress "${SERVER}:${REMOTE_RUNS_DIR1}/${DIR}" "${LOCAL_RUNS_DIR1}/"
-            
-            if [ $? -eq 0 ]; then
-                echo ""
-                echo "Successfully downloaded: ${DIR}"
-                echo "Local path: ${LOCAL_RUNS_DIR1}/${DIR}"
-                SUCCESS_COUNT1=$((SUCCESS_COUNT1 + 1))
-            else
-                echo ""
-                echo "Error: Failed to download: ${DIR}"
-                FAILED_COUNT1=$((FAILED_COUNT1 + 1))
-            fi
-            echo ""
-        fi
-    done <<< "${LATEST_DIRS1}"
-fi
 
-# Download sac runs
-if [ ${DIR_COUNT2} -gt 0 ]; then
-    echo "Starting download of ${DIR_COUNT2} sac run(s)..."
-    echo "This may take a while depending on the size of the run data..."
-    echo ""
-    
-    while IFS= read -r DIR; do
-        if [ -n "${DIR}" ]; then
-            echo "=========================================="
-            echo "Downloading sac: ${DIR}"
-            echo "=========================================="
-            
-            rsync -avz --progress "${SERVER}:${REMOTE_RUNS_DIR2}/${DIR}" "${LOCAL_RUNS_DIR2}/"
-            
+            rsync -avz --progress "${SERVER}:${REMOTE_RUNS_DIR}/${DIR}" "${LOCAL_RUNS_DIR}/"
+
             if [ $? -eq 0 ]; then
                 echo ""
-                echo "Successfully downloaded: ${DIR}"
-                echo "Local path: ${LOCAL_RUNS_DIR2}/${DIR}"
-                SUCCESS_COUNT2=$((SUCCESS_COUNT2 + 1))
+                echo "Successfully downloaded: ${FOLDER}/${DIR}"
+                echo "Local path: ${LOCAL_RUNS_DIR}/${DIR}"
+                TOTAL_SUCCESS=$((TOTAL_SUCCESS + 1))
             else
                 echo ""
-                echo "Error: Failed to download: ${DIR}"
-                FAILED_COUNT2=$((FAILED_COUNT2 + 1))
+                echo "Error: Failed to download: ${FOLDER}/${DIR}"
+                TOTAL_FAILED=$((TOTAL_FAILED + 1))
             fi
             echo ""
         fi
-    done <<< "${LATEST_DIRS2}"
+    done <<< "${LATEST_DIRS}"
+done
+
+# Sync archive (registry.json, match_history.json, agents) so calibration updates are visible locally
+echo ""
+echo "========== Syncing archive (registry + match history) =========="
+REMOTE_ARCHIVE="${REMOTE_PROJECT_BASE}/archive"
+LOCAL_ARCHIVE="${LOCAL_PROJECT_DIR}/archive"
+if ssh "${SERVER}" "test -d ${REMOTE_ARCHIVE}" 2>/dev/null; then
+    mkdir -p "${LOCAL_ARCHIVE}"
+    rsync -avz --progress "${SERVER}:${REMOTE_ARCHIVE}/" "${LOCAL_ARCHIVE}/"
+    if [ $? -eq 0 ]; then
+        echo "Archive synced (registry and match history updated locally)."
+    else
+        echo "Warning: archive sync failed."
+        TOTAL_FAILED=$((TOTAL_FAILED + 1))
+    fi
+else
+    echo "No remote archive directory, skipping."
 fi
 
 echo "=========================================="
 echo "Download summary:"
-echo "  tdmpc2 - Successful: ${SUCCESS_COUNT1}, Failed: ${FAILED_COUNT1}"
-echo "  sac - Successful: ${SUCCESS_COUNT2}, Failed: ${FAILED_COUNT2}"
+echo "  Successful: ${TOTAL_SUCCESS}"
+echo "  Failed: ${TOTAL_FAILED}"
 echo "=========================================="
 
-if [ ${FAILED_COUNT1} -gt 0 ] || [ ${FAILED_COUNT2} -gt 0 ]; then
+if [ ${TOTAL_FAILED} -gt 0 ]; then
     exit 1
 fi

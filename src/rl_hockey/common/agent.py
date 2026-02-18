@@ -6,30 +6,43 @@ from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
-    def __init__(self, priority_replay: bool = False, normalize_obs: bool = False):
+    def __init__(self,  deterministic=False, priority_replay: bool = False, normalize_obs: bool = False):
+        self.deterministic = deterministic
+
         if priority_replay:
             self.buffer = PERMemory(normalize_obs=normalize_obs)
         else:
             self.buffer = ReplayBuffer(normalize_obs=normalize_obs)
     
-    def store_transition(self, transition, winner=None):
+    def store_transition(self, transition, winner=None, env_id=None):
         """Stores a transition in the replay buffer.
         
         Args:
             transition: Tuple of (state, action, reward, next_state, done)
             winner: Optional winner information (1 for agent win, -1 for loss, 0 for draw).
                 Only used by buffers that support it (e.g., TDMPC2ReplayBuffer).
+            env_id: Optional environment ID for vectorized training. When provided,
+                transitions are tracked per-environment to properly separate episodes.
         """
-        # Check if buffer.store() accepts winner parameter
+        # Check if buffer.store() accepts winner and env_id parameters
         store_sig = inspect.signature(self.buffer.store)
+        kwargs = {}
         if 'winner' in store_sig.parameters:
-            self.buffer.store(transition, winner=winner)
-        else:
-            self.buffer.store(transition)
+            kwargs['winner'] = winner
+        if 'env_id' in store_sig.parameters:
+            kwargs['env_id'] = env_id
+        self.buffer.store(transition, **kwargs)
 
     @abstractmethod
-    def act(self, state, deterministic=False):
-        """Returns the action for a given state according to the current policy."""
+    def act(self, state, deterministic=False, t0=None, **kwargs):
+        """Returns the action for a given state according to the current policy.
+
+        Args:
+            state: Observation/state.
+            deterministic: If True, use deterministic policy (e.g. for eval).
+            t0: Optional bool; True if this is the first step of an episode.
+                Agents that need episode reset (e.g. TDMPC2) use this; others ignore it.
+        """
         pass
 
     @abstractmethod

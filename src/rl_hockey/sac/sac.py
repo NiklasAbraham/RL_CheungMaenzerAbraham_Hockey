@@ -17,8 +17,8 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # https://arxiv.org/pdf/1812.05905
 class SAC(Agent):
-    def __init__(self, state_dim, action_dim, **user_config):
-        super().__init__()
+    def __init__(self, state_dim, action_dim, deterministic=False, **user_config):
+        super().__init__(deterministic=deterministic)
 
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -31,7 +31,7 @@ class SAC(Agent):
             "alpha": 0.2,
             "learn_alpha": True,
             "noise": "normal",
-            "max_episode_steps": 1000,
+            "max_episode_steps": 250,
         }
         self.config.update(user_config)
 
@@ -78,11 +78,47 @@ class SAC(Agent):
             case _:
                 raise ValueError(f"Unknown noise type: {self.config['noise']}")
 
+    def log_architecture(self):
+        """Log agent architecture and config."""
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        lines = []
+        lines.append("=" * 80)
+        lines.append("SAC agent architecture")
+        lines.append("=" * 80)
+        lines.append(f"Observation dim: {self.state_dim}")
+        lines.append(f"Action dim: {self.action_dim}")
+        lines.append("Configuration:")
+        for key, value in self.config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+        lines.append("1. Actor (policy):")
+        lines.append(str(self.actor))
+        lines.append(f"   trainable parameters: {count_parameters(self.actor):,}")
+        lines.append("")
+        lines.append("2. Critic 1:")
+        lines.append(str(self.critic1))
+        lines.append(f"   trainable parameters: {count_parameters(self.critic1):,}")
+        lines.append("")
+        lines.append("3. Critic 2:")
+        lines.append(str(self.critic2))
+        lines.append(f"   trainable parameters: {count_parameters(self.critic2):,}")
+        total = (
+            count_parameters(self.actor)
+            + count_parameters(self.critic1)
+            + count_parameters(self.critic2)
+        )
+        lines.append("")
+        lines.append(f"Total trainable parameters: {total:,}")
+        lines.append("=" * 80)
+        return "\n".join(lines)
+
     def act(self, state, deterministic=False, t0=None, **kwargs):
         with torch.no_grad():
             state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
 
-            if deterministic:
+            if deterministic or self.deterministic:
                 noise = torch.zeros((1, self.action_dim), device=DEVICE)
             else:
                 noise = self.noise_dist.sample().unsqueeze(0).to(DEVICE)
@@ -91,13 +127,13 @@ class SAC(Agent):
 
             return action.squeeze(0).cpu().numpy()
 
-    def act_batch(self, states, deterministic=False, t0=None, **kwargs):
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
         """Process a batch of states at once (for vectorized environments)"""
         with torch.no_grad():
             states = torch.from_numpy(states).to(DEVICE)
             batch_size = states.shape[0]
 
-            if deterministic:
+            if deterministic or self.deterministic:
                 noise = torch.zeros((batch_size, self.action_dim), device=DEVICE)
             else:
                 # Sample noise for each state in batch
