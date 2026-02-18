@@ -10,6 +10,7 @@ class Actor(nn.Module):
         dim = state_dim
         for ld in latent_dim:
             self.net.append(nn.Linear(dim, ld))
+            self.net.append(nn.LayerNorm(ld))
             self.net.append(activation())
             dim = ld
         self.net.append(nn.Linear(dim, action_dim))
@@ -29,6 +30,7 @@ class Critic(nn.Module):
         dim = state_dim + action_dim
         for ld in latent_dim:
             self.q1_net.append(nn.Linear(dim, ld))
+            self.q1_net.append(nn.LayerNorm(ld))
             self.q1_net.append(activation())
             dim = ld
         self.q1_net.append(nn.Linear(dim, 1))
