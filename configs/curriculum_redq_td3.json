@@ -3,7 +3,7 @@
     "phases": [
       {
         "name": "integration_phase",
-        "episodes": 100000,
+        "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
@@ -20,13 +20,13 @@
     ]
   },
   "hyperparameters": {
-    "learning_rate": 0.0005,
+    "learning_rate": 0.0003,
     "batch_size": 1024
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
-    "warmup_steps": 80000,
+    "warmup_steps": 10000,
     "reward_scale": 1,
     "checkpoint_save_freq": 5000
   },
@@ -42,14 +42,12 @@
             "learning_rate": 3e-4,
             "max_action": 1.0,
             "discount": 0.99,
-            "tau": 0.005,
             "expl_noise": 0.1,
             "policy_noise": 0.2,
             "noise_clip": 0.5,
-            "policy_freq": 2,
             "batch_size": 256,
             "latent_dim": [256, 256],
-            "priority_replay": false,
+            "priority_replay": true,
             "normalize_obs": false
       }
     }
