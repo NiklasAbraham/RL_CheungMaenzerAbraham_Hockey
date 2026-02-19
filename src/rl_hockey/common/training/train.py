@@ -4,6 +4,7 @@ No curriculum, just SAC vs weak opponent with basic logging.
 """
 
 import csv
+import inspect
 import json
 import logging
 import os
@@ -33,6 +34,7 @@ from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.training.agent_factory import create_agent
 from rl_hockey.common.training.curriculum_manager import (
     CurriculumConfig,
+    OpponentConfig,
     PhaseConfig,
     get_phase_for_episode,
     get_total_episodes,
@@ -448,6 +450,37 @@ def _save_csvs_and_plots(
         )
 
 
+# Phase names we already warned about for run_checkpoints fallback (avoid log spam)
+_run_checkpoints_fallback_warned: set = set()
+
+
+def _get_opponent_for_config(
+    matchmaker: Matchmaker,
+    config: OpponentConfig,
+    rating: float,
+    phase_name: Optional[str] = None,
+) -> Tuple[Opponent, Rating]:
+    """Get opponent from matchmaker; fallback to archive if run_checkpoints not supported."""
+    try:
+        return matchmaker.get_opponent(config, rating)
+    except ValueError as e:
+        if config.type == "run_checkpoints" and "Unknown opponent type" in str(e):
+            if phase_name and phase_name not in _run_checkpoints_fallback_warned:
+                _run_checkpoints_fallback_warned.add(phase_name)
+                logger.warning(
+                    "run_checkpoints not supported by Matchmaker (run_models_dir not set?), "
+                    "falling back to archive for phase %s",
+                    phase_name,
+                )
+            fallback_config = OpponentConfig(
+                type="archive",
+                distribution={"skill": 0.5, "random": 0.5},
+                skill_range=50.0,
+            )
+            return matchmaker.get_opponent(fallback_config, rating)
+        raise
+
+
 def _get_opponent_actions(
     opponents: List[Opponent], obs_opponent: np.ndarray, num_envs: int
 ) -> np.ndarray:
@@ -574,9 +607,14 @@ def _switch_phase(
     )
     states = env.reset()
 
-    # Create opponents
+    # Create opponents (fallback to archive if run_checkpoints not supported)
     opponents = [
-        matchmaker.get_opponent(new_phase.opponent, training_state.rating.rating)
+        _get_opponent_for_config(
+            matchmaker,
+            new_phase.opponent,
+            training_state.rating.rating,
+            phase_name=new_phase.name,
+        )
         for _ in range(num_envs)
     ]
 
@@ -704,7 +742,13 @@ def train_vectorized(
 
     # Setup archive
     archive = Archive(base_dir=archive_dir)
-    matchmaker = Matchmaker(archive)
+    # Pass models_dir so the "run_checkpoints" opponent type can discover
+    # checkpoints saved during this run without a separate archive.
+    matchmaker_params = inspect.signature(Matchmaker.__init__).parameters
+    if "run_models_dir" in matchmaker_params:
+        matchmaker = Matchmaker(archive, run_models_dir=models_dir)
+    else:
+        matchmaker = Matchmaker(archive)
     rating_system = RatingSystem(archive)
 
     training_state = TrainingState()
@@ -961,8 +1005,11 @@ def train_vectorized(
                     # If no phase-specific reward_bonus, keep agent's hyperparameter defaults
 
                 # Sample new opponent
-                opponent, opponent_rating = matchmaker.get_opponent(
-                    training_state.phase.opponent, training_state.rating.rating
+                opponent, opponent_rating = _get_opponent_for_config(
+                    matchmaker,
+                    training_state.phase.opponent,
+                    training_state.rating.rating,
+                    phase_name=training_state.phase.name,
                 )
                 opponents[i] = (opponent, opponent_rating)
 

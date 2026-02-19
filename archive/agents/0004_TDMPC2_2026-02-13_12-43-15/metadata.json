@@ -3,17 +3,16 @@
   "archived_at": "2026-02-13T12:43:15.334167",
   "tags": [
     "tdmpc2",
-    "needs_calibration",
     "needs_calibration"
   ],
   "rating": {
-    "mu": 29.109692834803166,
-    "sigma": 1.4747463581580786,
-    "rating": 24.68545376032893,
-    "matches_played": 22,
-    "wins": 9,
-    "losses": 7,
-    "draws": 6
+    "mu": 29.311925592335694,
+    "sigma": 0.7505036045453476,
+    "rating": 27.060414778699652,
+    "matches_played": 441,
+    "wins": 176,
+    "losses": 148,
+    "draws": 117
   },
   "step": 6600,
   "checkpoint_path": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15/checkpoint.pt",

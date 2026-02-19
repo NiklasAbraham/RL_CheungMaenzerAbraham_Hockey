@@ -38,7 +38,7 @@
 \maketitle
 
 \begin{abstract}
-    This report presents our application and comparative study of modern Reinforcement Learning (RL) algorithms—specifically, Twin Delayed Deep Deterministic Policy Gradient (TD3), Soft Actor-Critic (SAC), and the model based TD-MPC2—within the challenging Laser Hockey environment. We discuss the environment's design, its state and action spaces, and the unique characteristics making it a compelling testbed for RL research. Our work details the methodological approaches taken with these algorithms, summarizes key experimental findings, and reflects on lessons learned in this multi agent, continuous control setting.
+    This report presents our application and comparative study of modern Reinforcement Learning (RL) algorithms specifically, Twin Delayed Deep Deterministic Policy Gradient (TD3), Soft Actor-Critic (SAC), and the model based TD-MPC2 within the challenging Laser Hockey environment. We discuss the environment's design, its state and action spaces, and the unique characteristics making it a compelling testbed for RL research. Our work details the methodological approaches taken with these algorithms, summarizes key experimental findings, and reflects on lessons learned in this multi agent, continuous control setting.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -149,24 +149,33 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
 
 \begin{figure}[h]
     \centering
-    \includegraphics{figures/horizon_ratings.png}
+    \includegraphics[width=1.0\textwidth]{figures/horizon_ratings.png}
     \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
 
 
+\subsubsection{Overall Results}
 
-\newpage
+To compare all trained agents on a common scale, we evaluated them in a round-robin tournament within the archive matchmaking system using TrueSkill \cite{herbrich2006trueskill}, a Bayesian rating algorithm that updates the belief over each agent's skill level after every match outcome. The rating reported is $\mu - 3\sigma$, a conservative lower-bound estimate that accounts for residual uncertainty. Figure~\ref{fig:agent_ratings_selected} shows the TrueSkill ratings for a representative selection of agents: the two scripted baselines (weak and strong bot), the SAC agent, and the two best-performing TD-MPC2 variants -- one trained with internal opponent modelling at planning horizon $H{=}8$ and one at $H{=}6$.
 
-\section{Conclusion}\label{sec:Conclusion}
-...
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/agent_ratings_selected.png}
+    \caption{TrueSkill ratings (mean $\pm$ $3\sigma$) for a selected set of agents. Higher is better.}
+    \label{fig:agent_ratings_selected}
+\end{figure}
 
-\section{Future Work}\label{sec:Future Work}
-...
+All learned agents clearly surpass both scripted baselines. The basic strong bot achieves the lowest rating ($15.76$), which is counterintuitive given its name but reflects the fact that its deterministic, aggressive strategy is highly exploitable by learned policies; it was not designed as a competitive opponent against gradient-based agents. The basic weak bot achieves a higher rating ($25.24$) because its more conservative behavior generates fewer opportunities for the opponents to score, making it harder to accumulate decisive wins against.
+
+Among the learned agents, SAC reaches a rating of $28.34$, demonstrating that a well-tuned model-free actor-critic is already a strong baseline in this environment. The TD-MPC2 agent trained with internal opponent modelling at $H{=}6$ achieves a comparable rating of $28.53$, while the variant at $H{=}8$ reaches $31.41$, the highest rating overall. The gain from $H{=}6$ to $H{=}8$ suggests that a longer planning horizon provides a meaningful advantage, allowing the agent to anticipate multi-step game dynamics more accurately. The overlap in confidence intervals between SAC and TD-MPC2 at $H{=}6$ indicates that, at this horizon, the model-based approach does not yet offer a statistically significant benefit over the model-free baseline. The TD-MPC2 variant at $H{=}8$ with more training steps (16\,000 vs.\ 4\,000) does, however, emerge as the clearly strongest agent.
+
 
 \section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}
 We would like to thank the instructors and the staff of the Reinforcement Learning course for their help and support.
 All of our code can be found on our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+
+\newpage
 
 \bibliographystyle{abbrv}
 \bibliography{main}

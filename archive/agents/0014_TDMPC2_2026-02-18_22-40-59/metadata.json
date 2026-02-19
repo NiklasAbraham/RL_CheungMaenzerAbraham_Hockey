@@ -1,0 +1,22 @@
+{
+  "agent_id": "0014_TDMPC2_2026-02-18_22-40-59",
+  "archived_at": "2026-02-18T22:40:59.306567",
+  "tags": [
+    "tdmpc2",
+    "needs_calibration"
+  ],
+  "rating": {
+    "mu": 29.738376141327038,
+    "sigma": 0.7563685406657943,
+    "rating": 27.469270519329655,
+    "matches_played": 310,
+    "wins": 147,
+    "losses": 96,
+    "draws": 67
+  },
+  "step": 4000,
+  "checkpoint_path": "archive/agents/0014_TDMPC2_2026-02-18_22-40-59/checkpoint.pt",
+  "config_path": "archive/agents/0014_TDMPC2_2026-02-18_22-40-59/config.json",
+  "training_run": "2026-02-16_11-13-29",
+  "checkpoint_name": "TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_3b5198ec_20260216_111329_ep004000.pt"
+}
