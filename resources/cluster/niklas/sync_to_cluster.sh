@@ -21,8 +21,8 @@ rsync -avz --progress \
     --exclude='.pytest_cache' \
     --exclude='.ipynb_checkpoints' \
     --exclude='*.ipynb' \
-    --exclude='results/' \
     --exclude='*.log' \
+    --exclude='results/' \
     --exclude='*.out' \
     --exclude='*.err' \
     --exclude='runs/' \

@@ -40,5 +40,5 @@ def main(
 
 if __name__ == "__main__":
     # To continue from an existing run, pass the run directory path:
-    main(resume_from="./results/tdmpc2_runs_test/2026-02-01_09-55-22")
+    main(resume_from="./results/self_play/2026-02-01_09-55-22")
     # main()

@@ -1,5 +1,6 @@
 import logging
 import random
+from pathlib import Path
 from typing import Optional, Tuple
 
 import hockey.hockey_env as h_env
@@ -17,6 +18,8 @@ from rl_hockey.common.training.curriculum_manager import (
 )
 from rl_hockey.common.training.opponent_manager import load_agent_checkpoint
 
+logger = logging.getLogger(__name__)
+
 Opponent = Agent | h_env.BasicOpponent
 
 
@@ -25,10 +28,20 @@ class Matchmaker:
         self,
         archive: Optional[Archive] = None,
         rating_system: Optional[RatingSystem] = None,
+        run_models_dir: Optional[str] = None,
     ):
-        """Initializes the Matchmaker."""
+        """Initializes the Matchmaker.
+
+        Args:
+            archive: Archive of saved agents for archive-based sampling.
+            rating_system: Rating system for skill-based matching.
+            run_models_dir: Path to the current run's models directory. Required
+                when using the "run_checkpoints" opponent type so the matchmaker
+                can discover checkpoints saved during the active training run.
+        """
         self.archive = archive
         self.rating_system = rating_system
+        self.run_models_dir = run_models_dir
 
         self.loaded_agents: dict[str, Agent] = {}
 
@@ -70,6 +83,9 @@ class Matchmaker:
                 return opponent, rating
             case "self_play":
                 opponent = self._load_self_play_opponent(config)
+                return opponent, Rating(25.0, 1.0)
+            case "run_checkpoints":
+                opponent = self._sample_run_checkpoint_opponent(config)
                 return opponent, Rating(25.0, 1.0)
             case "weighted_mixture":
                 pass  # Handled below
@@ -182,6 +198,54 @@ class Matchmaker:
         )
         self.loaded_agents[cache_key] = opponent
         return opponent
+
+    def _sample_run_checkpoint_opponent(self, config: OpponentConfig) -> Opponent:
+        """Pick a random checkpoint from the current run's models directory and load it.
+
+        This enables self-play against historical snapshots saved during the same
+        training run without requiring a separate archive setup.  When no checkpoint
+        exists yet (very beginning of training) it falls back to basic_strong.
+
+        Args:
+            config: Opponent config; uses agent_type (default "TDMPC2") and
+                    deterministic flag.
+        Returns:
+            Loaded opponent agent, or BasicOpponent(weak=False) as fallback.
+        """
+        if not self.run_models_dir:
+            raise ValueError(
+                "run_models_dir is not set on Matchmaker but opponent type "
+                "'run_checkpoints' was requested. Pass run_models_dir= when "
+                "constructing Matchmaker."
+            )
+
+        models_path = Path(self.run_models_dir)
+        # Collect checkpoint files; exclude metadata JSON sidecars
+        pt_files = [
+            f for f in models_path.glob("*.pt") if "_metadata" not in f.name
+        ]
+
+        if not pt_files:
+            logger.warning(
+                "No checkpoints found in %s yet – falling back to basic_strong.",
+                self.run_models_dir,
+            )
+            return h_env.BasicOpponent(weak=False)
+
+        chosen = random.choice(pt_files)
+        agent_type = config.agent_type or "TDMPC2"
+
+        msg = f"run_checkpoints opponent chosen: {chosen.name} (type={agent_type})"
+        logger.info("%s", msg)
+
+        # Reuse _load_self_play_opponent so the loaded agent is cached by path
+        proxy_config = OpponentConfig(
+            type="self_play",
+            checkpoint=str(chosen),
+            agent_type=agent_type,
+            deterministic=config.deterministic,
+        )
+        return self._load_self_play_opponent(proxy_config)
 
     def load_opponent(
         self, metadata: AgentMetadata, deterministic: bool = True

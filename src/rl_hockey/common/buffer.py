@@ -1001,6 +1001,233 @@ class PrioritizedReplayBuffer(ReplayBuffer):
         self.max_priority = 1.0
 
 
+class TDMPC2PrioritizedReplayBuffer(TDMPC2ReplayBuffer):
+    """Prioritized Experience Replay variant of TDMPC2ReplayBuffer.
+
+    Priorities are maintained at the episode level. Each (episode, start) candidate
+    is sampled proportionally to the episode priority. Importance-sampling (IS)
+    weights correct for the induced bias and are annealed from beta to 1 over
+    training.
+
+    After each training step call update_priorities(episode_indices, priorities)
+    with the per-sequence loss (or TD-error) as the new priority so the buffer
+    focuses future sampling on high-error sequences.
+    """
+
+    def __init__(
+        self,
+        max_size=1_000_000,
+        horizon=5,
+        batch_size=256,
+        use_torch_tensors=False,
+        pin_memory=False,
+        device="cpu",
+        buffer_device="cpu",
+        multitask=False,
+        win_reward_bonus=10.0,
+        win_reward_discount=0.92,
+        alpha=0.6,
+        beta=0.4,
+        beta_increment=0.0001,
+        max_beta=1.0,
+        eps=1e-6,
+    ):
+        """Initialize TDMPC2 Prioritized Replay Buffer.
+
+        Parameters
+        ----------
+        alpha : float
+            Priority exponent (0 = uniform, 1 = fully prioritized).
+        beta : float
+            Initial IS exponent; annealed to max_beta over training.
+        beta_increment : float
+            Amount added to beta per call to sample/sample_sequences.
+        max_beta : float
+            Upper bound for beta (typically 1.0).
+        eps : float
+            Small constant to keep all priorities strictly positive.
+        All other parameters are forwarded to TDMPC2ReplayBuffer.
+        """
+        super().__init__(
+            max_size=max_size,
+            horizon=horizon,
+            batch_size=batch_size,
+            use_torch_tensors=use_torch_tensors,
+            pin_memory=pin_memory,
+            device=device,
+            buffer_device=buffer_device,
+            multitask=multitask,
+            win_reward_bonus=win_reward_bonus,
+            win_reward_discount=win_reward_discount,
+        )
+        self.alpha = alpha
+        self.beta = beta
+        self.beta_increment = beta_increment
+        self.max_beta = max_beta
+        self.eps = eps
+        self.max_priority = 1.0
+        self._episode_priorities = []
+
+    def _evict_if_needed(self, extra):
+        """Evict oldest episodes and their priorities to stay within max_size."""
+        while self._episodes and self._total_transitions + extra > self.max_size:
+            ep = self._episodes.pop(0)
+            T = ep["action"].shape[0]
+            self._total_transitions -= T
+            if self._episode_priorities:
+                self._episode_priorities.pop(0)
+
+    def _add_episode_internal(
+        self,
+        obs,
+        action,
+        reward,
+        terminated,
+        task=None,
+        winner=None,
+        reward_original=None,
+    ):
+        """Add episode via parent, then assign it maximum priority."""
+        super()._add_episode_internal(
+            obs, action, reward, terminated, task, winner, reward_original
+        )
+        priority = (self.max_priority + self.eps) ** self.alpha
+        self._episode_priorities.append(priority)
+
+    def update_priorities(self, episode_indices, priorities):
+        """Update episode priorities after a training step.
+
+        Parameters
+        ----------
+        episode_indices : list[int]
+            Indices into self._episodes for the sampled episodes.
+        priorities : array-like
+            New scalar priority per episode (e.g., per-sequence loss).
+        """
+        priorities = np.abs(np.asarray(priorities, dtype=np.float32)) + self.eps
+        new_max = float(priorities.max())
+        if new_max > self.max_priority:
+            self.max_priority = new_max
+        for ep_idx, p in zip(episode_indices, priorities):
+            if 0 <= ep_idx < len(self._episode_priorities):
+                self._episode_priorities[ep_idx] = float(p**self.alpha)
+
+    def sample(self, batch_size=None, horizon=None, return_original_reward=False):
+        """Prioritized batch sample.
+
+        Returns
+        -------
+        tuple
+            (obs, action, reward, terminated, task, weights, episode_indices)
+            Shapes are identical to TDMPC2ReplayBuffer.sample except two extra
+            outputs: weights (B,) IS correction tensor on self.device and
+            episode_indices list[int] for use with update_priorities.
+        """
+        B = batch_size if batch_size is not None else self.batch_size
+        H = horizon if horizon is not None else self.horizon
+
+        candidates = []
+        for ep_idx, ep in enumerate(self._episodes):
+            T = ep["action"].shape[0]
+            if T >= H:
+                for start in range(0, T - H + 1):
+                    candidates.append((ep_idx, ep, start))
+
+        if len(candidates) == 0:
+            raise RuntimeError(
+                "TDMPC2PrioritizedReplayBuffer.sample: no episode has length >= horizon. "
+                "Add episodes or reduce horizon."
+            )
+
+        priorities = np.array(
+            [self._episode_priorities[ep_idx] for ep_idx, ep, start in candidates],
+            dtype=np.float32,
+        )
+        total_priority = float(priorities.sum())
+        if total_priority <= 0:
+            total_priority = self.eps * len(candidates)
+        probs = priorities / total_priority
+
+        self.beta = min(self.max_beta, self.beta + self.beta_increment)
+        selected = np.random.choice(len(candidates), size=B, p=probs, replace=True)
+
+        min_prob = float(probs[probs > 0].min()) if (probs > 0).any() else 1.0 / len(candidates)
+        max_weight = (min_prob * len(candidates)) ** (-self.beta)
+        weights = np.array(
+            [(probs[i] * len(candidates)) ** (-self.beta) / max_weight for i in selected],
+            dtype=np.float32,
+        )
+
+        ep_indices = [candidates[i][0] for i in selected]
+        chunks = [(candidates[i][1], candidates[i][2]) for i in selected]
+
+        obs_list, action_list, reward_list, terminated_list, task_list = [], [], [], [], []
+        for ep, start in chunks:
+            obs_list.append(ep["obs"][start : start + H + 1])
+            action_list.append(ep["action"][start : start + H])
+            if return_original_reward:
+                reward_list.append(ep["reward_original"][start : start + H])
+            else:
+                reward_list.append(ep["reward"][start : start + H])
+            terminated_list.append(ep["terminated"][start : start + H])
+            if self.multitask and ep.get("task") is not None:
+                task_list.append(ep["task"][start])
+
+        if self.use_torch_tensors:
+            obs = torch.stack(obs_list, dim=0)
+            action = torch.stack(action_list, dim=0)
+            reward = torch.stack(reward_list, dim=0)
+            terminated = torch.stack(terminated_list, dim=0)
+            if reward.dim() == 2:
+                reward = reward.unsqueeze(-1)
+            if terminated.dim() == 2:
+                terminated = terminated.unsqueeze(-1)
+            obs = obs.to(self.device, non_blocking=True)
+            action = action.to(self.device, non_blocking=True)
+            reward = reward.to(self.device, non_blocking=True)
+            terminated = terminated.to(self.device, non_blocking=True)
+            task = (
+                torch.stack(task_list, dim=0).to(self.device, non_blocking=True)
+                if task_list
+                else None
+            )
+        else:
+            obs = np.stack(obs_list, axis=0)
+            action = np.stack(action_list, axis=0)
+            reward = np.stack(reward_list, axis=0)
+            terminated = np.stack(terminated_list, axis=0)
+            if reward.ndim == 2:
+                reward = reward.reshape(*reward.shape, 1)
+            if terminated.ndim == 2:
+                terminated = terminated.reshape(*terminated.shape, 1)
+            task = np.stack(task_list, axis=0) if task_list else None
+
+        weights_tensor = torch.as_tensor(weights, dtype=torch.float32, device=self.device)
+        return obs, action, reward, terminated, task, weights_tensor, ep_indices
+
+    def sample_sequences(self, batch_size, horizon):
+        """Prioritized sequence sample for the TD-MPC2 train loop.
+
+        Returns
+        -------
+        tuple or None
+            (obs, action, reward, terminated, weights, episode_indices) with
+            shapes (B, H+1, obs_dim), (B, H, action_dim), (B, H, 1), (B, H, 1),
+            (B,), list[int].  Returns None if no episode has length >= horizon.
+        """
+        if not any(ep["action"].shape[0] >= horizon for ep in self._episodes):
+            return None
+        obs, action, reward, terminated, _, weights, ep_indices = self.sample(
+            batch_size=batch_size, horizon=horizon
+        )
+        return obs, action, reward, terminated, weights, ep_indices
+
+    def clear(self):
+        """Clear the buffer and all priorities."""
+        super().clear()
+        self._episode_priorities = []
+
+
 class OpponentCloningBuffer:
     """Buffer for storing opponent demonstrations (obs, action) for behavior cloning.
     
