@@ -12,7 +12,11 @@ if torch.cuda.is_available():
     torch.set_float32_matmul_precision("high")
 
 from rl_hockey.common.agent import Agent
-from rl_hockey.common.buffer import OpponentCloningBuffer, TDMPC2ReplayBuffer
+from rl_hockey.common.buffer import (
+    OpponentCloningBuffer,
+    TDMPC2PrioritizedReplayBuffer,
+    TDMPC2ReplayBuffer,
+)
 from rl_hockey.TD_MPC2.model_dynamics_opponent import DynamicsOpponent
 from rl_hockey.TD_MPC2.model_dynamics_simple import DynamicsSimple
 from rl_hockey.TD_MPC2.model_encoder import Encoder
@@ -179,6 +183,11 @@ class TDMPC2(Agent):
         win_reward_bonus=10.0,
         win_reward_discount=0.92,
         use_amp=True,
+        use_per=True,
+        per_alpha=0.6,
+        per_beta=0.4,
+        per_beta_increment=0.0001,
+        per_eps=1e-6,
         opponent_simulation_enabled=False,
         opponent_cloning_frequency=5000,
         opponent_cloning_steps=20,
@@ -252,6 +261,11 @@ class TDMPC2(Agent):
         self.termination_coef = termination_coef
         self.n_step = n_step
         self.use_amp = use_amp and torch.cuda.is_available()
+        self.use_per = use_per
+        self.per_alpha = per_alpha
+        self.per_beta = per_beta
+        self.per_beta_increment = per_beta_increment
+        self.per_eps = per_eps
 
         if self.use_amp:
             self.scaler = torch.amp.GradScaler("cuda")
@@ -391,19 +405,32 @@ class TDMPC2(Agent):
         )
         batch_size = self.config.get("batch_size", 256)
         buffer_device = self.config.get("buffer_device", "cpu")
-        self.buffer = TDMPC2ReplayBuffer(
+        _buffer_kwargs = dict(
             max_size=capacity,
             horizon=self.horizon,
             batch_size=batch_size,
             use_torch_tensors=True,
-            device=self.device,  # Where sampled batches go (for training)
-            buffer_device=buffer_device,  # Where episode data is stored
-            pin_memory=(
-                buffer_device == "cpu"
-            ),  # Pin memory for faster CPU->GPU transfer
+            device=self.device,
+            buffer_device=buffer_device,
+            pin_memory=(buffer_device == "cpu"),
             win_reward_bonus=win_reward_bonus,
             win_reward_discount=win_reward_discount,
         )
+        if self.use_per:
+            self.buffer = TDMPC2PrioritizedReplayBuffer(
+                **_buffer_kwargs,
+                alpha=self.per_alpha,
+                beta=self.per_beta,
+                beta_increment=self.per_beta_increment,
+                eps=self.per_eps,
+            )
+            logger.info(
+                f"Using TDMPC2PrioritizedReplayBuffer "
+                f"(alpha={self.per_alpha}, beta={self.per_beta}, "
+                f"beta_increment={self.per_beta_increment})"
+            )
+        else:
+            self.buffer = TDMPC2ReplayBuffer(**_buffer_kwargs)
         self._obs_buffer = torch.empty(
             (batch_size, obs_dim), device=self.device, dtype=torch.float32
         )
@@ -799,10 +826,23 @@ class TDMPC2(Agent):
             batch_size = self.config.get("batch_size", 256)
 
             used_sequences = False
+            per_weights = None
+            per_ep_indices = None
             if hasattr(self.buffer, "sample_sequences") and self.horizon > 1:
                 seq = self.buffer.sample_sequences(batch_size, self.horizon)
                 if seq is not None:
-                    obs_seq, actions_seq, rewards_seq, dones_seq = seq
+                    # PER buffer returns 6-tuple; uniform buffer returns 4-tuple
+                    if len(seq) == 6:
+                        (
+                            obs_seq,
+                            actions_seq,
+                            rewards_seq,
+                            dones_seq,
+                            per_weights,
+                            per_ep_indices,
+                        ) = seq
+                    else:
+                        obs_seq, actions_seq, rewards_seq, dones_seq = seq
 
                     if not isinstance(obs_seq, torch.Tensor):
                         obs_seq = torch.from_numpy(obs_seq).float()
@@ -814,6 +854,8 @@ class TDMPC2(Agent):
                     actions_seq = actions_seq.to(self.device, non_blocking=True)
                     rewards_seq = rewards_seq.to(self.device, non_blocking=True)
                     dones_seq = dones_seq.to(self.device, non_blocking=True)
+                    if per_weights is not None:
+                        per_weights = per_weights.to(self.device, non_blocking=True)
 
                     if rewards_seq.dim() == 2:
                         rewards_seq = rewards_seq.unsqueeze(-1)
@@ -844,7 +886,6 @@ class TDMPC2(Agent):
                     )
                     z_pred = z_seq[:, 0].clone()
                     zs[0] = z_pred
-                    consistency_loss = 0.0
 
                     lambda_weights = self.lambda_coef ** torch.arange(
                         horizon, device=self.device, dtype=torch.float32
@@ -863,6 +904,10 @@ class TDMPC2(Agent):
                     else:
                         batch_opp_ids = None
 
+                    # Per-sequence consistency loss accumulator; shape (B,)
+                    consistency_loss_per_seq = torch.zeros(
+                        batch_size_actual, device=self.device
+                    )
                     for t in range(horizon):
                         a_t = actions_seq[:, t]
                         z_target = z_seq[:, t + 1].detach()
@@ -893,13 +938,18 @@ class TDMPC2(Agent):
                                 z_next_pred = self.dynamics(z_pred, a_t)
                         zs[t + 1] = z_next_pred
 
-                        consistency_loss = consistency_loss + lambda_weights[
-                            t
-                        ] * F.mse_loss(z_next_pred, z_target)
+                        # Per-sequence MSE for PER priority; (B,)
+                        per_sample_mse = F.mse_loss(
+                            z_next_pred, z_target, reduction="none"
+                        ).mean(dim=-1)
+                        consistency_loss_per_seq = (
+                            consistency_loss_per_seq
+                            + lambda_weights[t] * per_sample_mse
+                        )
 
                         z_pred = z_next_pred
 
-                    consistency_loss = consistency_loss / horizon
+                    consistency_loss_per_seq = consistency_loss_per_seq / horizon
 
                     _zs = zs[:-1]
                     _zs_flat = _zs.reshape(-1, self.latent_dim)
@@ -912,36 +962,54 @@ class TDMPC2(Agent):
                         q_preds_all = self.q_ensemble(_zs_flat, _actions_flat)
 
                     rewards_flat = rewards_seq.permute(1, 0, 2).reshape(-1, 1)
+                    # reward_loss_per_sample: (H*B, 1) -> per-seq: (B,)
                     reward_loss_per_sample = soft_ce(
                         reward_preds, rewards_flat, self.num_bins, self.vmin, self.vmax
                     )
-                    reward_loss_per_step = reward_loss_per_sample.reshape(
-                        horizon, batch_size_actual
-                    ).mean(dim=1)
-                    reward_loss = (
-                        lambda_weights * reward_loss_per_step
-                    ).sum() / horizon
+                    reward_loss_per_seq_mat = reward_loss_per_sample.squeeze(
+                        -1
+                    ).reshape(horizon, batch_size_actual)
+                    reward_loss_per_seq = (
+                        lambda_weights.unsqueeze(1) * reward_loss_per_seq_mat
+                    ).sum(dim=0) / horizon
 
                     td_targets_flat = td_targets.permute(1, 0, 2).reshape(-1, 1)
-                    value_loss = 0.0
+                    # value_loss_per_seq: (B,)
+                    value_loss_per_seq = torch.zeros(
+                        batch_size_actual, device=self.device
+                    )
                     for q_pred in q_preds_all:
                         value_loss_per_sample = soft_ce(
                             q_pred, td_targets_flat, self.num_bins, self.vmin, self.vmax
                         )
-                        value_loss_per_step = value_loss_per_sample.reshape(
-                            horizon, batch_size_actual
-                        ).mean(dim=1)
-                        value_loss = (
-                            value_loss + (lambda_weights * value_loss_per_step).sum()
-                        )
-                    value_loss = value_loss / (horizon * self.num_q)
+                        value_loss_per_seq_mat = value_loss_per_sample.squeeze(
+                            -1
+                        ).reshape(horizon, batch_size_actual)
+                        value_loss_per_seq = value_loss_per_seq + (
+                            lambda_weights.unsqueeze(1) * value_loss_per_seq_mat
+                        ).sum(dim=0)
+                    value_loss_per_seq = value_loss_per_seq / (horizon * self.num_q)
+
                     zs_bh = zs[1:].permute(1, 0, 2).reshape(-1, self.latent_dim)
                     with torch.amp.autocast("cuda", enabled=self.use_amp):
                         termination_pred_logits = self.termination(zs_bh)
                     termination_target = dones_seq.reshape(-1, 1)
-                    termination_loss = F.binary_cross_entropy_with_logits(
-                        termination_pred_logits, termination_target
+                    # termination_loss_per_seq: (B,)
+                    termination_loss_per_seq = (
+                        F.binary_cross_entropy_with_logits(
+                            termination_pred_logits,
+                            termination_target,
+                            reduction="none",
+                        )
+                        .reshape(horizon, batch_size_actual)
+                        .mean(dim=0)
                     )
+
+                    # Scalar losses for logging
+                    consistency_loss = consistency_loss_per_seq.mean()
+                    reward_loss = reward_loss_per_seq.mean()
+                    value_loss = value_loss_per_seq.mean()
+                    termination_loss = termination_loss_per_seq.mean()
 
                     used_sequences = True
 
@@ -952,12 +1020,25 @@ class TDMPC2(Agent):
                     "The agent cannot learn a consistent world model without sequences."
                 )
 
-            total_loss = (
-                self.consistency_coef * consistency_loss
-                + self.reward_coef * reward_loss
-                + self.value_coef * value_loss
-                + self.termination_coef * termination_loss
-            )
+            # Apply IS weights when using PER, otherwise uniform mean
+            if per_weights is not None:
+                w = per_weights.view(-1)
+                total_loss = (
+                    w
+                    * (
+                        self.consistency_coef * consistency_loss_per_seq
+                        + self.reward_coef * reward_loss_per_seq
+                        + self.value_coef * value_loss_per_seq
+                        + self.termination_coef * termination_loss_per_seq
+                    )
+                ).mean()
+            else:
+                total_loss = (
+                    self.consistency_coef * consistency_loss
+                    + self.reward_coef * reward_loss
+                    + self.value_coef * value_loss
+                    + self.termination_coef * termination_loss
+                )
 
             self.optimizer.zero_grad()
 
@@ -989,6 +1070,22 @@ class TDMPC2(Agent):
             self.optimizer.zero_grad(set_to_none=True)
             if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
+
+            # Update PER priorities with aggregate per-sequence loss
+            if per_ep_indices is not None and isinstance(
+                self.buffer, TDMPC2PrioritizedReplayBuffer
+            ):
+                with torch.no_grad():
+                    new_priorities = (
+                        (
+                            consistency_loss_per_seq.detach()
+                            + reward_loss_per_seq.detach()
+                            + value_loss_per_seq.detach()
+                        )
+                        .cpu()
+                        .numpy()
+                    )
+                self.buffer.update_priorities(per_ep_indices, new_priorities)
 
             policy_loss, grad_norm_policy = self._update_policy(zs.detach())
             self._update_target_network(tau=self.tau)

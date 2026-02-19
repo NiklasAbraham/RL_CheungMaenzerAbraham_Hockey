@@ -195,8 +195,11 @@ class Archive:
             return
 
         raw_dir = registry_entry.directory or ""
-        agent_dir = Path(raw_dir.replace("\\", "/")) if raw_dir else None
-        if not agent_dir or not agent_dir.exists():
+        if not raw_dir:
+            return
+        raw_path = Path(raw_dir.replace("\\", "/"))
+        agent_dir = raw_path if raw_path.is_absolute() else (self.base_dir.parent / raw_path).resolve()
+        if not agent_dir.exists():
             return
 
         metadata_path = agent_dir / "metadata.json"
@@ -392,9 +395,14 @@ class Archive:
             return metadata
 
         raw_dir = registry_entry.directory or ""
-        agent_dir = Path(raw_dir.replace("\\", "/")) if raw_dir else None
-        if not agent_dir:
+        if not raw_dir:
             return None
+        # Resolve relative to archive base so this works regardless of cwd
+        raw_path = Path(raw_dir.replace("\\", "/"))
+        if raw_path.is_absolute():
+            agent_dir = raw_path
+        else:
+            agent_dir = (self.base_dir.parent / raw_path).resolve()
 
         metadata_path = agent_dir / "metadata.json"
 
@@ -485,9 +493,11 @@ class Archive:
         # Remove agent directory
         registry_entry = self.registry[agent_id]
         raw_dir = registry_entry.directory or ""
-        agent_dir = Path(raw_dir.replace("\\", "/")) if raw_dir else None
-        if agent_dir and agent_dir.exists():
-            shutil.rmtree(agent_dir)
+        if raw_dir:
+            raw_path = Path(raw_dir.replace("\\", "/"))
+            agent_dir = raw_path if raw_path.is_absolute() else (self.base_dir.parent / raw_path).resolve()
+            if agent_dir.exists():
+                shutil.rmtree(agent_dir)
 
         # Remove from registry
         del self.registry[agent_id]

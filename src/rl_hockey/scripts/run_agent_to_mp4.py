@@ -56,10 +56,10 @@ def _resolve_path(path, root=None):
 # Single config dict: edit here for runs. Paths are relative to project root unless absolute.
 CONFIG = {
     # "model_path": "results/reference_bots/TDMPC2/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt",
-    "model_path": "results/tdmpc2_runs_test/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep009200.pt",
-    "opponent_type": "agent",
-    "opponent_model_path": "results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
-    "num_games": 25,
+    "model_path": "archive/agents/0002_TDMPC2_2026-02-13_12-39-15/checkpoint.pt",
+    "opponent_type": "basic_weak",
+    "opponent_model_path": None,
+    "num_games": 50,
     "pause_between_games": 1.5,
     "frame_delay": 0.05,
     "max_steps": 250,

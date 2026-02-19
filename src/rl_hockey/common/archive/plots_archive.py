@@ -55,78 +55,153 @@ def load_data(archive_root: Path = Path("archive")):
     return registry, match_history
 
 
-def plot_agent_ratings(registry: dict, output_path: Path = Path("plots")):
-    """Create a bar plot of agent ratings with uncertainty."""
+def _match_agent(agent_id: str, selector: str) -> bool:
+    """True if agent_id is selected by selector (exact or prefix match)."""
+    if agent_id == selector:
+        return True
+    if agent_id.startswith(selector + "_"):
+        return True
+    return False
+
+
+def _wrap_label(text: str, max_chars: int = 18) -> str:
+    """Insert line breaks so each line is at most max_chars, breaking at spaces."""
+    if len(text) <= max_chars:
+        return text
+    out = []
+    rest = text
+    while rest:
+        if len(rest) <= max_chars:
+            out.append(rest)
+            break
+        chunk = rest[: max_chars + 1]
+        last_space = chunk.rfind(" ")
+        if last_space == -1:
+            last_space = chunk.rfind("_")
+        if last_space == -1:
+            last_space = max_chars
+        out.append(rest[:last_space])
+        rest = rest[last_space + 1 :].lstrip()
+    return "\n".join(out)
+
+
+def plot_agent_ratings(
+    registry: dict,
+    output_path: Path = Path("plots"),
+    agent_selection: list[tuple[str, str]] | None = None,
+    output_filename: str = "agent_ratings.png",
+    show_match_count: bool = True,
+):
+    """Create a bar plot of agent ratings with uncertainty.
+
+    agent_selection: If given, list of (selector, label) to include only those
+        agents and use custom x-tick labels. Selector is exact agent_id or prefix
+        (e.g. "0006" or "basic_weak"). Order and labels follow this list.
+    output_filename: Output file name (used when saving a selected-agents plot).
+    show_match_count: If True, show match count (e.g. "884m") above each bar.
+    """
     output_path.mkdir(exist_ok=True)
 
-    # Extract data
-    agents = []
-    ratings = []
-    sigmas = []
-    matches = []
-
-    for agent_id, data in registry.items():
-        agents.append(
-            agent_id.replace("_", "\n", 1) if len(agent_id) > 15 else agent_id
-        )
-        ratings.append(data["rating"]["rating"])
-        sigmas.append(data["rating"]["sigma"] * 3)  # 3-sigma for confidence
-        matches.append(data["rating"]["matches_played"])
-
-    # Sort by rating
-    sorted_indices = np.argsort(ratings)[::-1]
-    agents = [agents[i] for i in sorted_indices]
-    ratings = [ratings[i] for i in sorted_indices]
-    sigmas = [sigmas[i] for i in sorted_indices]
-    matches = [matches[i] for i in sorted_indices]
+    if agent_selection is not None:
+        # Build list of (agent_id, label) in selection order; each selector picks first match
+        ordered = []
+        seen = set()
+        for selector, label in agent_selection:
+            for agent_id, data in registry.items():
+                if agent_id not in seen and _match_agent(agent_id, selector):
+                    ordered.append((agent_id, label, data))
+                    seen.add(agent_id)
+                    break
+        labels = [t[1] for t in ordered]
+        agents = labels
+        ratings = [t[2]["rating"]["rating"] for t in ordered]
+        sigmas = [t[2]["rating"]["sigma"] * 3 for t in ordered]
+        matches = [t[2]["rating"]["matches_played"] for t in ordered]
+    else:
+        agents = []
+        ratings = []
+        sigmas = []
+        matches = []
+        for agent_id, data in registry.items():
+            agents.append(
+                agent_id.replace("_", "\n", 1) if len(agent_id) > 15 else agent_id
+            )
+            ratings.append(data["rating"]["rating"])
+            sigmas.append(data["rating"]["sigma"] * 3)
+            matches.append(data["rating"]["matches_played"])
+        sorted_indices = np.argsort(ratings)[::-1]
+        agents = [agents[i] for i in sorted_indices]
+        ratings = [ratings[i] for i in sorted_indices]
+        sigmas = [sigmas[i] for i in sorted_indices]
+        matches = [matches[i] for i in sorted_indices]
 
     fig, ax = plt.subplots(figsize=FIG_BAR)
-    colors = [
-        "#1f77b4"
-        if "basic" in str(agents[i]).lower()
-        else "#ff7f0e"
-        if "SAC" in str(agents[i])
-        else "#2ca02c"
-        for i in range(len(agents))
-    ]
+    if agent_selection is not None:
+        # One distinct color per bar for selected-agents plot
+        distinct_colors = [
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#8c564b",
+            "#e377c2",
+            "#17becf",
+        ]
+        colors = [distinct_colors[i % len(distinct_colors)] for i in range(len(agents))]
+    else:
+        colors = [
+            "#1f77b4"
+            if "basic" in str(agents[i]).lower()
+            else "#ff7f0e"
+            if "SAC" in str(agents[i])
+            else "#2ca02c"
+            for i in range(len(agents))
+        ]
 
     bars = ax.bar(
         range(len(agents)),
         ratings,
+        width=0.4,
         yerr=sigmas,
         capsize=5,
         color=colors,
-        alpha=0.7,
+        alpha=0.8,
         edgecolor="black",
     )
 
-    # Add match count on top of bars
-    for i, (bar, match_count) in enumerate(zip(bars, matches)):
-        height = bar.get_height()
-        ax.text(
-            bar.get_x() + bar.get_width() / 2.0,
-            height + sigmas[i] + 1,
-            f"{match_count}m",
-            ha="center",
-            va="bottom",
-            fontsize=8,
-            fontweight="bold",
-        )
+    if show_match_count:
+        for i, (bar, match_count) in enumerate(zip(bars, matches)):
+            height = bar.get_height()
+            ax.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                height + sigmas[i] + 1,
+                f"{match_count}m",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+                fontweight="bold",
+            )
 
-    ax.set_xlabel("Agent ID", fontsize=12, fontweight="bold")
-    ax.set_ylabel("TrueSkill Rating", fontsize=12, fontweight="bold")
-    ax.set_title(
-        "Agent Performance Ratings (with 3-sigma confidence intervals)",
-        fontsize=11,
-    )
+    ax.set_xlabel("Agent ID", fontsize=12)
+    ax.set_ylabel("TrueSkill Rating", fontsize=12)
+    if agent_selection is not None:
+        title = "TrueSkill ratings of selected agents"
+        title_pad = 15
+    else:
+        title = "Agent Performance Ratings (with 3-sigma confidence intervals)"
+        title_pad = 6
+    ax.set_title(title, fontsize=11, pad=title_pad)
     ax.set_xticks(range(len(agents)))
-    ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
+    if agent_selection is not None:
+        display_labels = [_wrap_label(a) for a in agents]
+        ax.set_xticklabels(display_labels, rotation=0, ha="center", fontsize=9)
+    else:
+        ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
     ax.grid(axis="y", alpha=0.3)
-    ax.axhline(y=25, color="red", linestyle="--", alpha=0.5, label="Initial Rating")
-    ax.legend()
 
     plt.tight_layout()
-    plt.savefig(output_path / "agent_ratings.png", dpi=300, bbox_inches="tight")
+    plt.savefig(output_path / output_filename, dpi=300, bbox_inches="tight")
     plt.close()
 
 
@@ -198,8 +273,8 @@ def plot_win_matrix(
     )
 
     ax.set_title("Win Percentage Matrix (Row vs Column)", fontsize=11)
-    ax.set_xlabel("Opponent", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Agent", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Opponent", fontsize=12)
+    ax.set_ylabel("Agent", fontsize=12)
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
     plt.setp(ax.get_yticklabels(), rotation=0)
 
@@ -267,8 +342,8 @@ def plot_rating_uncertainty(registry: dict, output_path: Path = Path("plots")):
             textcoords="offset points",
         )
 
-    ax.set_xlabel("TrueSkill Rating", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Uncertainty (Sigma)", fontsize=12, fontweight="bold")
+    ax.set_xlabel("TrueSkill Rating", fontsize=12)
+    ax.set_ylabel("Uncertainty (Sigma)", fontsize=12)
     ax.set_title(
         "Rating vs Uncertainty (bubble size = matches played)",
         fontsize=11,
@@ -307,7 +382,12 @@ def plot_matches_played(registry: dict, output_path: Path = Path("plots")):
     fig, ax = plt.subplots(figsize=FIG_SCATTER)
     colors = plt.cm.viridis(np.linspace(0.3, 0.9, len(agents)))
     bars = ax.bar(
-        range(len(agents)), matches, color=colors, edgecolor="black", alpha=0.8
+        range(len(agents)),
+        matches,
+        width=0.55,
+        color=colors,
+        edgecolor="black",
+        alpha=0.8,
     )
 
     # Add values on bars
@@ -323,8 +403,8 @@ def plot_matches_played(registry: dict, output_path: Path = Path("plots")):
             fontweight="bold",
         )
 
-    ax.set_xlabel("Agent ID", fontsize=12, fontweight="bold")
-    ax.set_ylabel("Number of Matches Played", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Agent ID", fontsize=12)
+    ax.set_ylabel("Number of Matches Played", fontsize=12)
     ax.set_title("Calibration Progress: Matches Played per Agent", fontsize=11)
     ax.set_xticks(range(len(agents)))
     ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
@@ -379,17 +459,36 @@ def plot_horizon_ratings(
         registry, agent_numbers, horizon_start, horizon_step
     )
 
+    # Reference bars: weak and strong bot from registry
+    ref_labels = []
+    ref_ratings = []
+    ref_sigmas = []
+    if "basic_weak" in registry:
+        ref_labels.append("weak bot")
+        d = registry["basic_weak"]["rating"]
+        ref_ratings.append(d["rating"])
+        ref_sigmas.append(d["sigma"] * 3)
+    if "basic_strong" in registry:
+        ref_labels.append("strong bot")
+        d = registry["basic_strong"]["rating"]
+        ref_ratings.append(d["rating"])
+        ref_sigmas.append(d["sigma"] * 3)
+
+    n_ref = len(ref_labels)
+
     if agent_numbers_b is not None:
         ratings_b, sigmas_b, labels_b = _collect_horizon_series(
             registry, agent_numbers_b, horizon_start, horizon_step
         )
         n_horizons = len(labels_a)
-        horizon_labels = labels_a
-        x = np.arange(n_horizons)
-        bar_width = 0.35
-        fig, ax = plt.subplots(figsize=(max(FIG_BAR[0], n_horizons * 1.5), FIG_BAR[1]))
+        horizon_labels = list(labels_a) + ref_labels
+        n_cats = n_horizons + n_ref
+        x = np.arange(n_cats)
+        bar_width = 0.24
+        fig, ax = plt.subplots(figsize=(max(FIG_BAR[0], n_cats * 1.5), FIG_BAR[1]))
+        # Horizon bars (only for first n_horizons)
         ax.bar(
-            x - bar_width / 2,
+            x[:n_horizons] - bar_width / 2,
             ratings_a,
             bar_width,
             yerr=sigmas_a,
@@ -400,7 +499,7 @@ def plot_horizon_ratings(
             edgecolor="black",
         )
         ax.bar(
-            x + bar_width / 2,
+            x[:n_horizons] + bar_width / 2,
             ratings_b,
             bar_width,
             yerr=sigmas_b,
@@ -410,28 +509,62 @@ def plot_horizon_ratings(
             alpha=0.7,
             edgecolor="black",
         )
+        # Reference bars (weak / strong bot) at the end
+        if n_ref > 0:
+            ref_x = x[n_horizons:]
+            for i in range(n_ref):
+                ax.bar(
+                    ref_x[i],
+                    ref_ratings[i],
+                    bar_width,
+                    yerr=ref_sigmas[i],
+                    capsize=3,
+                    label=ref_labels[i],
+                    color="#7f7f7f",
+                    alpha=0.8,
+                    edgecolor="black",
+                )
         ax.set_xticks(x)
         ax.set_xticklabels(horizon_labels)
     else:
-        x = range(len(labels_a))
-        fig, ax = plt.subplots(figsize=FIG_BAR)
+        n_horizons = len(labels_a)
+        horizon_labels = list(labels_a) + ref_labels
+        n_cats = n_horizons + n_ref
+        x = np.arange(n_cats)
+        bar_width = 0.28
+        fig, ax = plt.subplots(figsize=(max(FIG_BAR[0], n_cats * 1.5), FIG_BAR[1]))
         ax.bar(
-            x,
+            x[:n_horizons],
             ratings_a,
+            bar_width,
             yerr=sigmas_a,
             capsize=5,
+            label=group_label,
             color="#2ca02c",
             alpha=0.7,
             edgecolor="black",
         )
+        if n_ref > 0:
+            ref_x = x[n_horizons:]
+            for i in range(n_ref):
+                ax.bar(
+                    ref_x[i],
+                    ref_ratings[i],
+                    bar_width,
+                    yerr=ref_sigmas[i],
+                    capsize=5,
+                    label=ref_labels[i],
+                    color="#7f7f7f",
+                    alpha=0.8,
+                    edgecolor="black",
+                )
         ax.set_xticks(x)
-        ax.set_xticklabels(labels_a)
+        ax.set_xticklabels(horizon_labels)
 
-    ax.set_xlabel("Horizon", fontsize=12, fontweight="bold")
-    ax.set_ylabel("TrueSkill Rating", fontsize=12, fontweight="bold")
+    ax.set_xlabel("Horizon", fontsize=12)
+    ax.set_ylabel("TrueSkill Rating", fontsize=12)
     ax.set_title("Agent ratings by horizon", fontsize=11)
     ax.grid(axis="y", alpha=0.3)
-    ax.axhline(y=25, color="red", linestyle="--", alpha=0.5, label="Initial rating")
     ax.legend()
     plt.tight_layout()
     plt.savefig(output_path / "horizon_ratings.png", dpi=300, bbox_inches="tight")
@@ -526,4 +659,19 @@ if __name__ == "__main__":
         horizon_start=4,
         horizon_step=2,
         output_path=output_path,
+    )
+
+    # Optional: plot only selected agents with custom labels (no match count labels)
+    plot_agent_ratings(
+        registry,
+        output_path=output_path,
+        agent_selection=[
+            ("basic_weak", "weak bot"),
+            ("basic_strong", "strong bot"),
+            ("0001_SAC_2026-01-30_00-57-20", "SAC"),
+            ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2 internal opp and h=8"),
+            ("0012_TDMPC2_2026-02-18_22-39-21", "TDMPC2 internal opp and h=6"),
+        ],
+        output_filename="agent_ratings_selected.png",
+        show_match_count=False,
     )

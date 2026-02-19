@@ -1045,7 +1045,7 @@ def main():
     plot_individual_player1_win_episodes(
         episodes,
         win_reward_bonus=10.0,
-        win_reward_discount=0.92,
+        win_reward_discount=0.82,
     )
 
     # Plot individual Player 2 win episodes (Player 1 losses)
@@ -1055,7 +1055,7 @@ def main():
     visualize_reward_backprop(
         episodes,
         win_reward_bonus=10.0,
-        win_reward_discount=0.92,
+        win_reward_discount=0.82,
     )
 
     print("Analysis complete!")
