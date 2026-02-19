@@ -40,7 +40,7 @@ class EnvironmentConfig:
 
 @dataclass
 class OpponentConfig:
-    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture", "archive"
+    type: str  # "none", "basic_weak", "basic_strong", "self_play", "weighted_mixture", "archive", "run_checkpoints"
     weight: float = 1.0
     checkpoint: Optional[str] = None
     deterministic: bool = True

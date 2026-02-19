@@ -19,6 +19,7 @@
           "WIN_DISCOUNT_START": 0.92,
           "WIN_DISCOUNT_FINAL": 0.92
         },
+        
         "opponent": {
           "type": "weighted_mixture",
           "opponents": [
@@ -51,14 +52,92 @@
         }
       },
       {
-        "name": "final_self_play_archive",
-        "episodes": 60000,
+        "name": "archive_opponents_1",
+        "episodes": 2000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "archive"
         },
         "reward_shaping": null,
         "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_1",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_2",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_2",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_3",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_3",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_4",
+        "episodes": 5000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_4",
+        "episodes": 5000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
       }
     ]
   },
