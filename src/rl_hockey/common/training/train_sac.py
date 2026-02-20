@@ -6,7 +6,7 @@ Config paths and settings are set in this file (no environment variables).
 from rl_hockey.common.training.train import train_vectorized
 
 # Config: paths and settings for cluster and local runs
-CONFIG_PATH = "./configs/curriculum_sac_selfplay.json"
+CONFIG_PATH = "./configs/curriculum_sac.json"
 RESULT_DIR = "./results/sac_runs"
 ARCHIVE_DIR = "./archive"
 NUM_ENVS = 16

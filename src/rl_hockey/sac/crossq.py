@@ -5,13 +5,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from rl_hockey.common import *
+from rl_hockey.common.utils import compute_grad_norm
 from rl_hockey.sac.models import Actor, Critic
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # https://arxiv.org/pdf/1902.05605
-class SAC(Agent):
+class CrossQ(Agent):
     def __init__(self, state_dim, action_dim, **user_config):
         super().__init__()
 
@@ -25,7 +26,7 @@ class SAC(Agent):
             "alpha": 0.2,
             "learn_alpha": True,
             "noise": "normal",
-            "max_episode_steps": 1000,
+            "max_episode_steps": 250,
         }
         self.config.update(user_config)
 
@@ -34,10 +35,10 @@ class SAC(Agent):
         self.discount = self.config["discount"]
         self.tau = self.config["tau"]
 
-        self.actor = Actor(state_dim, action_dim).to(DEVICE)
+        self.actor = Actor(state_dim, action_dim, use_batchnorm=True).to(DEVICE)
 
-        self.critic1 = Critic(state_dim, action_dim, [2048, 2048]).to(DEVICE)
-        self.critic2 = Critic(state_dim, action_dim, [2048, 2048]).to(DEVICE)
+        self.critic1 = Critic(state_dim, action_dim, [2048, 2048], use_batchnorm=True).to(DEVICE)
+        self.critic2 = Critic(state_dim, action_dim, [2048, 2048], use_batchnorm=True).to(DEVICE)
 
         self.critic_optimizer = optim.Adam(
             list(self.critic1.parameters()) + list(self.critic2.parameters()),
@@ -68,10 +69,11 @@ class SAC(Agent):
                 raise ValueError(f"Unknown noise type: {self.config['noise']}")
 
     def act(self, state, deterministic=False, t0=None, **kwargs):
+        self.actor.eval()
         with torch.no_grad():
             state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
 
-            if deterministic:
+            if deterministic or self.deterministic:
                 noise = torch.zeros((1, self.action_dim), device=DEVICE)
             else:
                 noise = self.noise_dist.sample().unsqueeze(0).to(DEVICE)
@@ -79,8 +81,29 @@ class SAC(Agent):
             action, _ = self.actor.sample(state, noise=noise, calc_log_prob=False)
 
             return action.squeeze(0).cpu().numpy()
+        
+    def act_batch(self, states, deterministic=False, t0s=None, **kwargs):
+        """Process a batch of states at once (for vectorized environments)"""
+
+        self.actor.eval()
+        with torch.no_grad():
+            states = torch.from_numpy(states).to(DEVICE)
+            batch_size = states.shape[0]
+
+            if deterministic or self.deterministic:
+                noise = torch.zeros((batch_size, self.action_dim), device=DEVICE)
+            else:
+                # Sample noise for each state in batch
+                noise = torch.stack(
+                    [self.noise_dist.sample().to(DEVICE) for _ in range(batch_size)]
+                )
+
+            actions, _ = self.actor.sample(states, noise=noise, calc_log_prob=False)
+
+            return actions.cpu().numpy()
 
     def evaluate(self, state):
+        self.actor.eval()
         with torch.no_grad():
             state = torch.from_numpy(state).unsqueeze(0).to(DEVICE)
 
@@ -98,6 +121,9 @@ class SAC(Agent):
         grad_norm_critic = []
         grad_norm_actor = []
 
+        self.actor.train()
+        self.critic1.train()
+        self.critic2.train()
         for i in range(steps):
             state, action, reward, next_state, done = self.buffer.sample(
                 self.batch_size
@@ -179,17 +205,6 @@ class SAC(Agent):
 
                 self.alpha = self.log_alpha.exp()
 
-            # update critic target parameters
-            for p, pt in zip(
-                self.critic1.parameters(), self.critic1_target.parameters()
-            ):
-                pt.data.copy_(self.tau * p.data + (1 - self.tau) * pt.data)
-
-            for p, pt in zip(
-                self.critic2.parameters(), self.critic2_target.parameters()
-            ):
-                pt.data.copy_(self.tau * p.data + (1 - self.tau) * pt.data)
-
         return {
             "critic_loss": critic_losses,
             "actor_loss": actor_losses,
@@ -207,9 +222,7 @@ class SAC(Agent):
         checkpoint = {
             "actor": self.actor.state_dict(),
             "critic1": self.critic1.state_dict(),
-            "critic1_target": self.critic1_target.state_dict(),
             "critic2": self.critic2.state_dict(),
-            "critic2_target": self.critic2_target.state_dict(),
             "critic_optimizer": self.critic_optimizer.state_dict(),
             "actor_optimizer": self.actor_optimizer.state_dict(),
             "log_alpha": self.log_alpha if self.config["learn_alpha"] else None,
@@ -225,9 +238,7 @@ class SAC(Agent):
 
         self.actor.load_state_dict(checkpoint["actor"])
         self.critic1.load_state_dict(checkpoint["critic1"])
-        self.critic1_target.load_state_dict(checkpoint["critic1_target"])
         self.critic2.load_state_dict(checkpoint["critic2"])
-        self.critic2_target.load_state_dict(checkpoint["critic2_target"])
         self.critic_optimizer.load_state_dict(checkpoint["critic_optimizer"])
         self.actor_optimizer.load_state_dict(checkpoint["actor_optimizer"])
 
@@ -239,3 +250,39 @@ class SAC(Agent):
     def on_episode_start(self, episode):
         if self.config["noise"] == "pink":
             self.noise_dist.reset()
+
+    def log_architecture(self):
+        """Log agent architecture and config."""
+        def count_parameters(model):
+            return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+        lines = []
+        lines.append("=" * 80)
+        lines.append("SAC agent architecture")
+        lines.append("=" * 80)
+        lines.append(f"Observation dim: {self.state_dim}")
+        lines.append(f"Action dim: {self.action_dim}")
+        lines.append("Configuration:")
+        for key, value in self.config.items():
+            lines.append(f"  {key}: {value}")
+        lines.append("")
+        lines.append("1. Actor (policy):")
+        lines.append(str(self.actor))
+        lines.append(f"   trainable parameters: {count_parameters(self.actor):,}")
+        lines.append("")
+        lines.append("2. Critic 1:")
+        lines.append(str(self.critic1))
+        lines.append(f"   trainable parameters: {count_parameters(self.critic1):,}")
+        lines.append("")
+        lines.append("3. Critic 2:")
+        lines.append(str(self.critic2))
+        lines.append(f"   trainable parameters: {count_parameters(self.critic2):,}")
+        total = (
+            count_parameters(self.actor)
+            + count_parameters(self.critic1)
+            + count_parameters(self.critic2)
+        )
+        lines.append("")
+        lines.append(f"Total trainable parameters: {total:,}")
+        lines.append("=" * 80)
+        return "\n".join(lines)
