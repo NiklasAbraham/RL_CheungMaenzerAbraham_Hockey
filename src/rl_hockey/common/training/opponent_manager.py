@@ -6,6 +6,7 @@ import copy
 from pathlib import Path
 from typing import Optional, Dict, Any, Union
 
+import torch
 import hockey.hockey_env as h_env
 from rl_hockey.common.agent import Agent
 from rl_hockey.common.training.curriculum_manager import OpponentConfig, AgentConfig
@@ -184,20 +185,22 @@ def load_agent_checkpoint(
         opponent_agent_type: Specific agent type to load (SAC, TD3, TDMPC2, DECOYPOLICY)
                             If provided, overrides agent_config.type
     """
-    from rl_hockey.common.training.agent_factory import create_agent
-    
     # Create a new AgentConfig with the opponent's agent type if specified
     if opponent_agent_type is not None:
         # Create opponent-specific config
+        hyperparameters = _get_default_hyperparameters(opponent_agent_type)
+        if opponent_agent_type.upper() == "TDMPC2":
+            checkpoint_hp = _get_tdmpc2_hyperparameters_from_checkpoint(checkpoint_path)
+            hyperparameters.update(checkpoint_hp)
         opponent_config = AgentConfig(
             type=opponent_agent_type,
-            hyperparameters=_get_default_hyperparameters(opponent_agent_type),
+            hyperparameters=hyperparameters,
             checkpoint_path=None
         )
     else:
         # Use the training agent's config
         opponent_config = agent_config
-    
+
     # Create agent with minimal hyperparameters (will be loaded from checkpoint)
     agent = create_agent(
         opponent_config, state_dim, action_dim, {}
@@ -217,6 +220,22 @@ def load_agent_checkpoint(
         agent.critic1.eval()
     
     return agent
+
+
+def _get_tdmpc2_hyperparameters_from_checkpoint(checkpoint_path: str) -> Dict[str, Any]:
+    """Read TDMPC2 architecture and config from a checkpoint so the agent can be built to match."""
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    config = checkpoint.get("config", {})
+    return {
+        "latent_dim": checkpoint.get("latent_dim") or config.get("latent_dim", 512),
+        "hidden_dim": checkpoint.get("hidden_dim") or config.get("hidden_dim"),
+        "num_q": checkpoint.get("num_q") or config.get("num_q", 5),
+        "horizon": checkpoint.get("horizon") or config.get("horizon", 5),
+        "gamma": checkpoint.get("gamma") or config.get("gamma", 0.99),
+        "num_samples": config.get("num_samples", 512),
+        "num_iterations": config.get("num_iterations", 6),
+        "temperature": config.get("temperature", 0.5),
+    }
 
 
 def _get_default_hyperparameters(agent_type: str) -> Dict[str, Any]:

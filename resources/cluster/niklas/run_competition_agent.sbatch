@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=comprl_agent_0010
+#SBATCH --job-name=comprl_agent
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -7,24 +7,23 @@
 #SBATCH --gres=gpu:2080ti:1
 #SBATCH --partition=week
 #SBATCH --time=7-00:00:00
-#SBATCH --output=comprl_agent_0010_%j.out
-#SBATCH --error=comprl_agent_0010_%j.err
-# Game logs (start/end, score, W/D/L tally) go to the .out file. tail -f comprl_agent_0010_<jobid>.out
-
-# Competition server client: run archive agent on the cluster
-# Usage: sbatch resources/cluster/niklas/run_competition_agent.sbatch
-# Sync archive first: bash resources/cluster/niklas/sync_to_cluster_with_archive.sh
+#SBATCH --output=comprl_agent_%j.out
+#SBATCH --error=comprl_agent_%j.err
+# Game logs (start/end, score, W/D/L tally) go to the .out file. tail -f comprl_agent_<jobid>.out
+# Usage: set MODEL_PATH below, then sbatch resources/cluster/niklas/run_competition_agent.sbatch
 
 set -e
 
 PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 CONTAINER="$PROJECT_DIR/singularity_build/rl_hockey_competition.simg"
-ARCHIVE_AGENT_ID="0002_TDMPC2_2026-02-13_12-39-15"
+
+# Path to .pt checkpoint (e.g. results/self_play/.../model.pt or archive/agents/.../checkpoint.pt)
+MODEL_PATH="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep019488.pt"
 
 echo "=== Competition Agent Runner ==="
 echo "Job ID: $SLURM_JOB_ID"
 echo "Node: $SLURM_NODELIST"
-echo "Agent: $ARCHIVE_AGENT_ID"
+echo "Agent: $MODEL_PATH"
 echo "Start time: $(date)"
 echo ""
 
@@ -35,17 +34,18 @@ if [ ! -f "$CONTAINER" ]; then
     exit 1
 fi
 
-# Check archive on cluster (sync_to_cluster.sh excludes archive/ by default)
-ARCHIVE_REGISTRY="$PROJECT_DIR/archive/registry.json"
-if [ ! -f "$ARCHIVE_REGISTRY" ]; then
-    echo "ERROR: Archive not on cluster: $ARCHIVE_REGISTRY"
-    echo "Sync with archive: bash resources/cluster/niklas/sync_to_cluster_with_archive.sh"
+# Resolve path relative to project if needed
+if [ ! -f "$MODEL_PATH" ]; then
+    FULL_PATH="$PROJECT_DIR/$MODEL_PATH"
+    if [ -f "$FULL_PATH" ]; then
+        MODEL_PATH="$FULL_PATH"
+    fi
+fi
+if [ ! -f "$MODEL_PATH" ]; then
+    echo "ERROR: Model file not found: $MODEL_PATH"
     exit 1
 fi
-if ! grep -q "\"$ARCHIVE_AGENT_ID\"" "$ARCHIVE_REGISTRY"; then
-    echo "ERROR: Agent '$ARCHIVE_AGENT_ID' not in $ARCHIVE_REGISTRY"
-    exit 1
-fi
+echo "Using model: $MODEL_PATH"
 
 # Load competition server credentials
 ENV_FILE="$PROJECT_DIR/resources/competition_server/comprl-hockey-agent/niklas_env.env"
@@ -61,8 +61,7 @@ echo ""
 export PYTHONUNBUFFERED=1
 cd "$PROJECT_DIR"
 
-# Run client with cwd = PROJECT_DIR (project root) so archive paths
-# (e.g. archive/agents/0010_...) resolve correctly. Restart loop like autorestart.sh.
+# Run client with cwd = PROJECT_DIR (project root) so paths resolve correctly.
 CLIENT_SCRIPT="$PROJECT_DIR/resources/competition_server/comprl-hockey-agent/run_client.py"
 
 singularity exec \
@@ -77,7 +76,7 @@ singularity exec \
         export COMPRL_SERVER_PORT='$COMPRL_SERVER_PORT' && \
         export COMPRL_ACCESS_TOKEN='$COMPRL_ACCESS_TOKEN' && \
         while true; do \
-            python3 '$CLIENT_SCRIPT' --args --agent=archive --archive-id=$ARCHIVE_AGENT_ID || true; \
+            python3 '$CLIENT_SCRIPT' --args --model-path='$MODEL_PATH' || true; \
             echo 'Restarting in 20s...'; sleep 20; \
         done"
 

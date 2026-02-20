@@ -3,9 +3,22 @@ TDMPC2 training entry point. Calls train_vectorized with TDMPC2 curriculum confi
 Config paths and settings are set in this file (no environment variables).
 """
 
+import logging
+import sys
 from typing import Optional
 
 from rl_hockey.common.training.train import train_vectorized
+
+# Re-apply logging so phase switches and opponent selection are visible (override any prior config)
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    handlers=[logging.StreamHandler(sys.stdout)],
+    force=True,
+)
+logging.getLogger("rl_hockey.common.training.train").setLevel(logging.INFO)
+logging.getLogger("rl_hockey.common.archive.matchmaker").setLevel(logging.INFO)
 
 # Config: paths and settings for cluster and local runs
 CONFIG_PATH = "./configs/curriculum_tdmpc2_mixed_opponents.json"
@@ -40,5 +53,5 @@ def main(
 
 if __name__ == "__main__":
     # To continue from an existing run, pass the run directory path:
-    main(resume_from="./results/self_play/2026-02-01_09-55-22")
+    main(resume_from="./results/self_play/2026-02-16_11-14-33")
     # main()
