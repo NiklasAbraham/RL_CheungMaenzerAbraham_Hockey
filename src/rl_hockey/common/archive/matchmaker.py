@@ -202,9 +202,10 @@ class Matchmaker:
     def _sample_run_checkpoint_opponent(self, config: OpponentConfig) -> Opponent:
         """Pick a random checkpoint from the current run's models directory and load it.
 
-        This enables self-play against historical snapshots saved during the same
-        training run without requiring a separate archive setup.  When no checkpoint
-        exists yet (very beginning of training) it falls back to basic_strong.
+        The directory is re-scanned on every call (no cached file list), so new
+        checkpoints saved during a long run are included the next time an opponent
+        is sampled. When no checkpoint exists yet (very beginning of training) it
+        falls back to basic_strong.
 
         Args:
             config: Opponent config; uses agent_type (default "TDMPC2") and

@@ -6,13 +6,13 @@
       "baseline"
     ],
     "rating": {
-      "mu": 27.143204799714127,
-      "sigma": 0.7819882027519806,
-      "rating": 24.797240191458187,
-      "matches_played": 918,
-      "wins": 156,
-      "losses": 378,
-      "draws": 67
+      "mu": 27.2702177488493,
+      "sigma": 0.8270227449007251,
+      "rating": 24.789149514147127,
+      "matches_played": 1266,
+      "wins": 256,
+      "losses": 589,
+      "draws": 104
     },
     "directory": "",
     "step": null
@@ -24,13 +24,13 @@
       "baseline"
     ],
     "rating": {
-      "mu": 19.031683979568736,
-      "sigma": 1.0244487804964422,
-      "rating": 15.95833763807941,
-      "matches_played": 897,
-      "wins": 26,
-      "losses": 555,
-      "draws": 2
+      "mu": 20.18947124330177,
+      "sigma": 1.0465871935312643,
+      "rating": 17.04970966270798,
+      "matches_played": 1216,
+      "wins": 44,
+      "losses": 854,
+      "draws": 4
     },
     "directory": "",
     "step": null
@@ -40,13 +40,13 @@
     "archived_at": "2026-01-30T00:57:20.369811",
     "tags": [],
     "rating": {
-      "mu": 30.435221771592005,
-      "sigma": 0.7662471811097594,
-      "rating": 28.136480228262727,
-      "matches_played": 664,
-      "wins": 206,
-      "losses": 211,
-      "draws": 61
+      "mu": 29.392645319498612,
+      "sigma": 0.7719260838036042,
+      "rating": 27.0768670680878,
+      "matches_played": 770,
+      "wins": 240,
+      "losses": 263,
+      "draws": 81
     },
     "directory": "archive/agents/0001_SAC_2026-01-30_00-57-20",
     "step": null
@@ -55,17 +55,16 @@
     "agent_id": "0002_TDMPC2_2026-02-13_12-39-15",
     "archived_at": "2026-02-13T12:39:15.840177",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 33.949492308588695,
-      "sigma": 0.8115095659053837,
-      "rating": 31.514963610872545,
-      "matches_played": 467,
-      "wins": 369,
-      "losses": 77,
-      "draws": 21
+      "mu": 35.45427922422821,
+      "sigma": 0.8549365811288194,
+      "rating": 32.889469480841754,
+      "matches_played": 821,
+      "wins": 656,
+      "losses": 129,
+      "draws": 36
     },
     "directory": "archive/agents/0002_TDMPC2_2026-02-13_12-39-15",
     "step": 16000
@@ -74,17 +73,16 @@
     "agent_id": "0003_TDMPC2_2026-02-13_12-41-48",
     "archived_at": "2026-02-13T12:41:48.752291",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 29.635916594088666,
-      "sigma": 0.7384452752514192,
-      "rating": 27.42058076833441,
-      "matches_played": 492,
-      "wins": 154,
-      "losses": 185,
-      "draws": 153
+      "mu": 29.51271607963053,
+      "sigma": 0.771838358696538,
+      "rating": 27.197201003540915,
+      "matches_played": 851,
+      "wins": 292,
+      "losses": 303,
+      "draws": 256
     },
     "directory": "archive/agents/0003_TDMPC2_2026-02-13_12-41-48",
     "step": 6800
@@ -93,17 +91,16 @@
     "agent_id": "0004_TDMPC2_2026-02-13_12-43-15",
     "archived_at": "2026-02-13T12:43:15.334167",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 29.311925592335694,
-      "sigma": 0.7505036045453476,
-      "rating": 27.060414778699652,
-      "matches_played": 441,
-      "wins": 176,
-      "losses": 148,
-      "draws": 117
+      "mu": 28.851651076546002,
+      "sigma": 0.7809748205930103,
+      "rating": 26.50872661476697,
+      "matches_played": 821,
+      "wins": 331,
+      "losses": 286,
+      "draws": 204
     },
     "directory": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15",
     "step": 6600
@@ -112,17 +109,16 @@
     "agent_id": "0005_TDMPC2_2026-02-13_12-44-36",
     "archived_at": "2026-02-13T12:44:36.240324",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 29.191847420997604,
-      "sigma": 0.7621360383654828,
-      "rating": 26.905439305901155,
-      "matches_played": 493,
-      "wins": 227,
-      "losses": 199,
-      "draws": 67
+      "mu": 28.480224491409935,
+      "sigma": 0.7932495867122403,
+      "rating": 26.100475731273214,
+      "matches_played": 851,
+      "wins": 376,
+      "losses": 357,
+      "draws": 118
     },
     "directory": "archive/agents/0005_TDMPC2_2026-02-13_12-44-36",
     "step": 5600
@@ -131,17 +127,16 @@
     "agent_id": "0006_TDMPC2_2026-02-16_09-43-24",
     "archived_at": "2026-02-16T09:43:24.586315",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 30.80000906442125,
-      "sigma": 0.7306181497520288,
-      "rating": 28.608154615165162,
-      "matches_played": 492,
-      "wins": 204,
-      "losses": 72,
-      "draws": 216
+      "mu": 29.958819632790505,
+      "sigma": 0.758484167519129,
+      "rating": 27.68336713023312,
+      "matches_played": 860,
+      "wins": 342,
+      "losses": 130,
+      "draws": 388
     },
     "directory": "archive/agents/0006_TDMPC2_2026-02-16_09-43-24",
     "step": 4000
@@ -150,17 +145,16 @@
     "agent_id": "0007_TDMPC2_2026-02-16_09-43-57",
     "archived_at": "2026-02-16T09:43:57.855518",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 29.731628429328513,
-      "sigma": 0.7380731962325919,
-      "rating": 27.517408840630736,
-      "matches_played": 438,
-      "wins": 191,
-      "losses": 104,
-      "draws": 143
+      "mu": 31.257837391602333,
+      "sigma": 0.7586735972412738,
+      "rating": 28.981816599878513,
+      "matches_played": 798,
+      "wins": 357,
+      "losses": 186,
+      "draws": 255
     },
     "directory": "archive/agents/0007_TDMPC2_2026-02-16_09-43-57",
     "step": 4000
@@ -169,17 +163,16 @@
     "agent_id": "0008_TDMPC2_2026-02-16_09-44-49",
     "archived_at": "2026-02-16T09:44:49.653158",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 29.818296130153257,
-      "sigma": 0.7530647794731831,
-      "rating": 27.55910179173371,
-      "matches_played": 486,
-      "wins": 171,
-      "losses": 169,
-      "draws": 146
+      "mu": 29.259336542367716,
+      "sigma": 0.756477557945341,
+      "rating": 26.989903868531695,
+      "matches_played": 831,
+      "wins": 291,
+      "losses": 296,
+      "draws": 244
     },
     "directory": "archive/agents/0008_TDMPC2_2026-02-16_09-44-49",
     "step": 4000
@@ -188,17 +181,16 @@
     "agent_id": "0009_TDMPC2_2026-02-16_09-45-39",
     "archived_at": "2026-02-16T09:45:39.043924",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 28.500567766088352,
-      "sigma": 0.7611762323263931,
-      "rating": 26.217039069109173,
-      "matches_played": 464,
-      "wins": 159,
-      "losses": 196,
-      "draws": 109
+      "mu": 29.142245853107664,
+      "sigma": 0.7685569725647288,
+      "rating": 26.836574935413477,
+      "matches_played": 803,
+      "wins": 289,
+      "losses": 330,
+      "draws": 184
     },
     "directory": "archive/agents/0009_TDMPC2_2026-02-16_09-45-39",
     "step": 4000
@@ -207,17 +199,16 @@
     "agent_id": "0010_TDMPC2_2026-02-16_09-46-14",
     "archived_at": "2026-02-16T09:46:14.402543",
     "tags": [
-      "tdmpc2",
-      "needs_calibration"
+      "tdmpc2"
     ],
     "rating": {
-      "mu": 30.535595803760614,
-      "sigma": 0.7570898978527103,
-      "rating": 28.264326110202482,
-      "matches_played": 474,
-      "wins": 181,
-      "losses": 155,
-      "draws": 138
+      "mu": 28.384635202786818,
+      "sigma": 0.7494793488746865,
+      "rating": 26.13619715616276,
+      "matches_played": 828,
+      "wins": 306,
+      "losses": 275,
+      "draws": 247
     },
     "directory": "archive/agents/0010_TDMPC2_2026-02-16_09-46-14",
     "step": 4000
@@ -227,17 +218,16 @@
     "archived_at": "2026-02-18T22:38:31.189484",
     "tags": [
       "tdmpc2",
-      "needs_calibration",
       "needs_calibration"
     ],
     "rating": {
-      "mu": 29.82623202957232,
-      "sigma": 0.7691041561203642,
-      "rating": 27.518919561211227,
-      "matches_played": 224,
-      "wins": 84,
-      "losses": 46,
-      "draws": 94
+      "mu": 28.478780672735226,
+      "sigma": 0.7427182668237958,
+      "rating": 26.25062587226384,
+      "matches_played": 396,
+      "wins": 119,
+      "losses": 103,
+      "draws": 174
     },
     "directory": "archive/agents/0011_TDMPC2_2026-02-18_22-38-31",
     "step": 4000
@@ -250,13 +240,13 @@
       "needs_calibration"
     ],
     "rating": {
-      "mu": 30.25616761864238,
-      "sigma": 0.7657904231857493,
-      "rating": 27.958796349085134,
-      "matches_played": 317,
-      "wins": 153,
-      "losses": 67,
-      "draws": 97
+      "mu": 30.243145870344378,
+      "sigma": 0.7567778172394479,
+      "rating": 27.972812418626035,
+      "matches_played": 444,
+      "wins": 195,
+      "losses": 105,
+      "draws": 144
     },
     "directory": "archive/agents/0012_TDMPC2_2026-02-18_22-39-21",
     "step": 4000
@@ -269,13 +259,13 @@
       "needs_calibration"
     ],
     "rating": {
-      "mu": 28.951899946258134,
-      "sigma": 0.7472633753988209,
-      "rating": 26.71010982006167,
-      "matches_played": 296,
-      "wins": 93,
-      "losses": 71,
-      "draws": 132
+      "mu": 30.043049911041436,
+      "sigma": 0.738470685295201,
+      "rating": 27.82763785515583,
+      "matches_played": 397,
+      "wins": 119,
+      "losses": 94,
+      "draws": 184
     },
     "directory": "archive/agents/0013_TDMPC2_2026-02-18_22-40-19",
     "step": 4000
@@ -288,13 +278,13 @@
       "needs_calibration"
     ],
     "rating": {
-      "mu": 29.738376141327038,
-      "sigma": 0.7563685406657943,
-      "rating": 27.469270519329655,
-      "matches_played": 310,
-      "wins": 147,
-      "losses": 96,
-      "draws": 67
+      "mu": 29.950931702134014,
+      "sigma": 0.7631487659172372,
+      "rating": 27.6614854043823,
+      "matches_played": 436,
+      "wins": 193,
+      "losses": 141,
+      "draws": 102
     },
     "directory": "archive/agents/0014_TDMPC2_2026-02-18_22-40-59",
     "step": 4000
@@ -307,13 +297,13 @@
       "needs_calibration"
     ],
     "rating": {
-      "mu": 29.678611517475566,
-      "sigma": 0.7485766904509912,
-      "rating": 27.432881446122593,
-      "matches_played": 306,
-      "wins": 128,
-      "losses": 96,
-      "draws": 82
+      "mu": 30.594646440725644,
+      "sigma": 0.7708727376347939,
+      "rating": 28.28202822782126,
+      "matches_played": 428,
+      "wins": 177,
+      "losses": 142,
+      "draws": 109
     },
     "directory": "archive/agents/0015_TDMPC2_2026-02-18_22-41-49",
     "step": 4000

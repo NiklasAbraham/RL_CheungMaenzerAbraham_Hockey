@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 CONFIG = {
     "checkpoint_paths": [
         Path(
-            "results/tdmpc2_runs_horizon/2026-02-16_11-14-33/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_3b5198ec_20260216_111433_ep004000.pt"
+            "results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep019488.pt"
         ),
     ],
     "archive_dir": Path("archive"),
