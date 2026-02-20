@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 import uuid
 from pathlib import Path
@@ -12,36 +13,24 @@ import numpy as np
 from comprl.client import Agent, launch_client
 
 
-def _load_archive_agent(archive_id: str, repo_root: Path):
-    """Load an agent from the project archive by id (e.g. '0010')."""
+def _run_folder_and_name_from_model_path(path: Path) -> tuple[Path | None, str | None]:
+    """If path is in a run folder (e.g. .../models/Name_ep012345.pt), return (run_folder, run_name). Else (None, None)."""
+    if path.parent.name != "models":
+        return None, None
+    run_folder = path.parent.parent
+    stem = path.stem
+    match = re.match(r"^(.+)_ep\d+$", stem)
+    run_name = match.group(1) if match else stem
+    return run_folder, run_name
+
+
+def _load_agent_from_config(
+    config_path: Path, checkpoint_path: Path, repo_root: Path
+):
+    """Load agent using curriculum config + checkpoint (e.g. from run folder configs/). Opponent paths are resolved relative to repo_root so they work when config lives inside a run folder."""
     sys.path.insert(0, str(repo_root / "src"))
-    from rl_hockey.common.archive import Archive
     from rl_hockey.common.training.curriculum_manager import load_curriculum
     from rl_hockey.common.training.agent_factory import create_agent
-
-    archive_dir = repo_root / "archive"
-    archive = Archive(base_dir=str(archive_dir))
-    metadata = archive.get_agent_metadata(archive_id)
-    if metadata is None:
-        candidates = [
-            a for a in archive.get_agents()
-            if a.agent_id == archive_id or a.agent_id.startswith(archive_id + "_")
-        ]
-        if not candidates:
-            raise ValueError(
-                f"No archive agent found for id '{archive_id}'. "
-                "Check archive/registry.json for valid agent ids."
-            )
-        if len(candidates) > 1:
-            candidates.sort(key=lambda a: a.archived_at, reverse=True)
-        metadata = candidates[0]
-
-    config_path = repo_root / metadata.config_path if metadata.config_path else None
-    checkpoint_path = repo_root / metadata.checkpoint_path if metadata.checkpoint_path else None
-    if not config_path or not config_path.exists():
-        raise FileNotFoundError(f"Archive agent config not found: {config_path}")
-    if not checkpoint_path or not checkpoint_path.exists():
-        raise FileNotFoundError(f"Archive agent checkpoint not found: {checkpoint_path}")
 
     env = h_env.HockeyEnv()
     state_dim = env.observation_space.shape[0]
@@ -49,6 +38,11 @@ def _load_archive_agent(archive_id: str, repo_root: Path):
     env.close()
 
     config = load_curriculum(str(config_path))
+    opponent_sim = config.agent.hyperparameters.get("opponent_simulation") or {}
+    for opp in opponent_sim.get("opponent_agents") or []:
+        if "path" in opp and not Path(opp["path"]).is_absolute():
+            opp["path"] = str((repo_root / opp["path"]).resolve())
+
     agent = create_agent(
         agent_config=config.agent,
         state_dim=state_dim,
@@ -56,12 +50,103 @@ def _load_archive_agent(archive_id: str, repo_root: Path):
         common_hyperparams=config.hyperparameters,
         checkpoint_path=str(checkpoint_path),
         deterministic=True,
+        config_path=None,
     )
+    if hasattr(agent, "eval"):
+        agent.eval()
+    elif hasattr(agent, "encoder"):
+        agent.encoder.eval()
+        if hasattr(agent, "dynamics"):
+            agent.dynamics.eval()
+        if hasattr(agent, "policy"):
+            agent.policy.eval()
     return agent
 
 
-class ArchiveAgentWrapper(Agent):
-    """Wraps an rl_hockey archive agent for the comprl client."""
+def _load_agent_from_checkpoint_only(path: Path, repo_root: Path, state_dim: int, action_dim: int):
+    """Load agent by inferring architecture from checkpoint (no config file)."""
+    sys.path.insert(0, str(repo_root / "src"))
+    import torch
+
+    from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
+    from rl_hockey.sac.sac import SAC
+    from rl_hockey.td3.td3 import TD3
+
+    checkpoint = torch.load(str(path), map_location="cpu", weights_only=False)
+    if "encoder" in checkpoint and "dynamics" in checkpoint:
+        config = checkpoint.get("config", {})
+        latent_dim = checkpoint.get("latent_dim") or config.get("latent_dim", 512)
+        hidden_dim = checkpoint.get("hidden_dim") or config.get("hidden_dim")
+        num_q = checkpoint.get("num_q") or config.get("num_q", 5)
+        horizon = checkpoint.get("horizon") or config.get("horizon", 5)
+        gamma = checkpoint.get("gamma") or config.get("gamma", 0.99)
+        opponent_simulation_enabled = checkpoint.get(
+            "opponent_simulation_enabled", False
+        )
+        agent = TDMPC2(
+            obs_dim=state_dim,
+            action_dim=action_dim,
+            latent_dim=latent_dim,
+            hidden_dim=hidden_dim,
+            num_q=num_q,
+            horizon=horizon,
+            gamma=gamma,
+            device="cpu",
+            opponent_simulation_enabled=opponent_simulation_enabled,
+        )
+        agent.load(str(path))
+    elif "actor" in checkpoint and "critic" in checkpoint:
+        if "log_alpha" in checkpoint or "alpha" in checkpoint:
+            agent = SAC(state_dim=state_dim, action_dim=action_dim)
+        else:
+            agent = TD3(state_dim=state_dim, action_dim=action_dim)
+        agent.load(str(path))
+    else:
+        raise ValueError(
+            f"Unknown checkpoint format at {path}. "
+            "Expected TDMPC2 (encoder, dynamics) or SAC/TD3 (actor, critic)."
+        )
+    if hasattr(agent, "eval"):
+        agent.eval()
+    elif hasattr(agent, "encoder"):
+        agent.encoder.eval()
+        if hasattr(agent, "dynamics"):
+            agent.dynamics.eval()
+        if hasattr(agent, "policy"):
+            agent.policy.eval()
+    return agent
+
+
+def _load_agent_from_path(model_path: str, repo_root: Path):
+    """Load an agent from a checkpoint path. Uses config in the run folder if present (e.g. .../configs/<run_name>.json or .../config.json), otherwise infers from checkpoint."""
+    path = Path(model_path)
+    if not path.is_absolute():
+        path = (repo_root / model_path).resolve()
+    if not path.exists():
+        raise FileNotFoundError(f"Model path not found: {path}")
+
+    env = h_env.HockeyEnv()
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0] // 2
+    env.close()
+
+    run_folder, run_name = _run_folder_and_name_from_model_path(path)
+    config_path = None
+    if run_folder is not None and run_name is not None:
+        config_in_configs = run_folder / "configs" / f"{run_name}.json"
+        config_at_root = run_folder / "config.json"
+        if config_in_configs.exists():
+            config_path = config_in_configs
+        elif config_at_root.exists():
+            config_path = config_at_root
+
+    if config_path is not None:
+        return _load_agent_from_config(config_path, path, repo_root)
+    return _load_agent_from_checkpoint_only(path, repo_root, state_dim, action_dim)
+
+
+class ModelAgentWrapper(Agent):
+    """Wraps an rl_hockey model (loaded from checkpoint path) for the comprl client."""
 
     def __init__(self, inner_agent, t0: bool = True) -> None:
         super().__init__()
@@ -109,92 +194,21 @@ class ArchiveAgentWrapper(Agent):
         )
 
 
-class RandomAgent(Agent):
-    """A hockey agent that simply uses random actions."""
-
-    def get_step(self, observation: list[float]) -> list[float]:
-        return np.random.uniform(-1, 1, 4).tolist()
-
-    def on_start_game(self, game_id) -> None:
-        print("game started")
-
-    def on_end_game(self, result: bool, stats: list[float]) -> None:
-        text_result = "won" if result else "lost"
-        print(
-            f"game ended: {text_result} with my score: "
-            f"{stats[0]} against the opponent with score: {stats[1]}"
-        )
-
-
-class HockeyAgent(Agent):
-    """A hockey agent that can be weak or strong."""
-
-    def __init__(self, weak: bool) -> None:
-        super().__init__()
-
-        self.hockey_agent = h_env.BasicOpponent(weak=weak)
-
-    def get_step(self, observation: list[float]) -> list[float]:
-        # NOTE: If your agent is using discrete actions (0-7), you can use
-        # HockeyEnv.discrete_to_continous_action to convert the action:
-        #
-        # from hockey.hockey_env import HockeyEnv
-        # env = HockeyEnv()
-        # continuous_action = env.discrete_to_continous_action(discrete_action)
-
-        action = self.hockey_agent.act(observation).tolist()
-        return action
-
-    def on_start_game(self, game_id) -> None:
-        game_id = uuid.UUID(int=int.from_bytes(game_id))
-        print(f"Game started (id: {game_id})")
-
-    def on_end_game(self, result: bool, stats: list[float]) -> None:
-        text_result = "won" if result else "lost"
-        print(
-            f"Game ended: {text_result} with my score: "
-            f"{stats[0]} against the opponent with score: {stats[1]}"
-        )
-
-
 # Function to initialize the agent.  This function is used with `launch_client` below,
 # to lauch the client and connect to the server.
 def initialize_agent(agent_args: list[str]) -> Agent:
-    # Use argparse to parse the arguments given in `agent_args`.
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--agent",
+        "--model-path",
         type=str,
-        choices=["weak", "strong", "random", "archive"],
-        default="weak",
-        help="Which agent to use. Use 'archive' to run an agent from the project archive.",
-    )
-    parser.add_argument(
-        "--archive-id",
-        type=str,
-        default=None,
-        help="Archive agent id (e.g. 0010). Required when --agent=archive. "
-        "Matches agent_id or prefix (e.g. 0010 matches 0010_TDMPC2_...).",
+        required=True,
+        help="Path to checkpoint file (.pt), e.g. results/self_play/.../model.pt or archive/agents/.../checkpoint.pt",
     )
     args = parser.parse_args(agent_args)
 
-    agent: Agent
-    if args.agent == "weak":
-        agent = HockeyAgent(weak=True)
-    elif args.agent == "strong":
-        agent = HockeyAgent(weak=False)
-    elif args.agent == "random":
-        agent = RandomAgent()
-    elif args.agent == "archive":
-        if not args.archive_id:
-            raise ValueError("--archive-id is required when --agent=archive (e.g. --archive-id=0010)")
-        repo_root = Path(__file__).resolve().parents[3]
-        inner = _load_archive_agent(args.archive_id, repo_root)
-        agent = ArchiveAgentWrapper(inner)
-    else:
-        raise ValueError(f"Unknown agent: {args.agent}")
-
-    return agent
+    repo_root = Path(__file__).resolve().parents[3]
+    inner = _load_agent_from_path(args.model_path, repo_root)
+    return ModelAgentWrapper(inner)
 
 
 def main() -> None:

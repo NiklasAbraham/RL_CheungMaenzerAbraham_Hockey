@@ -80,6 +80,7 @@ class SAC(Agent):
 
     def log_architecture(self):
         """Log agent architecture and config."""
+
         def count_parameters(model):
             return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
@@ -380,14 +381,26 @@ class SAC(Agent):
             if checkpoint.get("log_alpha") is not None:
                 self.log_alpha = checkpoint["log_alpha"].to(DEVICE)
                 if checkpoint.get("alpha_optimizer") is not None:
+                    if (
+                        not hasattr(self, "alpha_optimizer")
+                        or self.alpha_optimizer is None
+                    ):
+                        if not hasattr(self, "target_entropy"):
+                            self.target_entropy = -self.action_dim
+                        self.alpha_optimizer = optim.Adam(
+                            [self.log_alpha], lr=self.learning_rate
+                        )
                     self.alpha_optimizer.load_state_dict(checkpoint["alpha_optimizer"])
                 self.alpha = self.log_alpha.exp()
             else:
                 # Old checkpoint without log_alpha, initialize it
                 self.log_alpha = torch.zeros(1, requires_grad=True, device=DEVICE)
-                self.alpha_optimizer = optim.Adam(
-                    [self.log_alpha], lr=self.learning_rate
-                )
+                if not hasattr(self, "alpha_optimizer") or self.alpha_optimizer is None:
+                    if not hasattr(self, "target_entropy"):
+                        self.target_entropy = -self.action_dim
+                    self.alpha_optimizer = optim.Adam(
+                        [self.log_alpha], lr=self.learning_rate
+                    )
                 self.alpha = self.log_alpha.exp()
 
     def on_episode_start(self, episode):

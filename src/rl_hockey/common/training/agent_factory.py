@@ -32,7 +32,7 @@ def get_action_space_info(
         # TDMPC2 uses continuous actions, but also needs discretized action space for hockey
         action_dim = 4 if env.keep_mode else 3
         is_discrete = False
-    elif agent_type == "DecoyPolicy":
+    elif agent_type in ("DecoyPolicy", "DECOYPOLICY"):
         # DecoyPolicy uses continuous actions
         action_dim = 4 if env.keep_mode else 3
         is_discrete = False
@@ -275,7 +275,7 @@ def create_agent(
         )
     elif agent_config.type == "TD3":
         return TD3(state_dim=state_dim, action_dim=action_dim, **agent_hyperparams)
-    elif agent_config.type == "DecoyPolicy":
+    elif agent_config.type in ("DecoyPolicy", "DECOYPOLICY"):
         hidden_layers = agent_hyperparams.pop("hidden_layers", [256, 256])
         buffer_max_size = agent_hyperparams.pop("buffer_max_size", 100_000)
         return DecoyPolicy(

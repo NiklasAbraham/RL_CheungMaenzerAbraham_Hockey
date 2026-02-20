@@ -30,7 +30,7 @@
             {
               "type": "self_play", 
               "weight": 0.25,
-              "checkpoint": "resources/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
+              "checkpoint": "results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
               "agent_type": "SAC",
               "deterministic": true
             },
@@ -138,37 +138,92 @@
         },
         "clear_buffer": false,
         "reward_shaping": null
+      },
+      {
+        "name": "checkpoints_5",
+        "episodes": 5000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_5",
+        "episodes": 5000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_6",
+        "episodes": 50000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
       }
     ]
   },
   "hyperparameters": {
     "learning_rate": 0.0003,
-    "batch_size": 1024
+    "batch_size": 512
   },
   "training": {
     "max_episode_steps": 500,
     "updates_per_step": 1,
     "warmup_steps": 5000,
     "reward_scale": 1.0,
-    "checkpoint_save_freq": 200,
-    "checkpoint_frequency": 80000,
-    "eval_frequency": 80000
+    "checkpoint_save_freq": 200
   },
   "agent": {
     "type": "TDMPC2",
     "hyperparameters": {
-      "latent_dim": 512,
+      "latent_dim": 256,
       "hidden_dim": {
-        "encoder": [512, 512, 512],
-        "dynamics": [512, 512, 512],
-        "reward": [512, 512, 512],
-        "termination": [512, 512],
-        "q_function": [512, 512, 512],
-        "policy": [512, 512, 512]
+        "encoder": [
+          256,
+          256,
+          256
+        ],
+        "dynamics": [
+          256,
+          256,
+          256
+        ],
+        "reward": [
+          256,
+          256,
+          256
+        ],
+        "termination": [
+          256,
+          256
+        ],
+        "q_function": [
+          256,
+          256,
+          256
+        ],
+        "policy": [
+          256,
+          256,
+          256
+        ]
       },
       "num_q": 5,
       "gamma": 0.99,
-      "horizon": 8,
+      "horizon": 12,
       "num_samples": 512,
       "num_iterations": 6,
       "temperature": 0.5,

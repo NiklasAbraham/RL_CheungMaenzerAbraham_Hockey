@@ -2,17 +2,16 @@
   "agent_id": "0004_TDMPC2_2026-02-13_12-43-15",
   "archived_at": "2026-02-13T12:43:15.334167",
   "tags": [
-    "tdmpc2",
-    "needs_calibration"
+    "tdmpc2"
   ],
   "rating": {
-    "mu": 29.311925592335694,
-    "sigma": 0.7505036045453476,
-    "rating": 27.060414778699652,
-    "matches_played": 441,
-    "wins": 176,
-    "losses": 148,
-    "draws": 117
+    "mu": 28.851651076546002,
+    "sigma": 0.7809748205930103,
+    "rating": 26.50872661476697,
+    "matches_played": 821,
+    "wins": 331,
+    "losses": 286,
+    "draws": 204
   },
   "step": 6600,
   "checkpoint_path": "archive/agents/0004_TDMPC2_2026-02-13_12-43-15/checkpoint.pt",
