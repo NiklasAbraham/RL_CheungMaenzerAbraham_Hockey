@@ -52,12 +52,14 @@ if hasattr(sys.stdout, "reconfigure"):
 
 logging.basicConfig(
     level=logging.INFO,
-    format="[%(asctime)s] [%(levelname)s] %(message)s",
+    format="[%(asctime)s] [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     handlers=[logging.StreamHandler(sys.stdout)],
     force=True,
 )
 logger = logging.getLogger(__name__)
+# Ensure phase switches and opponent selection are visible when train is imported by other entry points
+logging.getLogger("rl_hockey.common.archive.matchmaker").setLevel(logging.INFO)
 
 
 def _get_scheduler_job_id() -> Optional[str]:
@@ -450,6 +452,83 @@ def _save_csvs_and_plots(
         )
 
 
+def _load_existing_run_csvs(
+    csvs_dir: str, run_name: str
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Load existing losses, episode_logs and winrates from a run's CSV files.
+    Returns (updates_for_training_metrics, episode_logs, winrates).
+    Used when resuming so plots show full history.
+    """
+    updates: List[Dict[str, Any]] = []
+    episode_logs: List[Dict[str, Any]] = []
+    winrates: List[Dict[str, Any]] = []
+
+    losses_path = os.path.join(csvs_dir, f"{run_name}_losses.csv")
+    if os.path.isfile(losses_path):
+        with open(losses_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    step = int(row.get("step", 0))
+                except (ValueError, TypeError):
+                    continue
+                u: Dict[str, Any] = {"step": step}
+                for k, v in row.items():
+                    if k == "step":
+                        continue
+                    if v == "" or v is None:
+                        u[k] = None
+                    else:
+                        try:
+                            u[k] = float(v)
+                        except (ValueError, TypeError):
+                            u[k] = v
+                updates.append(u)
+
+    episode_logs_path = os.path.join(csvs_dir, f"{run_name}_episode_logs.csv")
+    if os.path.isfile(episode_logs_path):
+        with open(episode_logs_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames or []
+            for row in reader:
+                log: Dict[str, Any] = {}
+                for key in fieldnames:
+                    val = row.get(key, "")
+                    if key in ("episode", "step", "length", "total_gradient_steps"):
+                        try:
+                            log[key] = int(val) if val != "" else 0
+                        except (ValueError, TypeError):
+                            log[key] = 0
+                    elif key in (
+                        "reward",
+                        "shaped_reward",
+                        "backprop_reward",
+                        "rating",
+                    ):
+                        try:
+                            log[key] = float(val) if val != "" else ""
+                        except (ValueError, TypeError):
+                            log[key] = ""
+                    else:
+                        log[key] = val if val != "" else ""
+                episode_logs.append(log)
+
+    winrates_path = os.path.join(csvs_dir, f"{run_name}_winrates.csv")
+    if os.path.isfile(winrates_path):
+        with open(winrates_path, "r", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                try:
+                    step = int(row.get("step", 0))
+                    wr = float(row.get("winrate", 0))
+                except (ValueError, TypeError):
+                    continue
+                winrates.append({"step": step, "winrate": wr})
+
+    return updates, episode_logs, winrates
+
+
 # Phase names we already warned about for run_checkpoints fallback (avoid log spam)
 _run_checkpoints_fallback_warned: set = set()
 
@@ -823,9 +902,44 @@ def train_vectorized(
         update_buffer_reward_bonus(agent, bonus_values[0], bonus_values[1], debug_level)
     # If no phase-specific reward_bonus, keep agent's hyperparameter defaults (e.g. win_reward_bonus: 10.0)
 
-    # Setup metrics
+    # Setup metrics (on resume, load existing CSVs so plots show full history)
     training_metrics = TrainingMetrics()
     episode_logs: List[Dict[str, Any]] = []
+    if is_resume:
+        existing_updates, existing_episode_logs, existing_winrates = (
+            _load_existing_run_csvs(csvs_dir, run_name)
+        )
+        if existing_updates:
+            training_metrics.updates = existing_updates
+            if verbose:
+                logger.info(
+                    "Loaded %d existing loss rows from %s_losses.csv for plot continuity",
+                    len(existing_updates),
+                    run_name,
+                )
+        if existing_episode_logs:
+            episode_logs = existing_episode_logs
+            for ep in existing_episode_logs:
+                training_metrics.add_episode(
+                    step=ep.get("step", 0),
+                    rating=ep.get("rating", 0.0) if ep.get("rating") != "" else 0.0,
+                    reward=ep.get("reward", 0.0) if ep.get("reward") != "" else 0.0,
+                    length=ep.get("length", 0),
+                    phase=ep.get("phase") if ep.get("phase") else None,
+                )
+            if verbose:
+                logger.info(
+                    "Loaded %d existing episode logs from %s_episode_logs.csv for plot continuity",
+                    len(existing_episode_logs),
+                    run_name,
+                )
+        if existing_winrates:
+            training_metrics.winrates = existing_winrates
+            if verbose:
+                logger.info(
+                    "Loaded %d existing winrate rows for plot continuity",
+                    len(existing_winrates),
+                )
     episode_metrics = [EpisodeMetrics() for _ in range(num_envs)]
     last_train_metrics: Dict[str, Any] = {}
 
