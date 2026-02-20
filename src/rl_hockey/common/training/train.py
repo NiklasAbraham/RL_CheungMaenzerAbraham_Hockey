@@ -149,30 +149,6 @@ def _make_hockey_env(mode, keep_mode):
     return h_env.HockeyEnv(mode=mode, keep_mode=keep_mode)
 
 
-def _create_opponents(
-    num_envs: int,
-    phase: PhaseConfig,
-    state_dim: int,
-    action_dim: int,
-    rating: Optional[float] = None,
-    matchmaker: Optional[Matchmaker] = None,
-) -> List:
-    """Create opponents based on curriculum phase or default to weak opponents."""
-    if phase:
-        return [
-            sample_opponent(
-                phase.opponent,
-                state_dim=state_dim,
-                action_dim=action_dim,
-                is_discrete=False,
-                # rating=rating,
-                # matchmaker=matchmaker,
-            )
-            for _ in range(num_envs)
-        ]
-    return [h_env.BasicOpponent(weak=True) for _ in range(num_envs)]
-
-
 def _to_scalar_loss(val: Any) -> float:
     """Convert metric value to scalar for CSV (handle lists from SAC/TD3)."""
     if val is None:

@@ -2,29 +2,11 @@
   "curriculum": {
     "phases": [
       {
-        "name": "easy",
-        "episodes": 20000,
+        "name": "strong",
+        "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.80},
-            {"type": "basic_strong", "weight": 0.20}
-          ]
-        },
-        "reward_shaping": null,
-        "clear_buffer": false
-      },
-      {
-        "name": "hard",
-        "episodes": 60000,
-        "environment": {"mode": "NORMAL", "keep_mode": true},
-        "opponent": {
-          "type": "weighted_mixture",
-          "opponents": [
-            {"type": "basic_weak", "weight": 0.10},
-            {"type": "basic_strong", "weight": 0.90}
-          ]
+          "type": "basic_strong"
         },
         "reward_shaping": null,
         "clear_buffer": false
@@ -40,17 +22,17 @@
     "updates_per_step": 1,
     "warmup_steps": 10000,
     "reward_scale": 0.5,
-    "checkpoint_frequency": 500000,
-    "eval_frequency": 500000
+    "checkpoint_frequency": 100000,
+    "eval_frequency": 100000
   },
   "agent": {
-    "type": "SAC",
+    "type": "CrossQ",
     "hyperparameters": {
       "discount": 0.99,
       "tau": 0.005,
       "alpha": 0.2,
       "learn_alpha": true,
-      "noise": "pink",
+      "noise": "normal",
       "max_episode_steps": 250
     }
   }

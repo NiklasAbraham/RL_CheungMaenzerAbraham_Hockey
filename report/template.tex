@@ -138,7 +138,73 @@ where $\pi_{\text{opp}}$ is the opponent network, trained with a frozen encoder 
 
 During training, opponent actions are taken from the replay buffer; during inference they must be predicted by the opponent network. We use the opponent action deterministically: $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$. This predicted action is fed into the dynamics to obtain the next latent state (Figure~\ref{fig:tdmpc2_flow} b). When multiple opponent models are used (e.g., different cloned policies), each rollout can be assigned a fixed opponent model for the full horizon; diversity across rollouts then comes from varying which opponent model is used, not from sampling different actions from a stochastic $\pi_{\text{opp}}$.
 
+\subsection{SAC \& CrossQ - Jannik Mänzer}
 
+% Soft Actor-Critic (SAC) is an off-policy actor-critic algorithm based on the maximum entropy reinforcement learning framework. Unlike standard RL, which aims to maximize the expected sum of rewards, SAC augments the objective with an entropy term, encouraging exploration and robust learning by penalizing policies that become prematurely deterministic.
+
+% \subsection{The Maximum Entropy Objective}
+% The core of SAC is the modified objective function, which introduces the entropy of the policy $\pi$ into the standard reward formulation:
+% \begin{equation}
+% J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \rho_\pi} [r(\mathbf{s}_t, \mathbf{a}_t) + \alpha \mathcal{H}(\pi(\cdot|\mathbf{s}_t))]
+% \end{equation}
+% where $\alpha$ is the temperature parameter that determines the relative importance of the entropy term $\mathcal{H}$ against the reward. 
+
+% \subsection{Soft Q-Function and Value Learning}
+% SAC utilizes three functional components: a soft state-value function $V_\psi(\mathbf{s})$, a soft Q-function $Q_\theta(\mathbf{s}, \mathbf{a})$, and a tractable policy $\pi_\phi(\mathbf{a}|\mathbf{s})$. To mitigate the overestimation bias common in actor-critic methods, SAC employs clipped double-Q learning, maintaining two independent Q-networks $Q_{\theta_1}$ and $Q_{\theta_2}$.
+
+% The soft Q-function parameters are updated by minimizing the soft Bellman residual:
+% \begin{equation}
+% J_Q(\theta) = \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \mathcal{D}} \left[ \frac{1}{2} \left( Q_\theta(\mathbf{s}_t, \mathbf{a}_t) - (r(\mathbf{s}_t, \mathbf{a}_t) + \gamma \mathbb{E}_{\mathbf{s}_{t+1} \sim p} [V_{\bar{\psi}}(\mathbf{s}_{t+1})]) \right)^2 \right]
+% \end{equation}
+% The target value function $V_{\bar{\psi}}$ is typically implemented using a target network or by implicitly calculating it through the Q-networks to ensure stability:
+% \begin{equation}
+% V(\mathbf{s}_t) = \mathbb{E}_{\mathbf{a}_t \sim \pi_\phi} [Q_\theta(\mathbf{s}_t, \mathbf{a}_t) - \alpha \log \pi_\phi(\mathbf{a}_t|\mathbf{s}_t)]
+% \end{equation}
+
+% \subsection{Policy Optimization}
+% The policy $\pi_\phi$ is updated by minimizing the Kullback-Leibler (KL) divergence between the policy distribution and a Boltzmann distribution induced by the Q-function. To allow for backpropagation through the stochastic action choice, the reparameterization trick is applied:
+% \begin{equation}
+% \mathbf{a}_t = f_\phi(\epsilon_t; \mathbf{s}_t) = \tanh(\mu_\phi(\mathbf{s}_t) + \sigma_\phi(\mathbf{s}_t) \odot \epsilon_t)
+% \end{equation}
+% where $\epsilon_t \sim \mathcal{N}(0, I)$. The resulting policy objective is:
+% \begin{equation}
+% J_\pi(\phi) = \mathbb{E}_{\mathbf{s}_t \sim \mathcal{D}, \epsilon_t \sim \mathcal{N}} [\alpha \log \pi_\phi(f_\phi(\epsilon_t; \mathbf{s}_t)|\mathbf{s}_t) - Q_\theta(\mathbf{s}_t, f_\phi(\epsilon_t; \mathbf{s}_t))]
+% \end{equation}
+
+% In modern implementations (such as SAC-v2), the temperature $\alpha$ is also learned automatically by constraining the policy to satisfy a minimum target entropy $\bar{\mathcal{H}}$, preventing the entropy from collapsing as the policy improves.
+
+\subsubsection{Soft Actor-Critic (SAC)}
+Soft Actor-Critic (SAC) is an off-policy actor-critic algorithm that extends standard reinforcement learning by optimizing a maximum entropy objective. Rather than seeking only the maximum cumulative reward, the agent aims to maximize a weighted objective of reward and the entropy of the policy $\mathcal{H}(\pi(\cdot|\mathbf{s}_t))$:
+\begin{equation}
+J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \rho_\pi} [r(\mathbf{s}_t, \mathbf{a}_t) + \alpha \mathcal{H}(\pi(\cdot|\mathbf{s}_t))]
+\end{equation}
+This entropy term $\mathcal{H}$ encourages the policy to assign non-zero probability to multiple actions where optimal, preventing premature convergence to deterministic behavior and improving exploration. The temperature parameter $\alpha$ controls the trade-off between the reward and the entropy.
+
+\textbf{Critic Optimization} \\
+Two soft Q-functions, $Q_1$ and $Q_2$, are trained to estimate the expected return plus the future entropy of the policy. To mitigate overestimation, Clipped Double-Q Learning is used, where the target is calculated using the minimum of two target networks $\bar{Q}_{1,2}$. The entropy term appears explicitly in the target value calculation, augmenting the standard reward:
+\begin{equation}
+y_t = r(\mathbf{s}_t, \mathbf{a}_t) + \gamma \mathbb{E}_{\mathbf{a}_{t+1} \sim \pi} \left[ \min_{j=1,2} \bar{Q}_j(\mathbf{s}_{t+1}, \mathbf{a}_{t+1}) - \alpha \log \pi(\mathbf{a}_{t+1}|\mathbf{s}_{t+1}) \right]
+\end{equation}
+The parameters $\theta$ are updated by minimizing the squared error between the prediction and this entropy-augmented target:
+\begin{equation}
+J_Q(\theta) = \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \mathcal{D}} \left[ \frac{1}{2}\left( Q_i(\mathbf{s}_t, \mathbf{a}_t) - y_t \right)^2 \right] \quad \text{for } i \in \{1, 2\}
+\end{equation}
+
+\textbf{Actor Optimization} \\
+The policy $\pi_\phi$ is updated to maximize the value estimate provided by the Q-functions while maintaining high entropy. Using the reparameterization trick $\mathbf{a}_t = f_\phi(\epsilon_t; \mathbf{s}_t)$ to allow for backpropagation, the objective is to maximize:
+\begin{equation}
+J_\pi(\phi) = \mathbb{E}_{\mathbf{s}_t \sim \mathcal{D}, \epsilon_t \sim \mathcal{N}} \left[ \min_{j=1,2} Q_j(\mathbf{s}_t, f_\phi(\epsilon_t; \mathbf{s}_t)) - \alpha \log \pi_\phi(f_\phi(\epsilon_t; \mathbf{s}_t)|\mathbf{s}_t) \right]
+\end{equation}
+
+\textbf{Temperature Optimization} \\
+Finally, the temperature $\alpha$ is automatically tuned to ensure the policy satisfies a minimum target entropy constraint $\bar{\mathcal{H}}$ (typically $-\dim(\mathcal{A})$). This adapts the exploration pressure during training:
+\begin{equation}
+J(\alpha) = \mathbb{E}_{\mathbf{a}_t \sim \pi_t} [-\alpha (\log \pi_t(\mathbf{a}_t|\mathbf{s}_t) + \bar{\mathcal{H}})]
+\end{equation}
+
+\subsubsection{CrossQ}
+
+\subsubsection{Pink Noise Exploration}
 
 \newpage
 \section{Results}\label{sec:Results}

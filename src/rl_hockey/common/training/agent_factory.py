@@ -10,6 +10,7 @@ from rl_hockey.common.utils import get_discrete_action_dim
 from rl_hockey.DDDQN import DDDQN, DDQN_PER
 from rl_hockey.Decoy_Policy.decoy_policy import DecoyPolicy
 from rl_hockey.sac.sac import SAC
+from rl_hockey.sac.crossq import CrossQ
 from rl_hockey.td3.td3 import TD3
 from rl_hockey.TD_MPC2.tdmpc2 import TDMPC2
 from rl_hockey.TD_MPC2_repo.tdmpc2_repo_wrapper import TDMPC2RepoWrapper
@@ -85,6 +86,13 @@ def create_agent(
         )
     elif agent_config.type == "SAC":
         agent = SAC(
+            state_dim=state_dim,
+            action_dim=action_dim,
+            deterministic=deterministic,
+            **agent_hyperparams
+        )
+    elif agent_config.type == "CrossQ":
+        agent = CrossQ(
             state_dim=state_dim,
             action_dim=action_dim,
             deterministic=deterministic,
