@@ -1,0 +1,195 @@
+"""
+Script to add TD3/REDQTD3 agents to the archive.
+"""
+
+import logging
+from pathlib import Path
+
+from rl_hockey.common.archive.archive import Archive, Rating
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
+logger = logging.getLogger(__name__)
+
+# Config: provide specific checkpoint .pt file(s). Config is taken from the run folder.
+# CONFIG = {
+#     "checkpoint_paths": [
+#         Path(
+#             "/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-06_09-26-36/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260206_092636_ep065000.pt"
+#         ),
+#         Path(
+#             "/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-15_11-03-25/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260215_110325.pt"
+#         ),
+#         Path("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-14_18-06-54/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260214_180654.pt"),
+#         Path("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-06_09-26-36/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260206_092636_ep005000.pt")
+#     ],
+#     "archive_dir": Path("archive/niklas_archive/archive"),
+#     "agent_name": "REDQTD3",
+#     "add_baselines": True,
+# }
+
+CONFIG = {
+    "checkpoint_paths": [
+        Path(
+            "/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-23_09-50-20/models/run_lr5e04_bs1024_h128_128_128_8f411489_20260123_095020_vec24.pt"
+        ),
+        Path(
+            "/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-22_07-12-21/models/run_lr5e04_bs1024_h128_128_128_8f411489_20260122_071221_vec16.pt"
+        ),
+        Path("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-22_06-53-30/models/run_lr5e04_bs1024_h128_128_128_8f411489_20260122_065330_vec16.pt"),
+        Path("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/hyperparameter_runs/2026-01-21_14-03-44/models/run_lr5e04_bs1024_h128_128_128_8f411489_20260121_140344_vec16_ep025000.pt")
+    ],
+    "archive_dir": Path("archive/niklas_archive/archive"),
+    "agent_name": "TD3",
+    "add_baselines": True,
+}
+
+
+def get_checkpoint_info(checkpoint_path):
+    """Get checkpoint info: config from run_dir/configs/."""
+    checkpoint_path = Path(checkpoint_path)
+    if not checkpoint_path.exists():
+        logger.warning(f"Checkpoint not found: {checkpoint_path}")
+        return None
+    run_dir = checkpoint_path.parent.parent
+    configs_dir = run_dir / "configs"
+    config_files = sorted(configs_dir.glob("*.json")) if configs_dir.exists() else []
+    config_file = config_files[0] if config_files else None
+    return {
+        "checkpoint": checkpoint_path,
+        "config": config_file,
+        "run_dir": run_dir,
+    }
+
+
+def add_checkpoint_to_archive(
+    archive, checkpoint_info, agent_name="REDQTD3", tags=None, rating=None
+):
+    """
+    Add a checkpoint to the archive.
+
+    Args:
+        archive: Archive instance
+        checkpoint_info: Dictionary with checkpoint, config, and run_dir
+        agent_name: Name of the agent algorithm
+        tags: List of tags for the agent
+        rating: Rating dictionary or None for default
+
+    Returns:
+        Agent ID if successful, None otherwise
+    """
+    checkpoint_path = checkpoint_info["checkpoint"]
+    config_path = checkpoint_info["config"]
+
+    if config_path is None:
+        logger.warning(f"No config found for {checkpoint_path.name}, skipping")
+        return None
+
+    if tags is None:
+        tags = ["td3", "needs_calibration"]
+
+    # Extract episode number from checkpoint name if available
+    step = None
+    try:
+        parts = checkpoint_path.stem.split("_ep")
+        if len(parts) > 1:
+            step_str = parts[-1].split("_")[0]
+            step = int(step_str)
+    except (ValueError, IndexError):
+        pass
+
+    try:
+        agent_id = archive.add_agent(
+            checkpoint_path=str(checkpoint_path),
+            config_path=str(config_path),
+            agent_name=agent_name,
+            tags=tags,
+            rating=rating,
+            step=step,
+            metadata={
+                "training_run": checkpoint_info["run_dir"].name,
+                "checkpoint_name": checkpoint_path.name,
+            },
+        )
+        logger.info(f"Added agent {agent_id}")
+        logger.info(f"  Checkpoint: {checkpoint_path.name}")
+        logger.info(f"  Step: {step}")
+        logger.info(f"  Tags: {', '.join(tags)}")
+        return agent_id
+    except Exception as e:
+        logger.error(f"Failed to add {checkpoint_path.name}: {e}")
+        return None
+
+
+def add_baseline_agents(archive):
+    """Add baseline opponents to the archive if not already present."""
+    logger.info("Checking baseline agents...")
+
+    baselines = [
+        ("basic_weak", Rating(24.13, 0.78)),
+        ("basic_strong", Rating(26.07, 0.83)),
+    ]
+
+    for baseline_name, rating in baselines:
+        if baseline_name not in archive.registry:
+            archive.add_baseline(baseline_name, rating)
+            logger.info(f"Added baseline: {baseline_name}")
+        else:
+            logger.info(f"Baseline {baseline_name} already exists")
+
+
+def main():
+    cfg = CONFIG
+    checkpoint_paths = cfg["checkpoint_paths"]
+    archive_dir = cfg["archive_dir"]
+    agent_name = cfg["agent_name"]
+    add_baselines = cfg.get("add_baselines", True)
+
+    if isinstance(checkpoint_paths, (str, Path)):
+        checkpoint_paths = [checkpoint_paths]
+
+    logger.info("=" * 70)
+    logger.info("Adding REDQTD3 Agents to Archive")
+    logger.info("=" * 70)
+
+    archive = Archive(base_dir=str(archive_dir))
+    logger.info(f"Archive directory: {archive.base_dir}")
+    logger.info(f"Current agents in archive: {len(archive.registry)}")
+
+    if add_baselines:
+        add_baseline_agents(archive)
+
+    checkpoints = []
+    for cp in checkpoint_paths:
+        info = get_checkpoint_info(cp)
+        if info:
+            checkpoints.append(info)
+    logger.info(f"Adding {len(checkpoints)} checkpoint(s)")
+
+    logger.info("\nAdding agents to archive...")
+    added_count = 0
+    for checkpoint_info in checkpoints:
+        agent_id = add_checkpoint_to_archive(
+            archive, checkpoint_info, agent_name=agent_name
+        )
+        if agent_id:
+            added_count += 1
+
+    logger.info("\n" + "=" * 70)
+    logger.info(f"Successfully added {added_count}/{len(checkpoints)} agent(s)")
+    logger.info(f"Total agents in archive: {len(archive.registry)}")
+    logger.info("=" * 70)
+
+    # List agents
+    logger.info("\nAgents in archive:")
+    for agent_meta in archive.get_agents(sort_by="archived_at"):
+        logger.info(f"  {agent_meta.agent_id}")
+        if agent_meta.step:
+            logger.info(f"    Step: {agent_meta.step}")
+        logger.info(f"    Tags: {', '.join(agent_meta.tags)}")
+        logger.info(f"    Rating: {agent_meta.rating.rating:.2f}")
+
+
+if __name__ == "__main__":
+    main()

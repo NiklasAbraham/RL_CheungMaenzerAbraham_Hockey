@@ -17,11 +17,11 @@ cd singularity_build
 
 # Copy container definition
 echo "Copying container definition..."
-cp ../resources/container/container.def ./rl_hockey.def
+cp ../resources/cluster/ansel/container.def ./rl_hockey.def
 
 # Copy requirements.txt to build directory
 echo "Copying requirements.txt..."
-cp ../requirements.txt ./requirements.txt
+cp ../resources/cluster/ansel/requirements.txt ./requirements.txt
 
 # Verify files exist before building
 echo ""
