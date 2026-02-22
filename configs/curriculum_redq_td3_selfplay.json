@@ -1,0 +1,211 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "initial_training",
+        "episodes": 2000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {"type": "basic_strong", "weight": 1.0}
+      },
+      {
+        "name": "mixed_opponents",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "reward_bonus": {
+          "N": 100,
+          "K": 2000,
+          "WIN_BONUS_START": 10.0,
+          "WIN_BONUS_FINAL": 1.0,
+          "WIN_DISCOUNT_START": 0.92,
+          "WIN_DISCOUNT_FINAL": 0.92
+        },
+        
+        "opponent": {
+          "type": "weighted_mixture",
+          "opponents": [
+            {
+              "type": "basic_strong", 
+              "weight": 0.25
+            },
+            {
+              "type": "self_play", 
+              "weight": 0.25,
+              "checkpoint": "results/reference_bots/SAC/run_lr1e03_bs256_h128_128_128_4c1f51eb_20260111_140638_vec24.pt",
+              "agent_type": "SAC",
+              "deterministic": true
+            },
+            {
+              "type": "self_play", 
+              "weight": 0.25,
+              "checkpoint": "results/reference_bots/TDMPC2/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_cfce4de1_20260123_210009_ep009200.pt",
+              "agent_type": "TDMPC2",
+              "deterministic": true
+            },
+            {
+              "type": "self_play", 
+              "weight": 0.25,
+              "checkpoint": "results/hyperparameter_runs/2026-01-23_09-50-20/models/run_lr5e04_bs1024_h128_128_128_8f411489_20260123_095020_vec24.pt",
+              "agent_type": "TD3",
+              "deterministic": true
+            }
+          ]
+        }
+      },
+      {
+        "name": "archive_opponents_1",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_1",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "REDQTD3",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_2",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_2",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "REDQTD3",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_3",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_3",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "REDQTD3",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_4",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_4",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "REDQTD3",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "checkpoints_5",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "REDQTD3",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      },
+      {
+        "name": "archive_opponents_5",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "archive"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
+        "name": "checkpoints_6",
+        "episodes": 100,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "run_checkpoints",
+          "agent_type": "TDMPC2",
+          "deterministic": true
+        },
+        "clear_buffer": false,
+        "reward_shaping": null
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "batch_size": 1024
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 1024,
+    "reward_scale": 1,
+    "checkpoint_save_freq": 5000
+  },
+    "agent": {
+      "type": "REDQTD3",
+      "hyperparameters": {
+            "polyak": 0.995,
+            "utd_ratio": 20, 
+            "num_Q": 10, 
+            "num_min": 2, 
+            "q_target_mode": "min",
+            "policy_update_delay": 20,
+            "learning_rate": 3e-4,
+            "max_action": 1.0,
+            "discount": 0.99,
+            "expl_noise": 0.1,
+            "policy_noise": 0.2,
+            "noise_clip": 0.5,
+            "batch_size": 256,
+            "latent_dim": [256, 256],
+            "priority_replay": true,
+            "normalize_obs": false
+      }
+    }
+  }
+  
