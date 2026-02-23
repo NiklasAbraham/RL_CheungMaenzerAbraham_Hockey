@@ -223,7 +223,7 @@
       },
       "num_q": 5,
       "gamma": 0.99,
-      "horizon": 12,
+      "horizon": 8,
       "num_samples": 512,
       "num_iterations": 6,
       "temperature": 0.5,

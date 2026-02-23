@@ -12,7 +12,7 @@ LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 LOCAL_BASE="${LOCAL_PROJECT_DIR}/results"
 
 # Folders to download: tdmpc2_runs, decoy_policies, sac_runs
-FOLDERS=("tdmpc2_runs" "decoy_policies" "sac_runs" "tdmpc2_runs_test" "tdmpc2_runs_horizon", "self_play")
+FOLDERS=("tdmpc2_runs" "decoy_policies" "sac_runs" "tdmpc2_runs_test" "tdmpc2_runs_horizon", "self_play" "self_play_new_planning")
 NUM_LATEST=30
 
 echo "Connecting to ${SERVER}..."
