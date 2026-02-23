@@ -203,18 +203,6 @@ Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-val
         \nabla_\phi J(\phi) = \nabla_\phi \mathbb{E} \left[ \frac{1}{N} \sum_{i=1}^N Q_{\theta_i}(s, \pi_\phi(s)) - \alpha \log \pi_\phi(a|s) \right]
     \end{equation}
 
-\subsection{Experimental Setup and Analysis}
-
-\subsubsection{Training Configuration}
-\textbf{Key Hyperparameters}. We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$.
-
-\subsubsection{Performance Observations}
-\begin{itemize}
-    \item \textbf{Convergence Rates:} REDQ achieved competitive scoring rates in approximately $10^5$ steps, whereas baseline TD3 required nearly $10^6$ steps.
-    \item \textbf{Stability Analysis:} The "Min-of-Subset" strategy in REDQ effectively suppressed the Q-value inflation that typically collapses high-UTD models.
-    \item \textbf{Ablation of PER:} Removing PER resulted in significantly slower puck-acquisition skills, as the agent failed to consistently learn from the rare "positive" reward signals of making puck contact.
-\end{itemize}
-
 \newpage
 \section{Results}\label{sec:Results}
 
@@ -228,6 +216,10 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
     \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
+
+\subsection{REDQ-TD3 Hyperparameters and Curriculum}
+
+We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$.
 
 
 \subsubsection{Overall Results}
