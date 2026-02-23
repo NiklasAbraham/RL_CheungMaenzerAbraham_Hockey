@@ -219,7 +219,7 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
 
 \subsection{REDQ-TD3 Hyperparameters and Curriculum}
 
-We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$.
+We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$. For the Actor and Critics, we followed TD3's paper, 2 layer network with hidden dim 256 and ReLU non-linear activation for Actor and tanh non-linear activation for Critics. Gradient clipping and Layer Norm was added to stabilize training as well.
 
 
 \subsubsection{Overall Results}
