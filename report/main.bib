@@ -39,6 +39,26 @@
       url={https://arxiv.org/abs/1509.01149}, 
 }
 
+% SAC
+@misc{sac,
+      title={Soft Actor-Critic Algorithms and Applications}, 
+      author={Tuomas Haarnoja and Aurick Zhou and Kristian Hartikainen and George Tucker and Sehoon Ha and Jie Tan and Vikash Kumar and Henry Zhu and Abhishek Gupta and Pieter Abbeel and Sergey Levine},
+      year={2019},
+      eprint={1812.05905},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/1812.05905}, 
+}
+
+@misc{td3,
+      title={Addressing Function Approximation Error in Actor-Critic Methods}, 
+      author={Scott Fujimoto and Herke van Hoof and David Meger},
+      year={2018},
+      eprint={1802.09477},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/1802.09477}, 
+}
 
 % Hockey Environment
 % https://github.com/martius-lab/hockey-env
@@ -52,19 +72,12 @@
 }
 
 
-
-
-
-
-
 @inproceedings{Hessel2018:Rainbow,
   title={Rainbow: Combining Improvements in Deep Reinforcement Learning},
   author={Matteo Hessel and Joseph Modayil and H. V. Hasselt and T. Schaul and Georg Ostrovski and W. Dabney and Dan Horgan and B. Piot and Mohammad Gheshlaghi Azar and D. Silver},
   booktitle={AAAI},
   year={2018}
 }
-
-@InProceedings{fujimoto2018:TD3, title = {Addressing Function Approximation Error in Actor-Critic Methods}, author = {Fujimoto, Scott and van Hoof, Herke and Meger, David}, booktitle = {Proceedings of the 35th International Conference on Machine Learning}, pages = {1587--1596}, year = {2018}, editor = {Jennifer Dy and Andreas Krause}, volume = {80}, series = {Proceedings of Machine Learning Research}, address = {Stockholmsmässan, Stockholm Sweden}, month = {10--15 Jul}, publisher = {PMLR}, pdf = {http://proceedings.mlr.press/v80/fujimoto18a/fujimoto18a.pdf}, url = {http://proceedings.mlr.press/v80/fujimoto18a.html}, abstract = {In value-based reinforcement learning methods such as deep Q-learning, function approximation errors are known to lead to overestimated value estimates and suboptimal policies. We show that this problem persists in an actor-critic setting and propose novel mechanisms to minimize its effects on both the actor and the critic. Our algorithm builds on Double Q-learning, by taking the minimum value between a pair of critics to limit overestimation. We draw the connection between target networks and overestimation bias, and suggest delaying policy updates to reduce per-update error and further improve performance. We evaluate our method on the suite of OpenAI gym tasks, outperforming the state of the art in every environment tested.} }
 
 @InProceedings{wang2016:DDQN,
 title = {Dueling Network Architectures for Deep Reinforcement Learning},
@@ -157,4 +170,3 @@ url = {http://proceedings.mlr.press/v48/wangf16.html},
   volume = 518,
   year = 2015
 }
-

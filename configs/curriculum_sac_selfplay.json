@@ -3,7 +3,7 @@
     "phases": [
       {
         "name": "strong",
-        "episodes": 20000,
+        "episodes": 10000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "basic_strong"
@@ -12,11 +12,23 @@
         "clear_buffer": false
       },
       {
-        "name": "archive",
-        "episodes": 60000,
+        "name": "selfplay",
+        "episodes": 90000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "archive"
+          "type": "weighted_mixture",
+          "opponents": [
+            {
+              "type": "run_checkpoints",
+              "agent_type": "SAC",
+              "deterministic": true,
+              "weight": 0.5},
+            {
+              "type": "archive",
+              "distribution": {"random": 0.8, "baseline": 0.2},
+              "weight": 0.5
+            }
+          ]
         },
         "reward_shaping": null,
         "clear_buffer": false
@@ -32,8 +44,8 @@
     "updates_per_step": 1,
     "warmup_steps": 10000,
     "reward_scale": 0.5,
-    "checkpoint_frequency": 500000,
-    "eval_frequency": 500000
+    "checkpoint_frequency": 100000,
+    "eval_frequency": 100000
   },
   "agent": {
     "type": "SAC",
@@ -42,7 +54,7 @@
       "tau": 0.005,
       "alpha": 0.2,
       "learn_alpha": true,
-      "noise": "pink",
+      "noise": "normal",
       "max_episode_steps": 250
     }
   }

@@ -2,22 +2,18 @@
   "curriculum": {
     "phases": [
       {
-        "name": "strong",
-        "episodes": 10000,
+        "name": "archive",
+        "episodes": 200000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
-          "type": "basic_strong"
+          "type": "archive",
+          "distribution": {
+            "pfsp": 0.5,
+            "random": 0.3,
+            "baseline": 0.2
+          }
         },
-        "reward_shaping": {
-          "N": 100000,
-          "K": 100000,
-          "CLOSENESS_START": 0.5,
-          "CLOSENESS_FINAL": 0.5,
-          "TOUCH_START": 2,
-          "TOUCH_FINAL": 2,
-          "DIRECTION_START": 1,
-          "DIRECTION_FINAL": 1
-        },
+        "reward_shaping": null,
         "clear_buffer": false
       }
     ]
@@ -30,9 +26,9 @@
     "max_episode_steps": 250,
     "updates_per_step": 1,
     "warmup_steps": 10000,
-    "reward_scale": 1.0,
-    "checkpoint_frequency": 100000,
-    "eval_frequency": 100000
+    "reward_scale": 0.5,
+    "checkpoint_frequency": 500000,
+    "eval_frequency": 500000
   },
   "agent": {
     "type": "SAC",
@@ -41,8 +37,9 @@
       "tau": 0.005,
       "alpha": 0.2,
       "learn_alpha": true,
-      "noise": "pink",
+      "noise": "normal",
       "max_episode_steps": 250
-    }
+    },
+    "checkpoint_path": "/home/stud449/RL_CheungMaenzerAbraham_Hockey/archive/agents/0012_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep095616_2026-02-22_21-45-34/checkpoint.pt"
   }
 }
