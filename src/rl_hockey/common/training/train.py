@@ -209,7 +209,7 @@ def calculate_reward_weights(
         return {
             "closeness": reward_shaping.CLOSENESS_START,
             "touch": reward_shaping.TOUCH_START,
-            "direction": 0.0,
+            "direction": reward_shaping.DIRECTION_START,
         }
     elif episode_idx < N + K:
         alpha = (episode_idx - N) / K
@@ -218,7 +218,8 @@ def calculate_reward_weights(
             + reward_shaping.CLOSENESS_FINAL * alpha,
             "touch": reward_shaping.TOUCH_START * (1 - alpha)
             + reward_shaping.TOUCH_FINAL * alpha,
-            "direction": reward_shaping.DIRECTION_FINAL * alpha,
+            "direction": reward_shaping.DIRECTION_START * (1 - alpha)
+            + reward_shaping.DIRECTION_FINAL * alpha,
         }
     else:
         return {
@@ -797,14 +798,14 @@ def train_vectorized(
 
     # Setup archive
     archive = Archive(base_dir=archive_dir)
+    rating_system = RatingSystem(archive)
     # Pass models_dir so the "run_checkpoints" opponent type can discover
     # checkpoints saved during this run without a separate archive.
     matchmaker_params = inspect.signature(Matchmaker.__init__).parameters
     if "run_models_dir" in matchmaker_params:
-        matchmaker = Matchmaker(archive, run_models_dir=models_dir)
+        matchmaker = Matchmaker(archive, rating_system=rating_system, run_models_dir=models_dir)
     else:
-        matchmaker = Matchmaker(archive)
-    rating_system = RatingSystem(archive)
+        matchmaker = Matchmaker(archive, rating_system=rating_system)
 
     training_state = TrainingState()
     if is_resume:
@@ -998,8 +999,12 @@ def train_vectorized(
             else:
                 winner = None
 
+            done = dones[i]
+            if winner == 0:
+                done = False
+
             agent.store_transition(
-                (states[i], actions[i], scaled_reward, next_state_for_buffer, dones[i]),
+                (states[i], actions[i], scaled_reward, next_state_for_buffer, done),
                 winner=winner,
             )
 
@@ -1020,9 +1025,11 @@ def train_vectorized(
                 # Mark for next episode callback
                 episode_started[i] = False
 
-                training_state.rating = rating_system.estimate_rating(
-                    training_state.rating, opponents[i][1], infos[i]["winner"]
-                )
+                if opponents[i][1] is not None:
+                    training_state.rating, _ = rating_system.update_ratings(
+                        "active", opponents[i][1], infos[i]["winner"]
+                    )
+
                 backprop_reward = _compute_backprop_reward(
                     agent,
                     episode_metrics[i].step_rewards,
@@ -1095,13 +1102,13 @@ def train_vectorized(
                     # If no phase-specific reward_bonus, keep agent's hyperparameter defaults
 
                 # Sample new opponent
-                opponent, opponent_rating = _get_opponent_for_config(
+                opponent, opponent_id = _get_opponent_for_config(
                     matchmaker,
                     training_state.phase.opponent,
                     training_state.rating.rating,
                     phase_name=training_state.phase.name,
                 )
-                opponents[i] = (opponent, opponent_rating)
+                opponents[i] = (opponent, opponent_id)
 
         # Step or switch phase
         if switch:
@@ -1196,7 +1203,6 @@ def train_vectorized(
         training_state.step += num_envs
 
         # Save model checkpoint, CSVs and plots at same frequency
-        # TODO when to add to archive?
         if (
             training_state.step - curriculum.training.checkpoint_frequency
             >= training_state.last_checkpoint_step
@@ -1206,6 +1212,15 @@ def train_vectorized(
                 models_dir, f"{run_name}_ep{training_state.episode:06d}.pt"
             )
             agent.save(checkpoint_path)
+
+            # Update archive
+            rating_system.save_ratings()
+            archive.add_agent(
+                checkpoint_path=checkpoint_path,
+                config_path=config_path,
+                agent_name="sac_selfplay",
+                rating=training_state.rating
+            )
 
             # Save metadata alongside checkpoint
             metadata = {

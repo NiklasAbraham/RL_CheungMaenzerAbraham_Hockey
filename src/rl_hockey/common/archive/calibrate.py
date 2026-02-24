@@ -148,8 +148,8 @@ def main():
     parser.add_argument("--archive", type=str, default="archive", help="Archive directory")
     parser.add_argument("--agent-id", type=str, help="Specific agent to calibrate")
     parser.add_argument("--matches", type=int, default=100, help="Number of matches")
-    parser.add_argument("--baseline-ratio", type=float, default=0.1, help="Baseline match ratio")
-    parser.add_argument("--random-ratio", type=float, default=0.1, help="Random match ratio")
+    parser.add_argument("--baseline-ratio", type=float, default=0.2, help="Baseline match ratio")
+    parser.add_argument("--random-ratio", type=float, default=0.4, help="Random match ratio")
     
     args = parser.parse_args()
     

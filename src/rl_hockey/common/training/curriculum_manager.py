@@ -71,6 +71,7 @@ class RewardShapingConfig:
     TOUCH_START: float = 15.0
     CLOSENESS_FINAL: float = 1.5
     TOUCH_FINAL: float = 1.0
+    DIRECTION_START: float = 0
     DIRECTION_FINAL: float = 2.0
 
 
