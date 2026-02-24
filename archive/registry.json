@@ -6,12 +6,12 @@
       "baseline"
     ],
     "rating": {
-      "mu": 21.156202665403264,
-      "sigma": 1.0086503559052047,
-      "rating": 18.13025159768765,
-      "matches_played": 1824,
+      "mu": 21.407087861013835,
+      "sigma": 0.9531915608374546,
+      "rating": 18.54751317850147,
+      "matches_played": 1801,
       "wins": 312,
-      "losses": 945,
+      "losses": 922,
       "draws": 250
     },
     "directory": "",
@@ -24,13 +24,13 @@
       "baseline"
     ],
     "rating": {
-      "mu": 11.634299792224708,
-      "sigma": 0.7461696059641896,
-      "rating": 9.395790974332138,
-      "matches_played": 14056,
-      "wins": 2717,
-      "losses": 7754,
-      "draws": 3271
+      "mu": 22.458013677959844,
+      "sigma": 0.9171795065934465,
+      "rating": 19.706475158179504,
+      "matches_played": 1691,
+      "wins": 95,
+      "losses": 1143,
+      "draws": 139
     },
     "directory": "",
     "step": null
@@ -40,12 +40,12 @@
     "archived_at": "2026-01-30T00:57:20.369811",
     "tags": [],
     "rating": {
-      "mu": 26.22660237790225,
-      "sigma": 0.8030941674850182,
-      "rating": 23.817319875447197,
-      "matches_played": 947,
+      "mu": 26.29976305564242,
+      "sigma": 0.7883464163268299,
+      "rating": 23.93472380666193,
+      "matches_played": 942,
       "wins": 289,
-      "losses": 367,
+      "losses": 362,
       "draws": 105
     },
     "directory": "archive/agents/0001_SAC_2026-01-30_00-57-20",
@@ -56,12 +56,12 @@
     "archived_at": "2026-02-22T21:45:34.370494",
     "tags": [],
     "rating": {
-      "mu": 25.884511443104323,
-      "sigma": 0.8337641828384907,
-      "rating": 23.38321889458885,
-      "matches_played": 184,
+      "mu": 25.943611686352686,
+      "sigma": 0.8261659012113749,
+      "rating": 23.46511398271856,
+      "matches_played": 181,
       "wins": 81,
-      "losses": 80,
+      "losses": 77,
       "draws": 23
     },
     "directory": "archive/agents/0002_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep000915_2026-02-22_21-45-34",
@@ -72,12 +72,12 @@
     "archived_at": "2026-02-22T21:45:34.401463",
     "tags": [],
     "rating": {
-      "mu": 26.29556005398784,
-      "sigma": 0.8335163531162001,
-      "rating": 23.795010994639238,
-      "matches_played": 192,
+      "mu": 26.4118779579952,
+      "sigma": 0.8257202779073413,
+      "rating": 23.934717124273174,
+      "matches_played": 188,
       "wins": 81,
-      "losses": 92,
+      "losses": 88,
       "draws": 19
     },
     "directory": "archive/agents/0003_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep006023_2026-02-22_21-45-34",
@@ -88,12 +88,12 @@
     "archived_at": "2026-02-22T21:45:34.431710",
     "tags": [],
     "rating": {
-      "mu": 28.50416139003245,
-      "sigma": 0.8015680957403892,
-      "rating": 26.099457102811282,
-      "matches_played": 218,
+      "mu": 28.573007096302604,
+      "sigma": 0.801196027679501,
+      "rating": 26.1694190132641,
+      "matches_played": 217,
       "wins": 112,
-      "losses": 100,
+      "losses": 99,
       "draws": 6
     },
     "directory": "archive/agents/0004_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep014728_2026-02-22_21-45-34",
@@ -104,12 +104,12 @@
     "archived_at": "2026-02-22T21:45:34.463383",
     "tags": [],
     "rating": {
-      "mu": 30.973300230505007,
-      "sigma": 0.8168493446666718,
-      "rating": 28.522752196504992,
-      "matches_played": 193,
+      "mu": 31.255328605180907,
+      "sigma": 0.8164835451695787,
+      "rating": 28.80587796967217,
+      "matches_played": 189,
       "wins": 111,
-      "losses": 71,
+      "losses": 67,
       "draws": 11
     },
     "directory": "archive/agents/0005_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep024431_2026-02-22_21-45-34",
@@ -120,12 +120,12 @@
     "archived_at": "2026-02-22T21:45:34.494364",
     "tags": [],
     "rating": {
-      "mu": 31.78931407904992,
-      "sigma": 0.799577000669528,
-      "rating": 29.390583077041335,
-      "matches_played": 264,
+      "mu": 31.83275548122015,
+      "sigma": 0.7984032646523715,
+      "rating": 29.437545687263036,
+      "matches_played": 263,
       "wins": 130,
-      "losses": 133,
+      "losses": 132,
       "draws": 1
     },
     "directory": "archive/agents/0006_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep033986_2026-02-22_21-45-34",
@@ -136,12 +136,12 @@
     "archived_at": "2026-02-22T21:45:34.523841",
     "tags": [],
     "rating": {
-      "mu": 29.49064648280306,
-      "sigma": 0.79478092183744,
-      "rating": 27.106303717290743,
-      "matches_played": 234,
-      "wins": 136,
-      "losses": 86,
+      "mu": 29.33974986182229,
+      "sigma": 0.794965498759182,
+      "rating": 26.954853365544746,
+      "matches_played": 232,
+      "wins": 135,
+      "losses": 85,
       "draws": 12
     },
     "directory": "archive/agents/0007_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep043413_2026-02-22_21-45-34",
@@ -152,12 +152,12 @@
     "archived_at": "2026-02-22T21:45:34.554417",
     "tags": [],
     "rating": {
-      "mu": 34.29766740571966,
-      "sigma": 0.8208060244473052,
-      "rating": 31.835249332377742,
-      "matches_played": 189,
+      "mu": 34.78670624555305,
+      "sigma": 0.8217146897485359,
+      "rating": 32.32156217630744,
+      "matches_played": 182,
       "wins": 117,
-      "losses": 67,
+      "losses": 60,
       "draws": 5
     },
     "directory": "archive/agents/0008_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep053384_2026-02-22_21-45-34",
@@ -168,12 +168,12 @@
     "archived_at": "2026-02-22T21:45:34.583855",
     "tags": [],
     "rating": {
-      "mu": 33.52443025437916,
-      "sigma": 0.8156944612580591,
-      "rating": 31.077346870604984,
-      "matches_played": 193,
+      "mu": 33.76992776696442,
+      "sigma": 0.8161603728324173,
+      "rating": 31.32144664846717,
+      "matches_played": 190,
       "wins": 124,
-      "losses": 63,
+      "losses": 60,
       "draws": 6
     },
     "directory": "archive/agents/0009_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep063957_2026-02-22_21-45-34",
@@ -184,13 +184,13 @@
     "archived_at": "2026-02-22T21:45:34.613555",
     "tags": [],
     "rating": {
-      "mu": 33.87321206776237,
-      "sigma": 0.8302997037408406,
-      "rating": 31.382312956539845,
-      "matches_played": 188,
+      "mu": 34.714241856993006,
+      "sigma": 0.8401256002405184,
+      "rating": 32.19386505627145,
+      "matches_played": 176,
       "wins": 101,
-      "losses": 85,
-      "draws": 2
+      "losses": 74,
+      "draws": 1
     },
     "directory": "archive/agents/0010_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep074648_2026-02-22_21-45-34",
     "step": null
@@ -200,12 +200,12 @@
     "archived_at": "2026-02-22T21:45:34.644514",
     "tags": [],
     "rating": {
-      "mu": 35.80832721082241,
-      "sigma": 0.8249112169878284,
-      "rating": 33.333593559858926,
-      "matches_played": 184,
+      "mu": 36.23742885962991,
+      "sigma": 0.8281473280906406,
+      "rating": 33.75298687535798,
+      "matches_played": 179,
       "wins": 102,
-      "losses": 77,
+      "losses": 72,
       "draws": 5
     },
     "directory": "archive/agents/0011_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep085010_2026-02-22_21-45-34",
@@ -216,12 +216,12 @@
     "archived_at": "2026-02-22T21:45:34.677241",
     "tags": [],
     "rating": {
-      "mu": 37.17039800587171,
-      "sigma": 0.8262354859889384,
-      "rating": 34.691691547904895,
-      "matches_played": 208,
+      "mu": 38.232523859966506,
+      "sigma": 0.8368924168225644,
+      "rating": 35.72184660949881,
+      "matches_played": 198,
       "wins": 120,
-      "losses": 68,
+      "losses": 58,
       "draws": 20
     },
     "directory": "archive/agents/0012_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep095616_2026-02-22_21-45-34",
@@ -232,12 +232,12 @@
     "archived_at": "2026-02-22T21:45:34.709437",
     "tags": [],
     "rating": {
-      "mu": 36.34367996798245,
-      "sigma": 0.7950850508223054,
-      "rating": 33.958424815515535,
-      "matches_played": 281,
+      "mu": 36.9431696807791,
+      "sigma": 0.7937617275372234,
+      "rating": 34.56188449816743,
+      "matches_played": 273,
       "wins": 150,
-      "losses": 106,
+      "losses": 98,
       "draws": 25
     },
     "directory": "archive/agents/0013_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep100000_2026-02-22_21-45-34",
@@ -248,13 +248,13 @@
     "archived_at": "2026-02-22T21:47:46.310119",
     "tags": [],
     "rating": {
-      "mu": 23.755236721565943,
-      "sigma": 0.7523053807834598,
-      "rating": 21.498320579215562,
-      "matches_played": 204,
+      "mu": 23.66958021419586,
+      "sigma": 0.7500758718140775,
+      "rating": 21.41935259875363,
+      "matches_played": 202,
       "wins": 10,
-      "losses": 47,
-      "draws": 147
+      "losses": 46,
+      "draws": 146
     },
     "directory": "archive/agents/0014_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep000542_2026-02-22_21-47-46",
     "step": null
@@ -264,12 +264,12 @@
     "archived_at": "2026-02-22T21:47:46.338567",
     "tags": [],
     "rating": {
-      "mu": 21.259083657714704,
-      "sigma": 0.7988521212893959,
-      "rating": 18.86252729384652,
-      "matches_played": 259,
+      "mu": 21.263362530705088,
+      "sigma": 0.7951292523424934,
+      "rating": 18.877974773677607,
+      "matches_played": 258,
       "wins": 21,
-      "losses": 89,
+      "losses": 88,
       "draws": 149
     },
     "directory": "archive/agents/0015_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep003012_2026-02-22_21-47-46",
@@ -280,13 +280,13 @@
     "archived_at": "2026-02-22T21:47:46.371636",
     "tags": [],
     "rating": {
-      "mu": 24.480593494842246,
-      "sigma": 0.7585062903385407,
-      "rating": 22.205074623826626,
-      "matches_played": 221,
+      "mu": 24.29492749156649,
+      "sigma": 0.7566478039476677,
+      "rating": 22.024984079723488,
+      "matches_played": 219,
       "wins": 22,
-      "losses": 39,
-      "draws": 160
+      "losses": 38,
+      "draws": 159
     },
     "directory": "archive/agents/0016_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep005143_2026-02-22_21-47-46",
     "step": null
@@ -296,12 +296,12 @@
     "archived_at": "2026-02-22T21:47:46.401195",
     "tags": [],
     "rating": {
-      "mu": 23.432912819102228,
-      "sigma": 0.7962704444407684,
-      "rating": 21.044101485779922,
-      "matches_played": 219,
+      "mu": 23.514755882126817,
+      "sigma": 0.7810015673441398,
+      "rating": 21.171751180094397,
+      "matches_played": 214,
       "wins": 28,
-      "losses": 66,
+      "losses": 61,
       "draws": 125
     },
     "directory": "archive/agents/0017_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep007264_2026-02-22_21-47-46",
@@ -312,12 +312,12 @@
     "archived_at": "2026-02-22T21:47:46.430936",
     "tags": [],
     "rating": {
-      "mu": 25.18624091248092,
-      "sigma": 0.7805686816118946,
-      "rating": 22.844534867645237,
-      "matches_played": 223,
+      "mu": 25.226827985399837,
+      "sigma": 0.7753885053590062,
+      "rating": 22.900662469322818,
+      "matches_played": 221,
       "wins": 56,
-      "losses": 80,
+      "losses": 78,
       "draws": 87
     },
     "directory": "archive/agents/0018_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep009681_2026-02-22_21-47-46",
@@ -344,12 +344,12 @@
     "archived_at": "2026-02-22T21:47:46.491299",
     "tags": [],
     "rating": {
-      "mu": 25.205300146544324,
-      "sigma": 0.7933412317631573,
-      "rating": 22.82527645125485,
-      "matches_played": 218,
+      "mu": 25.235441594625588,
+      "sigma": 0.7873670469247648,
+      "rating": 22.87334045385129,
+      "matches_played": 216,
       "wins": 46,
-      "losses": 64,
+      "losses": 62,
       "draws": 108
     },
     "directory": "archive/agents/0020_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep015036_2026-02-22_21-47-46",
@@ -360,12 +360,12 @@
     "archived_at": "2026-02-22T21:47:46.523607",
     "tags": [],
     "rating": {
-      "mu": 25.38107362097172,
-      "sigma": 0.811846809279534,
-      "rating": 22.945533193133116,
-      "matches_played": 251,
+      "mu": 25.43846923141876,
+      "sigma": 0.800042765801756,
+      "rating": 23.038340934013494,
+      "matches_played": 247,
       "wins": 66,
-      "losses": 96,
+      "losses": 92,
       "draws": 89
     },
     "directory": "archive/agents/0021_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep017715_2026-02-22_21-47-46",
@@ -376,12 +376,12 @@
     "archived_at": "2026-02-22T21:47:46.564257",
     "tags": [],
     "rating": {
-      "mu": 25.671367603795723,
-      "sigma": 0.8032996106085625,
-      "rating": 23.261468771970037,
-      "matches_played": 238,
+      "mu": 25.68023307446527,
+      "sigma": 0.8001137280713285,
+      "rating": 23.279891890251285,
+      "matches_played": 237,
       "wins": 65,
-      "losses": 98,
+      "losses": 97,
       "draws": 75
     },
     "directory": "archive/agents/0022_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep020631_2026-02-22_21-47-46",
@@ -392,12 +392,12 @@
     "archived_at": "2026-02-22T21:47:46.598326",
     "tags": [],
     "rating": {
-      "mu": 26.311861905820518,
-      "sigma": 0.8224275435649478,
-      "rating": 23.844579275125675,
-      "matches_played": 235,
+      "mu": 26.372852035570173,
+      "sigma": 0.8219920494148686,
+      "rating": 23.906875887325565,
+      "matches_played": 234,
       "wins": 85,
-      "losses": 113,
+      "losses": 112,
       "draws": 37
     },
     "directory": "archive/agents/0023_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep024483_2026-02-22_21-47-46",
@@ -408,12 +408,12 @@
     "archived_at": "2026-02-22T21:47:46.630978",
     "tags": [],
     "rating": {
-      "mu": 26.13721902020977,
-      "sigma": 0.8252575398053845,
-      "rating": 23.661446400793615,
-      "matches_played": 290,
+      "mu": 26.184605557492095,
+      "sigma": 0.813888770812168,
+      "rating": 23.74293924505559,
+      "matches_played": 286,
       "wins": 90,
-      "losses": 183,
+      "losses": 179,
       "draws": 17
     },
     "directory": "archive/agents/0024_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep029200_2026-02-22_21-47-46",
@@ -424,12 +424,12 @@
     "archived_at": "2026-02-22T21:47:46.664035",
     "tags": [],
     "rating": {
-      "mu": 28.11743808757698,
-      "sigma": 0.8027139581926509,
-      "rating": 25.709296212999025,
-      "matches_played": 278,
+      "mu": 28.12567650630182,
+      "sigma": 0.7994616611702399,
+      "rating": 25.7272915227911,
+      "matches_played": 277,
       "wins": 124,
-      "losses": 137,
+      "losses": 136,
       "draws": 17
     },
     "directory": "archive/agents/0025_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260220_221749_ep032227_2026-02-22_21-47-46",
@@ -440,12 +440,12 @@
     "archived_at": "2026-02-22T22:16:13.707703",
     "tags": [],
     "rating": {
-      "mu": 24.909746255893527,
-      "sigma": 0.8353631577254231,
-      "rating": 22.403656782717256,
-      "matches_played": 147,
+      "mu": 24.912592268915063,
+      "sigma": 0.8317009495617717,
+      "rating": 22.41748942022975,
+      "matches_played": 146,
       "wins": 60,
-      "losses": 66,
+      "losses": 65,
       "draws": 21
     },
     "directory": "archive/agents/0026_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260117_203518_vec16_2026-02-22_22-16-13",
@@ -456,12 +456,12 @@
     "archived_at": "2026-02-22T22:16:13.770704",
     "tags": [],
     "rating": {
-      "mu": 22.70330925596495,
-      "sigma": 0.8240927031638443,
-      "rating": 20.231031146473416,
-      "matches_played": 160,
+      "mu": 22.814769100952482,
+      "sigma": 0.8182101391894244,
+      "rating": 20.360138683384207,
+      "matches_played": 157,
       "wins": 39,
-      "losses": 55,
+      "losses": 52,
       "draws": 66
     },
     "directory": "archive/agents/0027_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260117_203518_vec16_ep010000_2026-02-22_22-16-13",
@@ -472,12 +472,12 @@
     "archived_at": "2026-02-22T22:16:13.781712",
     "tags": [],
     "rating": {
-      "mu": 23.624983006317862,
-      "sigma": 0.8182558638198257,
-      "rating": 21.170215414858383,
-      "matches_played": 159,
+      "mu": 23.73671183831689,
+      "sigma": 0.8140226769480711,
+      "rating": 21.294643807472674,
+      "matches_played": 157,
       "wins": 47,
-      "losses": 65,
+      "losses": 63,
       "draws": 47
     },
     "directory": "archive/agents/0028_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260117_203518_vec16_ep020000_2026-02-22_22-16-13",
@@ -488,12 +488,12 @@
     "archived_at": "2026-02-22T22:16:13.793242",
     "tags": [],
     "rating": {
-      "mu": 23.885909249811668,
-      "sigma": 0.828480601305946,
-      "rating": 21.40046744589383,
-      "matches_played": 166,
+      "mu": 23.931366117709963,
+      "sigma": 0.8202721151722636,
+      "rating": 21.470549772193174,
+      "matches_played": 163,
       "wins": 55,
-      "losses": 75,
+      "losses": 72,
       "draws": 36
     },
     "directory": "archive/agents/0029_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260117_203518_vec16_ep030000_2026-02-22_22-16-13",
@@ -504,12 +504,12 @@
     "archived_at": "2026-02-22T22:16:13.803242",
     "tags": [],
     "rating": {
-      "mu": 25.552877504567956,
-      "sigma": 0.8318731661545091,
-      "rating": 23.05725800610443,
-      "matches_played": 157,
+      "mu": 25.647898939154718,
+      "sigma": 0.8222616307055917,
+      "rating": 23.181114047037944,
+      "matches_played": 153,
       "wins": 68,
-      "losses": 62,
+      "losses": 58,
       "draws": 27
     },
     "directory": "archive/agents/0030_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260117_203518_vec16_ep040000_2026-02-22_22-16-13",
@@ -520,12 +520,12 @@
     "archived_at": "2026-02-23T13:49:40.943213",
     "tags": [],
     "rating": {
-      "mu": 31.779122481675792,
-      "sigma": 0.8213197953098206,
-      "rating": 29.31516309574633,
-      "matches_played": 136,
+      "mu": 31.89732363546361,
+      "sigma": 0.8180527852003943,
+      "rating": 29.443165279862427,
+      "matches_played": 133,
       "wins": 70,
-      "losses": 45,
+      "losses": 42,
       "draws": 21
     },
     "directory": "archive/agents/0031_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep007932_2026-02-23_13-49-40",
@@ -536,12 +536,12 @@
     "archived_at": "2026-02-23T13:49:40.976210",
     "tags": [],
     "rating": {
-      "mu": 31.08775191806947,
-      "sigma": 0.8293611971276675,
-      "rating": 28.599668326686466,
-      "matches_played": 136,
+      "mu": 31.28245368703135,
+      "sigma": 0.8294785655646592,
+      "rating": 28.794017990337373,
+      "matches_played": 133,
       "wins": 78,
-      "losses": 43,
+      "losses": 40,
       "draws": 15
     },
     "directory": "archive/agents/0032_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep028719_2026-02-23_13-49-40",
@@ -552,13 +552,13 @@
     "archived_at": "2026-02-23T13:49:41.008209",
     "tags": [],
     "rating": {
-      "mu": 31.336756145939088,
-      "sigma": 0.8199864459319127,
-      "rating": 28.87679680814335,
-      "matches_played": 149,
+      "mu": 31.501682870289976,
+      "sigma": 0.822047880880722,
+      "rating": 29.03553922764781,
+      "matches_played": 145,
       "wins": 91,
-      "losses": 46,
-      "draws": 12
+      "losses": 43,
+      "draws": 11
     },
     "directory": "archive/agents/0033_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep050557_2026-02-23_13-49-40",
     "step": null
@@ -568,12 +568,12 @@
     "archived_at": "2026-02-23T13:49:41.035219",
     "tags": [],
     "rating": {
-      "mu": 31.127365216880012,
-      "sigma": 0.8097563830888843,
-      "rating": 28.69809606761336,
-      "matches_played": 152,
+      "mu": 31.253751361278333,
+      "sigma": 0.8088780103061436,
+      "rating": 28.8271173303599,
+      "matches_played": 150,
       "wins": 74,
-      "losses": 42,
+      "losses": 40,
       "draws": 36
     },
     "directory": "archive/agents/0034_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep078103_2026-02-23_13-49-41",
@@ -584,12 +584,12 @@
     "archived_at": "2026-02-23T13:49:41.063743",
     "tags": [],
     "rating": {
-      "mu": 32.79157766932731,
-      "sigma": 0.8488688127557029,
-      "rating": 30.2449712310602,
-      "matches_played": 146,
-      "wins": 92,
-      "losses": 42,
+      "mu": 32.69397887161232,
+      "sigma": 0.85129886010044,
+      "rating": 30.140082291311003,
+      "matches_played": 143,
+      "wins": 91,
+      "losses": 40,
       "draws": 12
     },
     "directory": "archive/agents/0035_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep107067_2026-02-23_13-49-41",
@@ -600,12 +600,12 @@
     "archived_at": "2026-02-23T13:49:41.090739",
     "tags": [],
     "rating": {
-      "mu": 33.20011275965599,
-      "sigma": 0.8421729296850199,
-      "rating": 30.673593970600926,
-      "matches_played": 153,
+      "mu": 33.458972576345346,
+      "sigma": 0.8446768479156738,
+      "rating": 30.924942032598324,
+      "matches_played": 150,
       "wins": 106,
-      "losses": 42,
+      "losses": 39,
       "draws": 5
     },
     "directory": "archive/agents/0036_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep152185_2026-02-23_13-49-41",
@@ -616,12 +616,12 @@
     "archived_at": "2026-02-23T13:49:41.100739",
     "tags": [],
     "rating": {
-      "mu": 32.60694336060326,
-      "sigma": 0.8245596690278996,
-      "rating": 30.13326435351956,
-      "matches_played": 166,
+      "mu": 32.697865730857124,
+      "sigma": 0.8229760597199666,
+      "rating": 30.228937551697225,
+      "matches_played": 164,
       "wins": 109,
-      "losses": 55,
+      "losses": 53,
       "draws": 2
     },
     "directory": "archive/agents/0037_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260223_002925_ep200000_2026-02-23_13-49-41",
@@ -640,7 +640,7 @@
       "losses": 31,
       "draws": 84
     },
-    "directory": "archive\\agents\\0038_redqtd3_converged_strong_2026-02-23_21-04-46",
+    "directory": "archive/agents/0038_redqtd3_converged_strong_2026-02-23_21-04-46",
     "step": null
   },
   "0039_redqtd3_early_2026-02-23_21-04-46": {
@@ -648,15 +648,15 @@
     "archived_at": "2026-02-23T21:04:46.160304",
     "tags": [],
     "rating": {
-      "mu": 23.010251385842604,
-      "sigma": 0.8240983553588926,
-      "rating": 20.537956319765925,
-      "matches_played": 130,
+      "mu": 23.060699886222785,
+      "sigma": 0.8159503562625509,
+      "rating": 20.612848817435133,
+      "matches_played": 127,
       "wins": 3,
-      "losses": 43,
+      "losses": 40,
       "draws": 84
     },
-    "directory": "archive\\agents\\0039_redqtd3_early_2026-02-23_21-04-46",
+    "directory": "archive/agents/0039_redqtd3_early_2026-02-23_21-04-46",
     "step": null
   },
   "0040_redqtd3_failed_2026-02-23_21-04-46": {
@@ -664,15 +664,15 @@
     "archived_at": "2026-02-23T21:04:46.176923",
     "tags": [],
     "rating": {
-      "mu": 23.68882843943329,
-      "sigma": 0.7756788265577246,
-      "rating": 21.36179195976012,
-      "matches_played": 133,
+      "mu": 23.52692228083196,
+      "sigma": 0.7775223163204467,
+      "rating": 21.19435533187062,
+      "matches_played": 132,
       "wins": 7,
       "losses": 33,
-      "draws": 93
+      "draws": 92
     },
-    "directory": "archive\\agents\\0040_redqtd3_failed_2026-02-23_21-04-46",
+    "directory": "archive/agents/0040_redqtd3_failed_2026-02-23_21-04-46",
     "step": null
   },
   "0041_redqtd3_selfplay_2026-02-23_21-04-46": {
@@ -680,15 +680,15 @@
     "archived_at": "2026-02-23T21:04:46.194444",
     "tags": [],
     "rating": {
-      "mu": 23.282886561486958,
-      "sigma": 0.7940620318594246,
-      "rating": 20.900700465908685,
-      "matches_played": 130,
+      "mu": 23.297280590771148,
+      "sigma": 0.791240382888868,
+      "rating": 20.923559442104544,
+      "matches_played": 129,
       "wins": 3,
-      "losses": 38,
+      "losses": 37,
       "draws": 89
     },
-    "directory": "archive\\agents\\0041_redqtd3_selfplay_2026-02-23_21-04-46",
+    "directory": "archive/agents/0041_redqtd3_selfplay_2026-02-23_21-04-46",
     "step": null
   },
   "0042_td3_converged_2026-02-23_21-04-46": {
@@ -696,36 +696,20 @@
     "archived_at": "2026-02-23T21:04:46.206996",
     "tags": [],
     "rating": {
-      "mu": 23.491714446183256,
-      "sigma": 0.8072912489899483,
-      "rating": 21.06984069921341,
-      "matches_played": 148,
+      "mu": 23.238484119495624,
+      "sigma": 0.8012472101377084,
+      "rating": 20.834742489082497,
+      "matches_played": 143,
       "wins": 15,
-      "losses": 51,
-      "draws": 82
+      "losses": 48,
+      "draws": 80
     },
-    "directory": "archive\\agents\\0042_td3_converged_2026-02-23_21-04-46",
-    "step": null
-  },
-  "0043_sac_selfplay_2026-02-24_01-41-39": {
-    "agent_id": "0043_sac_selfplay_2026-02-24_01-41-39",
-    "archived_at": "2026-02-24T01:41:39.098667",
-    "tags": [],
-    "rating": {
-      "mu": 33.248327681435285,
-      "sigma": 0.850657730660304,
-      "rating": 30.69635448945437,
-      "matches_played": 733,
-      "wins": 566,
-      "losses": 115,
-      "draws": 52
-    },
-    "directory": "archive\\agents\\0043_sac_selfplay_2026-02-24_01-41-39",
+    "directory": "archive/agents/0042_td3_converged_2026-02-23_21-04-46",
     "step": null
   },
   "0044_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep158457_2026-02-24_10-56-57": {
     "agent_id": "0044_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep158457_2026-02-24_10-56-57",
-    "archived_at": "2026-02-24T10:56:57.784363",
+    "archived_at": "2026-02-24T01:41:39.098667",
     "tags": [],
     "rating": {
       "mu": 38.47375557907227,
@@ -736,12 +720,12 @@
       "losses": 14,
       "draws": 10
     },
-    "directory": "archive\\agents\\0044_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep158457_2026-02-24_10-56-57",
+    "directory": "archive/agents/0044_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep158457_2026-02-24_10-56-57",
     "step": null
   },
-  "0045_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep192084_2026-02-24_12-44-40": {
+  "00045_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep192084_2026-02-24_12-44-40": {
     "agent_id": "0045_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep192084_2026-02-24_12-44-40",
-    "archived_at": "2026-02-24T12:44:40.955430",
+    "archived_at": "2026-02-24T01:41:39.098667",
     "tags": [],
     "rating": {
       "mu": 40.58626448602375,
@@ -752,279 +736,7 @@
       "losses": 9,
       "draws": 3
     },
-    "directory": "archive\\agents\\0045_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep192084_2026-02-24_12-44-40",
-    "step": null
-  },
-  "0046_sac_selfplay_2026-02-24_13-07-02": {
-    "agent_id": "0046_sac_selfplay_2026-02-24_13-07-02",
-    "archived_at": "2026-02-24T13:07:02.656666",
-    "tags": [],
-    "rating": {
-      "mu": 20.573660412745884,
-      "sigma": 0.7432268793498351,
-      "rating": 18.34397977469638,
-      "matches_played": 622,
-      "wins": 136,
-      "losses": 259,
-      "draws": 227
-    },
-    "directory": "archive\\agents\\0046_sac_selfplay_2026-02-24_13-07-02",
-    "step": null
-  },
-  "0047_sac_selfplay_2026-02-24_13-18-51": {
-    "agent_id": "0047_sac_selfplay_2026-02-24_13-18-51",
-    "archived_at": "2026-02-24T13:18:51.711715",
-    "tags": [],
-    "rating": {
-      "mu": 18.628929032603747,
-      "sigma": 0.7643567959732553,
-      "rating": 16.33585864468398,
-      "matches_played": 673,
-      "wins": 132,
-      "losses": 343,
-      "draws": 198
-    },
-    "directory": "archive\\agents\\0047_sac_selfplay_2026-02-24_13-18-51",
-    "step": null
-  },
-  "0048_sac_selfplay_2026-02-24_13-23-15": {
-    "agent_id": "0048_sac_selfplay_2026-02-24_13-23-15",
-    "archived_at": "2026-02-24T13:23:15.133463",
-    "tags": [],
-    "rating": {
-      "mu": 18.64167453125236,
-      "sigma": 0.7527798533260016,
-      "rating": 16.383334971274355,
-      "matches_played": 1384,
-      "wins": 331,
-      "losses": 654,
-      "draws": 399
-    },
-    "directory": "archive\\agents\\0048_sac_selfplay_2026-02-24_13-23-15",
-    "step": null
-  },
-  "0049_sac_selfplay_2026-02-24_13-27-40": {
-    "agent_id": "0049_sac_selfplay_2026-02-24_13-27-40",
-    "archived_at": "2026-02-24T13:27:40.055812",
-    "tags": [],
-    "rating": {
-      "mu": 20.248461511129083,
-      "sigma": 0.7494625725136229,
-      "rating": 18.000073793588214,
-      "matches_played": 2038,
-      "wins": 535,
-      "losses": 909,
-      "draws": 594
-    },
-    "directory": "archive\\agents\\0049_sac_selfplay_2026-02-24_13-27-40",
-    "step": null
-  },
-  "0050_sac_selfplay_2026-02-24_13-32-17": {
-    "agent_id": "0050_sac_selfplay_2026-02-24_13-32-17",
-    "archived_at": "2026-02-24T13:32:17.604540",
-    "tags": [],
-    "rating": {
-      "mu": 21.41198081014128,
-      "sigma": 0.7607838182425615,
-      "rating": 19.129629355413595,
-      "matches_played": 2715,
-      "wins": 859,
-      "losses": 1072,
-      "draws": 784
-    },
-    "directory": "archive\\agents\\0050_sac_selfplay_2026-02-24_13-32-17",
-    "step": null
-  },
-  "0051_sac_selfplay_2026-02-24_13-36-48": {
-    "agent_id": "0051_sac_selfplay_2026-02-24_13-36-48",
-    "archived_at": "2026-02-24T13:36:48.870781",
-    "tags": [],
-    "rating": {
-      "mu": 21.678284286886036,
-      "sigma": 0.7653119188605046,
-      "rating": 19.382348530304522,
-      "matches_played": 3377,
-      "wins": 1216,
-      "losses": 1190,
-      "draws": 971
-    },
-    "directory": "archive\\agents\\0051_sac_selfplay_2026-02-24_13-36-48",
-    "step": null
-  },
-  "0052_sac_selfplay_2026-02-24_13-41-45": {
-    "agent_id": "0052_sac_selfplay_2026-02-24_13-41-45",
-    "archived_at": "2026-02-24T13:41:45.145084",
-    "tags": [],
-    "rating": {
-      "mu": 22.290391608701206,
-      "sigma": 0.7751249924491155,
-      "rating": 19.965016631353862,
-      "matches_played": 4030,
-      "wins": 1612,
-      "losses": 1240,
-      "draws": 1178
-    },
-    "directory": "archive\\agents\\0052_sac_selfplay_2026-02-24_13-41-45",
-    "step": null
-  },
-  "0053_sac_selfplay_2026-02-24_13-46-19": {
-    "agent_id": "0053_sac_selfplay_2026-02-24_13-46-19",
-    "archived_at": "2026-02-24T13:46:19.147127",
-    "tags": [],
-    "rating": {
-      "mu": 21.96465511458602,
-      "sigma": 0.7711415953607202,
-      "rating": 19.651230328503857,
-      "matches_played": 4645,
-      "wins": 1959,
-      "losses": 1276,
-      "draws": 1410
-    },
-    "directory": "archive\\agents\\0053_sac_selfplay_2026-02-24_13-46-19",
-    "step": null
-  },
-  "0054_sac_selfplay_2026-02-24_13-50-45": {
-    "agent_id": "0054_sac_selfplay_2026-02-24_13-50-45",
-    "archived_at": "2026-02-24T13:50:45.269266",
-    "tags": [],
-    "rating": {
-      "mu": 22.757032357297536,
-      "sigma": 0.7941846300040479,
-      "rating": 20.374478467285392,
-      "matches_played": 5293,
-      "wins": 2367,
-      "losses": 1306,
-      "draws": 1620
-    },
-    "directory": "archive\\agents\\0054_sac_selfplay_2026-02-24_13-50-45",
-    "step": null
-  },
-  "0055_sac_selfplay_2026-02-24_13-55-20": {
-    "agent_id": "0055_sac_selfplay_2026-02-24_13-55-20",
-    "archived_at": "2026-02-24T13:55:20.211556",
-    "tags": [],
-    "rating": {
-      "mu": 22.63913304960662,
-      "sigma": 0.794239637290444,
-      "rating": 20.256414137735288,
-      "matches_played": 6008,
-      "wins": 2876,
-      "losses": 1332,
-      "draws": 1800
-    },
-    "directory": "archive\\agents\\0055_sac_selfplay_2026-02-24_13-55-20",
-    "step": null
-  },
-  "0056_sac_selfplay_2026-02-24_14-00-07": {
-    "agent_id": "0056_sac_selfplay_2026-02-24_14-00-07",
-    "archived_at": "2026-02-24T14:00:07.376323",
-    "tags": [],
-    "rating": {
-      "mu": 23.435914861652776,
-      "sigma": 0.8330365011390273,
-      "rating": 20.936805358235695,
-      "matches_played": 6734,
-      "wins": 3411,
-      "losses": 1361,
-      "draws": 1962
-    },
-    "directory": "archive\\agents\\0056_sac_selfplay_2026-02-24_14-00-07",
-    "step": null
-  },
-  "0057_sac_selfplay_2026-02-24_14-05-22": {
-    "agent_id": "0057_sac_selfplay_2026-02-24_14-05-22",
-    "archived_at": "2026-02-24T14:05:22.975331",
-    "tags": [],
-    "rating": {
-      "mu": 23.656015759140782,
-      "sigma": 0.8573046223061521,
-      "rating": 21.084101892222325,
-      "matches_played": 7538,
-      "wins": 4048,
-      "losses": 1382,
-      "draws": 2108
-    },
-    "directory": "archive\\agents\\0057_sac_selfplay_2026-02-24_14-05-22",
-    "step": null
-  },
-  "0058_sac_selfplay_2026-02-24_14-10-32": {
-    "agent_id": "0058_sac_selfplay_2026-02-24_14-10-32",
-    "archived_at": "2026-02-24T14:10:32.639667",
-    "tags": [],
-    "rating": {
-      "mu": 24.57390524474078,
-      "sigma": 0.9809248409373258,
-      "rating": 21.631130721928802,
-      "matches_played": 8368,
-      "wins": 4727,
-      "losses": 1401,
-      "draws": 2240
-    },
-    "directory": "archive\\agents\\0058_sac_selfplay_2026-02-24_14-10-32",
-    "step": null
-  },
-  "0059_sac_selfplay_2026-02-24_14-15-07": {
-    "agent_id": "0059_sac_selfplay_2026-02-24_14-15-07",
-    "archived_at": "2026-02-24T14:15:07.384272",
-    "tags": [],
-    "rating": {
-      "mu": 26.685527166119336,
-      "sigma": 1.1693155416495769,
-      "rating": 23.177580541170606,
-      "matches_played": 9700,
-      "wins": 6015,
-      "losses": 1421,
-      "draws": 2264
-    },
-    "directory": "archive\\agents\\0059_sac_selfplay_2026-02-24_14-15-07",
-    "step": null
-  },
-  "0060_sac_selfplay_2026-02-24_14-58-12": {
-    "agent_id": "0060_sac_selfplay_2026-02-24_14-58-12",
-    "archived_at": "2026-02-24T14:58:12.696624",
-    "tags": [],
-    "rating": {
-      "mu": 12.344385905541715,
-      "sigma": 0.7461696059641896,
-      "rating": 10.105877087649146,
-      "matches_played": 2023,
-      "wins": 440,
-      "losses": 942,
-      "draws": 641
-    },
-    "directory": "archive\\agents\\0060_sac_selfplay_2026-02-24_14-58-12",
-    "step": null
-  },
-  "0061_sac_selfplay_2026-02-24_15-03-08": {
-    "agent_id": "0061_sac_selfplay_2026-02-24_15-03-08",
-    "archived_at": "2026-02-24T15:03:08.042092",
-    "tags": [],
-    "rating": {
-      "mu": 12.344385905541715,
-      "sigma": 0.7461696059641896,
-      "rating": 10.105877087649146,
-      "matches_played": 2023,
-      "wins": 440,
-      "losses": 942,
-      "draws": 641
-    },
-    "directory": "archive\\agents\\0061_sac_selfplay_2026-02-24_15-03-08",
-    "step": null
-  },
-  "0062_sac_selfplay_2026-02-24_15-07-54": {
-    "agent_id": "0062_sac_selfplay_2026-02-24_15-07-54",
-    "archived_at": "2026-02-24T15:07:54.903199",
-    "tags": [],
-    "rating": {
-      "mu": 12.344385905541715,
-      "sigma": 0.7461696059641896,
-      "rating": 10.105877087649146,
-      "matches_played": 2023,
-      "wins": 440,
-      "losses": 942,
-      "draws": 641
-    },
-    "directory": "archive\\agents\\0062_sac_selfplay_2026-02-24_15-07-54",
+    "directory": "archive/agents/0045_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep192084_2026-02-24_12-44-40",
     "step": null
   }
 }

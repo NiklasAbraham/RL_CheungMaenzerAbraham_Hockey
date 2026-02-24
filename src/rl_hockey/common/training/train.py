@@ -863,6 +863,7 @@ def train_vectorized(
         agent=agent,
         matchmaker=matchmaker,
         verbose=verbose,
+        update_archive=False
     )
     switch = False
 
@@ -1214,13 +1215,14 @@ def train_vectorized(
             agent.save(checkpoint_path)
 
             # Update archive
-            rating_system.save_ratings()
-            archive.add_agent(
-                checkpoint_path=checkpoint_path,
-                config_path=config_path,
-                agent_name="sac_selfplay",
-                rating=training_state.rating
-            )
+            if update_archive:
+                rating_system.save_ratings()
+                archive.add_agent(
+                    checkpoint_path=checkpoint_path,
+                    config_path=config_path,
+                    agent_name="sac_selfplay",
+                    rating=training_state.rating
+                )
 
             # Save metadata alongside checkpoint
             metadata = {
