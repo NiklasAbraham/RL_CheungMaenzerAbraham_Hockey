@@ -1,0 +1,55 @@
+{
+  "curriculum": {
+    "phases": [
+      {
+        "name": "integration_phase",
+        "episodes": 10000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "weighted_mixture",
+          "weight": 1.0,
+          "checkpoint": null,
+          "deterministic": true,
+          "opponents": [
+            {"type": "basic_weak", "weight": 0.5},
+            {"type": "basic_strong", "weight": 0.5}
+          ]
+        },
+        "reward_shaping": null
+      }
+    ]
+  },
+  "hyperparameters": {
+    "learning_rate": [1e-4, 3e-4, 1e-3],
+    "batch_size": [128, 256, 512, 1024]
+  },
+  "training": {
+    "max_episode_steps": 500,
+    "updates_per_step": 1,
+    "warmup_steps": 10000,
+    "reward_scale": 1,
+    "checkpoint_save_freq": 5000
+  },
+    "agent": {
+      "type": "REDQTD3",
+      "hyperparameters": {
+            "polyak": [0.995, 0.990, 0.975, 0.950],
+            "utd_ratio": [1, 5, 20], 
+            "num_Q": 10, 
+            "num_min": 2, 
+            "q_target_mode": "min",
+            "policy_update_delay": [2, 10, 20],
+            "max_action": 1.0,
+            "discount": 0.99,
+            "expl_noise": [0.1, 0.2],
+            "policy_noise": [0.1, 0.2],
+            "noise_clip": 0.5,
+            "latent_dim": [[256, 256], 
+                  [512, 512], 
+                  [256, 256, 256]],
+            "priority_replay": true,
+            "normalize_obs": false
+      }
+    }
+  }
+  
