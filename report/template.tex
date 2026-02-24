@@ -170,6 +170,70 @@ J(\alpha) = \mathbb{E}_{\mathbf{a}_t \sim \pi_t} [-\alpha (\log \pi_t(\mathbf{a}
 \subsubsection{Pink Noise Exploration}
 
 \subsubsection{}
+\subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
+
+\subsubsection{The Overestimation Problem}
+
+In Standard Actor-Critic methods with continuous action spaces, the critic is responsible for approximating the Q function $Q_\theta(s, a)$. This means that they can overestimate or underestimate the true value. Pairing with the actor, who is responsible for maximizing the critic's expected return, is sensitive to the critic's over/underestimation. However, the overestimation of value will cause the Actor to udpate its parameters to select the overestimated action. This in turn causes the critic to use this artificially inflated Q-value from the next state, and ultimately pulls the current Q-value upwards. This cyclical overestimation of actions and Q-value backpropagates and leads to divergent behavior or suboptimal policies in continuous control over a long training timeframe. The predicted Q-values completely deviate from the actual expected returns.
+
+\subsubsection{Twin Delayed Deep Deterministic Policy Gradient (TD3)} 
+TD3 aims to fix the overestimation problem in Standard Actor-Critic methods using 3 tricks. The first trick of TD3 is the \textbf{Clipped Double-Q Learning}. TD3 maintains two independent critics, $Q_{\theta_1}$ and $Q_{\theta_2}$, and uses the minimum value to calculate the Bellman target:
+    \begin{equation}
+        y = r + \gamma \min_{i=1,2} Q_{\theta_{i, targ}}(s', \tilde{a})
+    \end{equation}
+
+These 2 Critics have the exact same architecture, but 2 independent sets of weights which have different (random) initializations. They start at different points of the loss landscape and are updated by stochastic gradient descent. This allows the 2 networks to have different and more varied Q-values. The min operator is used when predicting the Q-value. This acts as a pessimistic bound that should disrupt the aforementioned overestimation of Critics. The Actor is then given a much more conservative Q-value estimation. Underestimation might occur but this is much better than overestimation, since the Actor is already maximizing the expected critic's return, and will avoid picking an underestimated action. This means that underestimation errors do not propagate as dangerously as overestimation errors.
+
+The second trick of TD3 is \textbf{Target Policy Smoothing}. In continuous action spaces, the Critics do not have a smooth Q-value landscape, it is usually laced with random sharp peaks. These peaks causes the Critics to overestimate the Q-value and the Actor exploits these peaks. Hence, TD3 injects small random noise into the Actor's predicted action when updating the Critics.
+    \begin{equation}
+        \tilde{a} = \text{clip}(\pi_{\phi_{targ}}(s') + \epsilon, a_{low}, a_{high}), \quad \epsilon \sim \text{clip}(\mathcal{N}(0, \sigma), -c, c)
+    \end{equation}
+
+Clipping is performed to ensure the noisy action does not exceed the envrironment's valid action minimum and maximum. Noise allows the Critics to evaluate the possibly exploited Actor's action off the peak, which in the case where it is a sharp peak, means that a little noise will bring the Critic to a much flatter part of the landscape. The Actor, similarly cannot rely on sharp pinpoints of overestimation and will learn to maximize actions in broad and stable regions of high Q-values.
+
+The third and final trick of TD3 is \textbf{Delayed Policy Updates}. Instead of updating the Actor at every step, the Actor $\pi_\phi$ is updated less frequently than the critics (e.g., a $d=2$ delay). During training, especially the early parts, the Critics are highly inaccurate. Updating the Actor at every step drags down both the Critic and the Actors since the Actor updates its policy based on an unstable Critic, which updates its policy using the half-baked Actor. The Actor is trying to converge towards a target which is unstable. Delaying the updates to the Actor allows the Critics' Q-value landscape to converge and settle, before updating the Actor to a more stable target. 
+
+\subsubsection{Prioritized Experience Replay (PER)}
+
+In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences. We can easure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
+\begin{equation}
+    \delta_i = y_i - Q(s_i, a_i)
+\end{equation}
+A low TD error near zero means that the Critic has predicted the Q-value perfectly, and there is nothing much to learn. A high absolute TD error ($|\delta_i|$) means that the Critic has made a wildly wrong prediction. These are the experiences we want to sample more often. 
+
+The priority $p_i$ of transition $i$ is defined by its TD error $|\delta_i|$. The sampling probability is given by:
+\begin{equation}
+    P(i) = \frac{p_i^\alpha}{\sum_k p_k^\alpha} \quad \text{where }p_i = |\delta_i| + \epsilon
+\end{equation}
+
+$\epsilon$ is just a small constant to ensure the probabilities do not ever reach 0. $\alpha$ is the tunable hyperparameter of how much prioritization is used, $\alpha=0$ for uniform sampling, $\alpha=1$ for full prioritization of TD error.
+
+The data distribution that the model sees is being altered by changing the sampling and this introduces bias. These bias affect the expected values calculated by neural networks and might intefere with the gradients. To correct the bias introduced by frequent sampling of high transitions with high TD errors, the loss is weighted by $w_i$:
+\begin{equation}
+    w_i = \left( \frac{1}{N} \cdot \frac{1}{P(i)} \right)^\beta
+\end{equation}
+where $\beta$ is annealed from $\beta_0 \to 1$ over the duration of training. This scaling with importance weights scales down the gradients for transitions with high probability of being sampled.
+
+The implementation for PER utilizes a SumTree data structure to reduce the sampling and updating of priorities in $\mathcal{O}(\log n)$ time. 
+
+
+\subsubsection{Randomized Ensembled Double Q-Learning (REDQ)}
+
+REDQ can be used to take TD3 to the next level. If we can use 2 Critics in TD3, why not 10? REDQ also has a few tricks.
+
+Trick 1: \textbf{Sample Efficiency via Update-toData (UTD)}. REDQ aims for a high Update-to-Data (UTD) ratio $G \gg 1$, allowing the agent to perform many gradient steps per environment interaction. In the paper, a UTD ratio of 20 was used. However, using. high UTD ratio on vanilla TD3 will cause the overestimation problem to return. The Actor and Critics will be learning from the same small batch of transitions aggressively, causing approximation errors to compound. 
+
+Trick 2: \textbf{Ensemble Minimum}. In order to continue to fix the overestimation problem since a high UTD is used, REDQ uses an even more pessimistic estimation. REDQ maintains an ensemble of $N$ Q-functions (Critics). For each update, using a minimum of all Critics might cause large overestimation bias. Instead, a random subset $\mathcal{M}$ of size $M$ is sampled to compute the target:
+    \begin{equation}
+        y = r + \gamma \left( \min_{j \in \mathcal{M}} Q_{\theta_{j, targ}}(s', a') - \alpha \log \pi_\phi(a'|s') \right)
+    \end{equation}
+
+This single target is used to update all $N$ critics. Using $N$ Critics with different initializations allows the approximation error to be even more uncorelated compared to TD3 with 2 Critics. The pessimisim is further intensified, and is more dynamic, by using the minimum of a random subset of $M$ critics.
+
+Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-value across all $N$ Critics. The mean of all $N$ Critics provides a much smoother and reliable signal for the Actor to follow.
+    \begin{equation}
+        \nabla_\phi J(\phi) = \nabla_\phi \mathbb{E} \left[ \frac{1}{N} \sum_{i=1}^N Q_{\theta_i}(s, \pi_\phi(s)) - \alpha \log \pi_\phi(a|s) \right]
+    \end{equation}
 
 \newpage
 \section{Results}\label{sec:Results}
@@ -184,6 +248,10 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
     \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
+
+\subsection{REDQ-TD3 Hyperparameters and Curriculum}
+
+We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$. For the Actor and Critics, we followed TD3's paper, 2 layer network with hidden dim 256 and ReLU non-linear activation for Actor and tanh non-linear activation for Critics. Gradient clipping and Layer Norm was added to stabilize training as well.
 
 
 \subsubsection{Overall Results}
