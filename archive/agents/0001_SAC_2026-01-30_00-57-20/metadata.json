@@ -3,13 +3,13 @@
   "archived_at": "2026-01-30T00:57:20.369811",
   "tags": [],
   "rating": {
-    "mu": 29.392645319498612,
-    "sigma": 0.7719260838036042,
-    "rating": 27.0768670680878,
-    "matches_played": 770,
-    "wins": 240,
-    "losses": 263,
-    "draws": 81
+    "mu": 26.22660237790225,
+    "sigma": 0.8030941674850182,
+    "rating": 23.817319875447197,
+    "matches_played": 947,
+    "wins": 289,
+    "losses": 367,
+    "draws": 105
   },
   "checkpoint_path": "archive/agents/0001_SAC_2026-01-30_00-57-20/checkpoint.pt",
   "step": null,
