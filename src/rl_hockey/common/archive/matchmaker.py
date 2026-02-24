@@ -47,26 +47,26 @@ class Matchmaker:
 
     def get_opponent(
         self, config: OpponentConfig, rating: Optional[float] = None
-    ) -> Tuple[Opponent, Rating]:
+    ) -> Tuple[Opponent, str]:
         """
         Get an opponent based on the provided configuration.
         Args:
             config (OpponentConfig): Configuration for selecting the opponent.
             rating (Optional[float]): The rating of the current agent (used for archive sampling).
         Returns:
-            Tuple[Opponent, float]: A tuple containing the opponent agent and its rating.
+            Tuple[Opponent, str]: A tuple containing the opponent agent and its id.
         """
         match config.type:
             case "basic_weak":
                 rating = Rating(24.13, 0.78)
                 if self.rating_system:
                     rating = self.rating_system.get_rating("basic_weak")
-                return h_env.BasicOpponent(weak=True), rating
+                return h_env.BasicOpponent(weak=True), "basic_weak"
             case "basic_strong":
                 rating = Rating(26.07, 0.83)
                 if self.rating_system:
                     rating = self.rating_system.get_rating("basic_strong")
-                return h_env.BasicOpponent(weak=False), rating
+                return h_env.BasicOpponent(weak=False), "basic_strong"
             case "archive":
                 opponent, agent_id, rating = self.sample_archive_opponent(
                     rating,
@@ -80,13 +80,13 @@ class Matchmaker:
                 )
                 print(msg, flush=True)
                 logging.info("%s", msg)
-                return opponent, rating
+                return opponent, agent_id
             case "self_play":
                 opponent = self._load_self_play_opponent(config)
-                return opponent, Rating(25.0, 1.0)
+                return opponent, ""
             case "run_checkpoints":
                 opponent = self._sample_run_checkpoint_opponent(config)
-                return opponent, Rating(25.0, 1.0)
+                return opponent, ""
             case "weighted_mixture":
                 pass  # Handled below
             case _:
@@ -109,7 +109,7 @@ class Matchmaker:
         self,
         rating: float = None,
         distribution: dict[str, float] = None,
-        skill_range: float = 50,
+        skill_range: float = 3,
         deterministic: bool = True,
     ) -> Tuple[Opponent, str, Rating]:
         """ "Sample an opponent from the archive based on skill distribution.
@@ -125,7 +125,7 @@ class Matchmaker:
         if not self.archive:
             raise ValueError("Archive is not set for Matchmaker.")
 
-        distribution = distribution or {"skill": 0.8, "random": 0.1, "baseline": 0.1}
+        distribution = distribution or {"pfsp": 0.5, "random": 0.3, "baseline": 0.2}
 
         total_weight = sum(distribution.values())
         distribution = {k: v / total_weight for k, v in distribution.items()}
@@ -144,7 +144,19 @@ class Matchmaker:
         else:
             selected_strategy = "random"  # Fallback
 
-        if selected_strategy == "skill":
+        if selected_strategy == "pfsp":
+            agents = self.archive.get_agents()
+
+            wrs = [self.rating_system.get_winrate(agent.agent_id) for agent in agents]
+            wrs = np.array(wrs)
+            priorities = wrs * (1 - wrs)  # Max at 0.5 winrate, 0 at 0 or 1
+            if priorities.sum() == 0:
+                probs = np.ones(len(agents)) / len(agents)
+            else:
+                probs = priorities / priorities.sum()
+
+            agent = np.random.choice(agents, p=probs)
+        elif selected_strategy == "skill":
             agents = self.archive.get_agents(sort_by="rating")
 
             suitable_agents = []
@@ -157,6 +169,12 @@ class Matchmaker:
                 suitable_agents.append(agent)
 
             agent = random.choice(suitable_agents) if suitable_agents else None
+            if agent is None:
+                logger.warning(
+                    "No suitable agents found for skill-based sampling (rating=%.2f, range=%.2f). Falling back to random sampling.",
+                    rating,
+                    skill_range
+                )
         elif selected_strategy == "random":
             agents = self.archive.get_agents()
             agent = random.choice(agents) if agents else None

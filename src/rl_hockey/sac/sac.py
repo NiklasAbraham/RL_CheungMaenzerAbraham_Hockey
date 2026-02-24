@@ -75,6 +75,10 @@ class SAC(Agent):
                 self.noise_dist = noise.PinkNoise(
                     self.action_dim, self.config["max_episode_steps"]
                 )
+            case "red":
+                self.noise_dist = noise.RedNoise(
+                    self.action_dim, self.config["max_episode_steps"]
+                )
             case _:
                 raise ValueError(f"Unknown noise type: {self.config['noise']}")
 
@@ -169,124 +173,40 @@ class SAC(Agent):
                 self.batch_size
             )
 
-            # DEBUG: Log shapes and types from buffer
-            # logger.info(f"[SAC TRAIN STEP {i}] After buffer.sample():")
-            # logger.info(
-            #     f"  state: type={type(state)}, shape={state.shape if hasattr(state, 'shape') else 'N/A'}, dtype={getattr(state, 'dtype', 'N/A')}"
-            # )
-            # logger.info(
-            #     f"  action: type={type(action)}, shape={action.shape if hasattr(action, 'shape') else 'N/A'}, dtype={getattr(action, 'dtype', 'N/A')}"
-            # )
-            # logger.info(
-            #     f"  reward: type={type(reward)}, shape={reward.shape if hasattr(reward, 'shape') else 'N/A'}, dtype={getattr(reward, 'dtype', 'N/A')}"
-            # )
-            # logger.info(
-            #     f"    reward min={reward.min() if hasattr(reward, 'min') else 'N/A'}, max={reward.max() if hasattr(reward, 'max') else 'N/A'}, mean={reward.mean() if hasattr(reward, 'mean') else 'N/A'}"
-            # )
-            # if hasattr(reward, "__getitem__"):
-            #     logger.info(
-            #         f"    reward[0:5]={reward[:5] if len(reward) >= 5 else reward}"
-            #     )
-            # logger.info(
-            #     f"  next_state: type={type(next_state)}, shape={next_state.shape if hasattr(next_state, 'shape') else 'N/A'}, dtype={getattr(next_state, 'dtype', 'N/A')}"
-            # )
-            # logger.info(
-            #     f"  done: type={type(done)}, shape={done.shape if hasattr(done, 'shape') else 'N/A'}, dtype={getattr(done, 'dtype', 'N/A')}"
-            # )
-
             state = torch.from_numpy(state).to(DEVICE)
             action = torch.from_numpy(action).to(DEVICE)
             reward = torch.from_numpy(reward).to(DEVICE)
             next_state = torch.from_numpy(next_state).to(DEVICE)
             done = torch.from_numpy(done).to(DEVICE)
 
-            # DEBUG: Log shapes after conversion to torch
-            # logger.info(f"[SAC TRAIN STEP {i}] After torch.from_numpy():")
-            # logger.info(
-            #     f"  state: shape={state.shape}, dtype={state.dtype}, device={state.device}"
-            # )
-            # logger.info(
-            #     f"  action: shape={action.shape}, dtype={action.dtype}, device={action.device}"
-            # )
-            # logger.info(
-            #     f"  reward: shape={reward.shape}, dtype={reward.dtype}, device={reward.device}"
-            # )
-            # logger.info(
-            #     f"    reward min={reward.min().item():.6f}, max={reward.max().item():.6f}, mean={reward.mean().item():.6f}"
-            # )
-            # logger.info(
-            #     f"    reward[0:5]={reward[:5].squeeze().tolist() if reward.numel() >= 5 else reward.squeeze().tolist()}"
-            # )
-            # logger.info(
-            #     f"  next_state: shape={next_state.shape}, dtype={next_state.dtype}, device={next_state.device}"
-            # )
-            # logger.info(
-            #     f"  done: shape={done.shape}, dtype={done.dtype}, device={done.device}"
-            # )
-
-            # calculate critic target
+            # Calculate critic target
             with torch.no_grad():
                 next_action, next_log_prob = self.actor.sample(next_state)
 
-                # DEBUG: Log shapes in target calculation
-                # logger.info(f"[SAC TRAIN STEP {i}] Target calculation:")
-                # logger.info(
-                #     f"  next_action: shape={next_action.shape}, dtype={next_action.dtype}"
-                # )
-                # logger.info(
-                #     f"  next_log_prob: shape={next_log_prob.shape}, dtype={next_log_prob.dtype}"
-                # )
-
                 q1 = self.critic1_target(next_state, next_action)
                 q2 = self.critic2_target(next_state, next_action)
-                # logger.info(
-                #     f"  q1: shape={q1.shape}, dtype={q1.dtype}, min={q1.min().item():.6f}, max={q1.max().item():.6f}"
-                # )
-                # logger.info(
-                #     f"  q2: shape={q2.shape}, dtype={q2.dtype}, min={q2.min().item():.6f}, max={q2.max().item():.6f}"
-                # )
 
                 next_value = torch.min(q1, q2) - self.alpha * next_log_prob
-                # logger.info(
-                #     f"  next_value: shape={next_value.shape}, dtype={next_value.dtype}, min={next_value.min().item():.6f}, max={next_value.max().item():.6f}"
-                # )
 
                 target = reward + (1 - done) * self.discount * next_value
-                # logger.info(
-                #     f"  target: shape={target.shape}, dtype={target.dtype}, min={target.min().item():.6f}, max={target.max().item():.6f}, mean={target.mean().item():.6f}"
-                # )
-                # logger.info(
-                #     f"    target[0:5]={target[:5].squeeze().tolist() if target.numel() >= 5 else target.squeeze().tolist()}"
-                # )
-                # logger.info(
-                #     f"    reward component: min={reward.min().item():.6f}, max={reward.max().item():.6f}, mean={reward.mean().item():.6f}"
-                # )
-                # logger.info(
-                #     f"    (1-done) component: min={(1 - done).min().item():.6f}, max={(1 - done).max().item():.6f}, mean={(1 - done).mean().item():.6f}"
-                # )
-                # logger.info(
-                #     f"    discount={self.discount}, next_value component: min={(self.discount * next_value).min().item():.6f}, max={(self.discount * next_value).max().item():.6f}"
-                # )
 
-            # update critic parameters
+            # Update critic parameters
             c1_loss = F.mse_loss(self.critic1(state, action), target)
             c2_loss = F.mse_loss(self.critic2(state, action), target)
             critic_loss = c1_loss + c2_loss
 
             self.critic_optimizer.zero_grad()
-            critic_loss.backward(retain_graph=True)
+            critic_loss.backward()
 
-            # Compute gradient norm before step
             grad_norm_critic_val = compute_grad_norm(
                 list(self.critic1.parameters()) + list(self.critic2.parameters())
             )
 
             self.critic_optimizer.step()
-
             critic_losses.append(critic_loss.item())
             grad_norm_critic.append(grad_norm_critic_val.item())
 
-            # update actor parameters
+            # Update actor parameters
             current_action, log_prob = self.actor.sample(state)
 
             q1 = self.critic1(state, current_action)
@@ -297,13 +217,14 @@ class SAC(Agent):
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
 
-            # Compute gradient norm before step
             grad_norm_actor_val = compute_grad_norm(self.actor.parameters())
 
-            self.actor_optimizer.step()
 
+            self.actor_optimizer.step()
             actor_losses.append(actor_loss.item())
-            # update temperature
+            grad_norm_actor.append(grad_norm_actor_val.item())
+
+            # Update temperature
             if self.config["learn_alpha"]:
                 alpha_loss = -self.log_alpha * (log_prob.detach() + self.target_entropy)
                 alpha_loss = alpha_loss.mean()
@@ -314,7 +235,7 @@ class SAC(Agent):
 
                 self.alpha = self.log_alpha.exp()
 
-            # update critic target parameters
+            # Update critic target parameters
             for p, pt in zip(
                 self.critic1.parameters(), self.critic1_target.parameters()
             ):
@@ -348,9 +269,7 @@ class SAC(Agent):
             "critic_optimizer": self.critic_optimizer.state_dict(),
             "actor_optimizer": self.actor_optimizer.state_dict(),
             "log_alpha": self.log_alpha if self.config["learn_alpha"] else None,
-            "alpha_optimizer": self.alpha_optimizer.state_dict()
-            if self.config["learn_alpha"]
-            else None,
+            "alpha_optimizer": self.alpha_optimizer.state_dict() if self.config["learn_alpha"] else None,
             "state_dim": self.state_dim,
             "action_dim": self.action_dim,
             "config": self.config,
@@ -404,5 +323,5 @@ class SAC(Agent):
                 self.alpha = self.log_alpha.exp()
 
     def on_episode_start(self, episode):
-        if self.config["noise"] == "pink":
+        if self.config["noise"] != "normal":
             self.noise_dist.reset()

@@ -1,7 +1,7 @@
 
 import torch
 from torch.distributions import Normal
-from pink import PinkNoiseProcess
+from pink import ColoredNoiseProcess
 
 
 class NormalNoise:
@@ -15,7 +15,19 @@ class NormalNoise:
 
 class PinkNoise:
     def __init__(self, action_dim, max_sequence_length):
-        self.dist = PinkNoiseProcess((action_dim, max_sequence_length))
+        self.dist = ColoredNoiseProcess(1, (action_dim, max_sequence_length))
+
+    def sample(self):
+        noise = self.dist.sample()
+        return torch.from_numpy(noise)
+
+    def reset(self):
+        self.dist.reset()
+
+
+class RedNoise:
+    def __init__(self, action_dim, max_sequence_length):
+        self.dist = ColoredNoiseProcess(2, (action_dim, max_sequence_length))
 
     def sample(self):
         noise = self.dist.sample()

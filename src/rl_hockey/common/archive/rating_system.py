@@ -50,6 +50,8 @@ class RatingSystem:
         # Load or initialize ratings
         self.ratings: Dict[str, Rating] = {}
         self.match_history: List[Dict] = []
+        self.winrates: Dict[str, float] = {}
+
         self._load_ratings()
         self._load_match_history()
 
@@ -70,13 +72,9 @@ class RatingSystem:
         Args:
             agent_ids: Specific agent IDs to save. If None, saves all.
         """
-        self._save_ratings(agent_ids)
-
-    def _save_ratings(self, agent_ids: Optional[List[str]] = None):
-        """Internal: write ratings to archive."""
         agents_to_save = agent_ids if agent_ids else self.ratings.keys()
         for agent_id in agents_to_save:
-            if agent_id in self.ratings:
+            if agent_id != "active" and agent_id in self.ratings:
                 self.archive.update_agent_rating(agent_id, self.ratings[agent_id])
 
     def _load_match_history(self):
@@ -85,7 +83,7 @@ class RatingSystem:
             with open(self.match_history_file, "r") as f:
                 self.match_history = json.load(f)
 
-    def _save_match_history(self):
+    def save_match_history(self):
         """Save match history to disk."""
         with open(self.match_history_file, "w") as f:
             json.dump(self.match_history, f, indent=2)
@@ -109,11 +107,10 @@ class RatingSystem:
             sigma = self.env.sigma
 
         self.ratings[agent_id] = Rating(mu=mu, sigma=sigma)
-        self._save_ratings()
 
     def estimate_rating(
         self, rating: Rating, opponent_rating: Rating, result: int
-    ) -> float:
+    ) -> Rating:
         """
         Estimate the expected rating after a match against an opponent.
 
@@ -192,24 +189,35 @@ class RatingSystem:
         rating2.sigma = new_ts2.sigma
         rating2.matches_played += 1
 
-        if save:
-            match_record = {
-                "timestamp": datetime.now().isoformat(),
-                "agent1_id": agent1_id,
-                "agent2_id": agent2_id,
-                "result": result,
-                "agent1_rating_before": rating1.rating
-                - (new_ts1.mu - ts_rating1.mu - 3 * (new_ts1.sigma - ts_rating1.sigma)),
-                "agent2_rating_before": rating2.rating
-                - (new_ts2.mu - ts_rating2.mu - 3 * (new_ts2.sigma - ts_rating2.sigma)),
-                "agent1_rating_after": rating1.rating,
-                "agent2_rating_after": rating2.rating,
-            }
-            self.match_history.append(match_record)
+        match_record = {
+            "timestamp": datetime.now().isoformat(),
+            "agent1_id": agent1_id,
+            "agent2_id": agent2_id,
+            "result": result,
+            "agent1_rating_before": rating1.rating
+            - (new_ts1.mu - ts_rating1.mu - 3 * (new_ts1.sigma - ts_rating1.sigma)),
+            "agent2_rating_before": rating2.rating
+            - (new_ts2.mu - ts_rating2.mu - 3 * (new_ts2.sigma - ts_rating2.sigma)),
+            "agent1_rating_after": rating1.rating,
+            "agent2_rating_after": rating2.rating,
+        }
+        self.match_history.append(match_record)
 
+        if agent1_id == "active":
+            wr = 0.5
+            if result == 1:
+                wr = 1.0
+            elif result == -1:
+                wr = 0.0
+            
+            old_wr = self.winrates.get(agent2_id, 0.5)
+            new_winrate = 0.95*old_wr + 0.05*wr
+            self.winrates[agent2_id] = new_winrate
+
+        if save:
             # Only save the two agents that were actually updated
-            self._save_ratings([agent1_id, agent2_id])
-            self._save_match_history()
+            self.save_ratings([agent1_id, agent2_id])
+            self.save_match_history()
 
         return rating1, rating2
 
@@ -224,6 +232,17 @@ class RatingSystem:
             Rating object or None if not found
         """
         return self.ratings.get(agent_id)
+    
+    def get_winrate(self, agent_id: str) -> Optional[float]:
+        """
+        Get current winrate for an agent.
+
+        Args:
+            agent_id: Agent identifier
+        Returns:
+            Winrate (0.0 to 1.0), defaults to 0.5
+        """
+        return self.winrates.get(agent_id, 0.5)
 
     def get_leaderboard(self, min_matches: int = 0) -> List[Tuple[str, Rating]]:
         """
