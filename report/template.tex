@@ -16,6 +16,7 @@
 \geometry{left=2.8cm,right=2.8cm,top=2.6cm,bottom=2.6cm}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+\usepackage{caption}
 \usetikzlibrary{shapes,arrows,positioning}
 \pagestyle{fancy}
 \usepackage{hyperref}% should be the last package you include
@@ -54,7 +55,7 @@ The action space consists of a 4 dimensional continuous vector that controls the
 \newpage
 \section{Method}\label{sec:Method}
 
-\subsection{Self-Play Infrastructure - Jannik Mänzer}
+\subsection{Self-Play Infrastructure - Jannik Mänzer}\label{sec:selfplay_section}
 
 Training reinforcement learning agents in multi-agent environments like air hockey presents several challenges, including catastrophic forgetting and the difficulty of evaluating progress once standard baselines are consistently defeated. Relying solely on standard self-play often leads to policies that overfit to recent behaviors, while a constantly changing opponent makes true improvement hard to measure. To address these issues, our approach relies on a diverse archive of opponents, including periodic checkpoints of our training agents, deterministic baselines, and agents trained using different RL algorithms. Sampling opponents from this archive during training forces the agent to adapt to various playstyles while ensuring robustness against older strategies. At the same time, it provides a stable population of opponents to evaluate the agent's overall skill.
 
@@ -284,14 +285,21 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
 
 \subsection{REDQ-TD3, PER Curriculum}
 
-\begin{figure}[h]
+\begin{minipage}{0.48\textwidth}
     \centering
-    \includegraphics[width=1.0\textwidth]{figures/redq_td3_rewards.png}
-    \caption{Comparison of TD3 and REDQ with and without PER.}
-    \label{fig:redq_td3_per}
-\end{figure}
+    \includegraphics[width=\textwidth]{figures/redq_td3_rewards.png}
+    \captionof{figure}{TD3 vs REDQ rewards}
+    \label{fig:redq_td3_rewards}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/redq_selfplay_smoothed_rewards.png}
+    \captionof{figure}{REDQ selfplay rewards trajectory}
+    \label{fig:redq_selfplay}
+\end{minipage}
 
-We used the default paper hyperparameters for REDQ and TD3. Figure~\ref{fig:redq_td3_per} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 with PER. 
+We used the default paper hyperparameters for REDQ and TD3. Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 without PER. We used REDQ-TD3 (no PER) for selfplay (section \ref{sec:selfplay_section}) and archive opponents as well. Each drop in rewards shows a change in training phase and opponent sampling.
 
 \subsubsection{Overall Results}
 
