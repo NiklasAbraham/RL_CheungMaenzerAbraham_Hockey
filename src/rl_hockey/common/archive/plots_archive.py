@@ -415,6 +415,15 @@ def plot_matches_played(registry: dict, output_path: Path = Path("plots")):
     plt.close()
 
 
+def _place_label(n: int) -> str:
+    """Return ordinal label for position n (1-based): 1st, 2nd, 3rd, 4th, ..."""
+    if 10 <= n % 100 <= 20:
+        suffix = "th"
+    else:
+        suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+    return f"{n}{suffix}"
+
+
 def _collect_horizon_series(
     registry: dict,
     agent_numbers: tuple,
@@ -445,6 +454,7 @@ def plot_horizon_ratings(
     horizon_start: int = 4,
     horizon_step: int = 2,
     output_path: Path = Path("plots"),
+    use_place_labels: bool = False,
 ):
     """Bar plot of rating (mean and deviation) by horizon, optionally grouped by two agent series.
 
@@ -452,6 +462,7 @@ def plot_horizon_ratings(
     agent_numbers_b: second set (e.g. 011-015). If None, only the first set is plotted.
     group_label, group_label_b: legend labels for the two series.
     horizon_start, horizon_step: horizon labels (e.g. 4, 6, 8, 10, 12).
+    use_place_labels: if True, 1st, 2nd, 3rd, ... are shown on top of each horizon bar.
     """
     output_path.mkdir(exist_ok=True)
 
@@ -526,6 +537,37 @@ def plot_horizon_ratings(
                 )
         ax.set_xticks(x)
         ax.set_xticklabels(horizon_labels)
+        if use_place_labels:
+            # Rank by rating within each series (1st = highest)
+            order_a = np.argsort(ratings_a)[::-1]
+            order_b = np.argsort(ratings_b)[::-1]
+            rank_a = np.empty(n_horizons, dtype=int)
+            rank_b = np.empty(n_horizons, dtype=int)
+            for r, idx in enumerate(order_a):
+                rank_a[idx] = r + 1
+            for r, idx in enumerate(order_b):
+                rank_b[idx] = r + 1
+            y_lo, y_hi = ax.get_ylim()
+            offset = (y_hi - y_lo) * 0.02
+            for i in range(n_horizons):
+                ax.text(
+                    x[i] - bar_width / 2,
+                    ratings_a[i] + sigmas_a[i] + offset,
+                    _place_label(rank_a[i]),
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
+                )
+                ax.text(
+                    x[i] + bar_width / 2,
+                    ratings_b[i] + sigmas_b[i] + offset,
+                    _place_label(rank_b[i]),
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
+                )
     else:
         n_horizons = len(labels_a)
         horizon_labels = list(labels_a) + ref_labels
@@ -560,6 +602,23 @@ def plot_horizon_ratings(
                 )
         ax.set_xticks(x)
         ax.set_xticklabels(horizon_labels)
+        if use_place_labels:
+            order_a = np.argsort(ratings_a)[::-1]
+            rank_a = np.empty(n_horizons, dtype=int)
+            for r, idx in enumerate(order_a):
+                rank_a[idx] = r + 1
+            y_lo, y_hi = ax.get_ylim()
+            offset = (y_hi - y_lo) * 0.02
+            for i in range(n_horizons):
+                ax.text(
+                    x[i],
+                    ratings_a[i] + sigmas_a[i] + offset,
+                    _place_label(rank_a[i]),
+                    ha="center",
+                    va="bottom",
+                    fontsize=9,
+                    fontweight="bold",
+                )
 
     ax.set_xlabel("Horizon", fontsize=12)
     ax.set_ylabel("TrueSkill Rating", fontsize=12)
@@ -659,6 +718,7 @@ if __name__ == "__main__":
         horizon_start=4,
         horizon_step=2,
         output_path=output_path,
+        use_place_labels=True,
     )
 
     # Optional: plot only selected agents with custom labels (no match count labels)
