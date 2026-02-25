@@ -229,7 +229,7 @@ The third and final trick of TD3 is \textbf{Delayed Policy Updates}. Instead of 
 
 \subsubsection{Prioritized Experience Replay (PER)}
 
-In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences. We can easure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
+In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences. We can measure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
 \begin{equation}
     \delta_i = y_i - Q(s_i, a_i)
 \end{equation}
@@ -269,7 +269,6 @@ Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-val
         \nabla_\phi J(\phi) = \nabla_\phi \mathbb{E} \left[ \frac{1}{N} \sum_{i=1}^N Q_{\theta_i}(s, \pi_\phi(s)) - \alpha \log \pi_\phi(a|s) \right]
     \end{equation}
 
-\newpage
 \section{Results}\label{sec:Results}
 
 \subsection{TD-MPC2 Hyperparameters and Curriculum}\label{sec:tdmpc2_hyperparameters_and_curriculum}
@@ -283,10 +282,18 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
 
-\subsection{REDQ-TD3 Hyperparameters and Curriculum}
+\subsection{REDQ-TD3, PER Curriculum}
 
-We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$. For the Actor and Critics, we followed TD3's paper, 2 layer network with hidden dim 256 and ReLU non-linear activation for Actor and tanh non-linear activation for Critics. Gradient clipping and Layer Norm was added to stabilize training as well.
+We used the default paper hyperparameters for REDQ and TD3. 
 
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.0\textwidth]{figures/redq_td3_rewards.png}
+    \caption{Comparison of TD3 and REDQ with and without PER.}
+    \label{fig:redq_td3_per}
+\end{figure}
+
+Figure~\ref{fig:redq_td3_per} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 with PER. 
 
 \subsubsection{Overall Results}
 
