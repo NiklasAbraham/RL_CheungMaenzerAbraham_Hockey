@@ -33,6 +33,7 @@ from rl_hockey.common.evaluation.winrate_evaluator import evaluate_winrate
 from rl_hockey.common.reward_backprop import apply_win_reward_backprop
 from rl_hockey.common.training.agent_factory import create_agent
 from rl_hockey.common.training.curriculum_manager import (
+    AgentConfig,
     CurriculumConfig,
     OpponentConfig,
     PhaseConfig,
@@ -726,6 +727,33 @@ def _get_resume_state(resume_from: str) -> Tuple[str, str, Dict[str, Any]]:
     return run_name, checkpoint_path, metadata
 
 
+def _load_agent_config_from_run_dir(resume_from: str, run_name: str) -> Tuple[AgentConfig, Dict[str, Any]]:
+    """Load agent config and common hyperparameters from the existing run's config file.
+
+    When resuming, the agent must be built with the same architecture as the checkpoint
+    (e.g. latent_dim). The run directory's configs/<run_name>.json holds that config.
+    """
+    config_path = Path(resume_from) / "configs" / f"{run_name}.json"
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Resume config not found: {config_path}. Cannot infer agent architecture for checkpoint."
+        )
+    with open(config_path) as f:
+        run_config = json.load(f)
+    agent_dict = run_config.get("agent", {})
+    if not agent_dict:
+        raise ValueError(
+            f"Resume config {config_path} has no 'agent' key. Cannot build agent for checkpoint."
+        )
+    agent_config = AgentConfig(
+        type=agent_dict["type"],
+        hyperparameters=agent_dict.get("hyperparameters", {}).copy(),
+        checkpoint_path=agent_dict.get("checkpoint_path"),
+    )
+    common_hyperparams = run_config.get("hyperparameters", {}).copy()
+    return agent_config, common_hyperparams
+
+
 def train_vectorized(
     config_path: str,
     verbose: bool = True,
@@ -823,17 +851,29 @@ def train_vectorized(
         if "gradient_steps" in resume_metadata:
             training_state.gradient_steps = resume_metadata["gradient_steps"]
 
-    # Create agent
+    # Create agent (when resuming, use run's saved config so architecture matches checkpoint)
     temp_env = h_env.HockeyEnv(mode=h_env.Mode.NORMAL)
     state_dim = temp_env.observation_space.shape[0]
     action_dim = temp_env.action_space.shape[0] // 2
     temp_env.close()
 
+    if is_resume:
+        agent_config, common_hyperparams = _load_agent_config_from_run_dir(
+            resume_from, run_name
+        )
+        if verbose:
+            logger.info(
+                "Using agent config from run directory (latent_dim and other architecture params from checkpoint)"
+            )
+    else:
+        agent_config = curriculum.agent
+        common_hyperparams = curriculum.hyperparameters
+
     agent = create_agent(
-        curriculum.agent,
+        agent_config,
         state_dim=state_dim,
         action_dim=action_dim,
-        common_hyperparams=curriculum.hyperparameters,
+        common_hyperparams=common_hyperparams,
         deterministic=False,
     )
 

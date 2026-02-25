@@ -99,17 +99,32 @@ class DynamicsWithOpponentWrapper(torch.nn.Module):
             opponent_action = torch.zeros_like(action)
         return self.dynamics_opponent(latent, action, opponent_action)
 
-    def assign_opponents_for_batch(self, batch_size, device=None):
-        """Assign one fixed opponent per trajectory for the entire rollout."""
+    def assign_opponents_for_batch(self, batch_size, device=None, balanced=False):
+        """Assign one fixed opponent per trajectory for the entire rollout.
+
+        balanced=True distributes trajectories evenly across opponents (stratified),
+        which prevents random imbalance from making one opponent dominate the batch.
+        """
         if not self.opponent_ids:
             self._batch_opponent_ids = None
             return
         if device is None:
             device = next(self.dynamics_opponent.parameters()).device
         n_opponents = len(self.opponent_ids)
-        indices = torch.randint(0, n_opponents, (batch_size,), device=device)
-        id_tensor = torch.tensor(self.opponent_ids, device=device, dtype=indices.dtype)
-        self._batch_opponent_ids = id_tensor[indices]
+        if balanced and n_opponents > 1:
+            base = batch_size // n_opponents
+            remainder = batch_size % n_opponents
+            ids = torch.cat([
+                torch.full((base + (1 if i < remainder else 0),), self.opponent_ids[i],
+                           device=device, dtype=torch.long)
+                for i in range(n_opponents)
+            ])
+            perm = torch.randperm(batch_size, device=device)
+            self._batch_opponent_ids = ids[perm]
+        else:
+            indices = torch.randint(0, n_opponents, (batch_size,), device=device)
+            id_tensor = torch.tensor(self.opponent_ids, device=device, dtype=indices.dtype)
+            self._batch_opponent_ids = id_tensor[indices]
 
     def clear_batch_opponents(self):
         """Clear per-trajectory assignments (reverts to random fallback)."""
@@ -1368,9 +1383,9 @@ class TDMPC2(Agent):
             checkpoint_action_dim is not None
             and checkpoint_action_dim != self.action_dim
         ):
-            raise ValueError(
-                f"Cannot load checkpoint: action_dim mismatch "
-                f"(checkpoint: {checkpoint_action_dim}, current: {self.action_dim})"
+            logger.warning(
+                f"Checkpoint reports action_dim={checkpoint_action_dim}, current model has "
+                f"action_dim={self.action_dim}. Proceeding with load; state_dict shapes must match."
             )
 
         _load_state_dict_compat(self.encoder, checkpoint["encoder"])

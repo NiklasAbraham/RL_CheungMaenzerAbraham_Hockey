@@ -18,7 +18,9 @@ PROJECT_DIR="$HOME/RL_CheungMaenzerAbraham_Hockey"
 CONTAINER="$PROJECT_DIR/singularity_build/rl_hockey_competition.simg"
 
 # Path to .pt checkpoint (e.g. results/self_play/.../model.pt or archive/agents/.../checkpoint.pt)
-MODEL_PATH="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep019488.pt"
+# MODEL_PATH="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep019488.pt"
+MODEL_PATH="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep025646.pt"
+
 
 echo "=== Competition Agent Runner ==="
 echo "Job ID: $SLURM_JOB_ID"
