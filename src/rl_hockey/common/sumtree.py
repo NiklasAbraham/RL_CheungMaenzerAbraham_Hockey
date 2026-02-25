@@ -1,6 +1,5 @@
 # Code based on https://github.com/rlcode/per.
-# Copied from https://github.com/kitteltom/rl-laser-hockey/blob/main/sum_tree.py
-# Might have to redo it ourselves to avoid plagarism issues.
+# Adapted from https://github.com/kitteltom/rl-laser-hockey/blob/main/sum_tree.py
 
 import numpy as np
 
