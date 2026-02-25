@@ -56,7 +56,7 @@ def _resolve_path(path, root=None):
 # Single config dict: edit here for runs. Paths are relative to project root unless absolute.
 CONFIG = {
     "model_path": "results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep025646.pt",
-    "opponent_type": "basic_weak",
+    "opponent_type": "basic_strong",
     "opponent_model_path": None,
     "num_games": 100,
     "pause_between_games": 1.5,
