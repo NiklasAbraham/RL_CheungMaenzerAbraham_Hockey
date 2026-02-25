@@ -734,6 +734,7 @@ def train_vectorized(
     num_envs: int = 4,
     resume_from: Optional[str] = None,
     debug_level: int = 0,  # 0=minimal, 1=episode logging, 2=detailed debugging
+    update_archive: bool = False,
 ):
     """
     Minimal training with multiple parallel environments.
@@ -862,8 +863,7 @@ def train_vectorized(
         env=None,
         agent=agent,
         matchmaker=matchmaker,
-        verbose=verbose,
-        update_archive=False
+        verbose=verbose
     )
     switch = False
 

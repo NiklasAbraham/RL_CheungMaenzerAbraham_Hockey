@@ -40,6 +40,6 @@
       "noise": "normal",
       "max_episode_steps": 250
     },
-    "checkpoint_path": "/home/stud449/RL_CheungMaenzerAbraham_Hockey/archive/agents/0012_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260222_010043_ep095616_2026-02-22_21-45-34/checkpoint.pt"
+    "checkpoint_path": "/home/stud449/RL_CheungMaenzerAbraham_Hockey/archive/agents/0050_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep200000_2026-02-24_16-37-44/checkpoint.pt"
   }
 }
