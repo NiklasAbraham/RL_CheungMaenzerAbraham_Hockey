@@ -54,6 +54,29 @@ The action space consists of a 4 dimensional continuous vector that controls the
 \newpage
 \section{Method}\label{sec:Method}
 
+\subsection{Self-Play Infrastructure - Jannik Mänzer}
+
+Training reinforcement learning agents in multi-agent environments like air hockey presents several challenges, including catastrophic forgetting and the difficulty of evaluating progress once standard baselines are consistently defeated. Relying solely on standard self-play often leads to policies that overfit to recent behaviors, while a constantly changing opponent makes true improvement hard to measure. To address these issues, our approach relies on a diverse archive of opponents, including periodic checkpoints of our training agents, deterministic baselines, and agents trained using different RL algorithms. Sampling opponents from this archive during training forces the agent to adapt to various playstyles while ensuring robustness against older strategies. At the same time, it provides a stable population of opponents to evaluate the agent's overall skill.
+
+\subsubsection{TrueSkill Evaluation}
+
+To compare different agents in the archive we utilize the TrueSkill rating system \cite{herbrich2006trueskill}. TrueSkill models an agent's skill as a Gaussian distribution with mean $\mu_i$ and variance $\sigma_i^2$. The probability that agent $i$ defeats agent $j$ is calculated as:
+
+$$P(i \text{ beats } j) = \Phi\left(\frac{\mu_i - \mu_j}{\sqrt{2\beta^2 + \sigma_i^2 + \sigma_j^2}}\right),$$
+
+where $\beta$ is the environment's inherent variance and $\Phi$ is the cumulative distribution function of the standard normal distribution. During training, these ratings are dynamically updated. This running rating serves as both the target for the skill-based matching and a continuous evaluation metric for the active agent. To prevent rating drift, the archive can be periodically recalibrated by executing comprehensive round-robin tournaments among the saved agents.
+
+\subsubsection{Opponent Selection}
+
+During training, opponents are selected using a mixture of different strategies: Prioritized Fictitious Self-Play (PFSP) \cite{AlphaStar} and skill-based matching ensure competetive matches, additionally random sampling and deterministic baselines are included to ensure fundamental competencies are maintained and older strategies are not forgotten. While skill-based matching and PFSP both aim to maximize learning signal by selecting opponents at a similar skill level, they differ in how that skill level is determined. Skill-based matching relies on a global skill rating to provide generally competitive games against opponents of similar strength. In contrast, PFSP tracks empirical, pairwise win rates, allowing it to also capture relative dynamics between different agents. We find PFSP to outperform skill-based matching in terms of sample efficiency.
+
+For PFSP we track the empirical win rate $W_{i,j} \in [0, 1]$ of the active training agent $i$ against an archived opponent $j$ using an Exponential Moving Average (EMA). After each match, the win rate is updated as $W_{i,j} \leftarrow (1 - \alpha) W_{i,j} + \alpha r$, where $\alpha$ is a smoothing factor and $r$ is the current result, with $r \in \{0, 0.5, 1\}$ for a loss, draw, or win respectively.  
+
+The probability of selecting opponent $j$ from the available archive pool $\mathcal{A}$ is calculated by normalizing a priority function $f$:
+
+$$P(\text{select } j) = \frac{f(W_{i,j})}{\sum_{k \in \mathcal{A}} f(W_{i,k})}.$$
+
+For our priority function, we utilize $f(x) = x(1 - x)$. This parabola peaks exactly at a 50\% win rate and approaches zero as the win rate nears 0\% or 100\%. Consequently, the matchmaker actively selects the opponents that provide the most informative learning signal. If the active agent completely masters an opponent, its selection priority naturally diminishes. Conversely, if the agent experiences catastrophic forgetting and begins losing to an older opponent, the empirical win rate decays back toward $0.5$, automatically pulling that opponent back into the active training curriculum until a counter-strategy is successfully relearned.
 
 \subsection{TD-MPC 2 - Niklas Abraham}\label{sec:tdmpc2}
 
@@ -140,36 +163,47 @@ During training, opponent actions are taken from the replay buffer; during infer
 
 \subsection{SAC - Jannik Mänzer}
 
-Soft Actor-Critic (SAC) \cite{sac} is an off-policy actor-critic algorithm that extends standard reinforcement learning by optimizing a maximum entropy objective. Rather than seeking only the maximum cumulative reward, the agent aims to maximize a weighted objective of reward and the entropy of the policy $\mathcal{H}(\pi(\cdot|\mathbf{s}_t))$:
+Soft Actor-Critic (SAC) \cite{sac} is an off-policy actor-critic algorithm that extends standard reinforcement learning by optimizing a maximum entropy objective. Rather than seeking only the maximum cumulative reward, the agent aims to maximize a weighted objective of reward and the entropy of the policy $\mathcal{H}(\pi(\cdot|\mathbf{s}_t))$ over trajectories $\tau = (\mathbf{s}_0, \mathbf{a}_0, \mathbf{s}_1, \mathbf{a}_1, \ldots)$ generated by the policy $\pi$:
 \begin{equation}
-J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \rho_\pi} [r(\mathbf{s}_t, \mathbf{a}_t) + \alpha \mathcal{H}(\pi(\cdot|\mathbf{s}_t))]
+J(\pi) = \sum_{t=0}^{T} \mathbb{E}_{\tau \sim \pi} [r(\mathbf{s}_t, \mathbf{a}_t) + \alpha \mathcal{H}(\pi(\cdot|\mathbf{s}_t))].
 \end{equation}
 This entropy term $\mathcal{H}$ encourages the policy to assign non-zero probability to multiple actions where optimal, preventing premature convergence to deterministic behavior and improving exploration. The temperature parameter $\alpha$ controls the trade-off between the reward and the entropy.
 
 Two soft Q-functions, $Q_1$ and $Q_2$, are trained to estimate the expected return plus the future entropy of the policy. To mitigate overestimation, Clipped Double-Q Learning \cite{td3} is used, where the target is calculated using the minimum of two target networks $\bar{Q}_{1,2}$, whose weights are obtained via an exponential moving average of the main Q-networks \cite{mnih2015humanlevel}. The target for the Q-function update is given by:
 \begin{equation}
-y_t = r(\mathbf{s}_t, \mathbf{a}_t) + \gamma \mathbb{E}_{\mathbf{a}_{t+1} \sim \pi} \left[ \min_{j=1,2} \bar{Q}_j(\mathbf{s}_{t+1}, \mathbf{a}_{t+1}) - \alpha \log \pi(\mathbf{a}_{t+1}|\mathbf{s}_{t+1}) \right]
+y_t = r(\mathbf{s}_t, \mathbf{a}_t) + \gamma \mathbb{E}_{\mathbf{a}_{t+1} \sim \pi} \left[ \min_{j=1,2} \bar{Q}_j(\mathbf{s}_{t+1}, \mathbf{a}_{t+1}) - \alpha \log \pi(\mathbf{a}_{t+1}|\mathbf{s}_{t+1}) \right].
 \end{equation}
 The parameters $\theta$ are updated by minimizing the squared error between the prediction and this entropy-augmented target:
 \begin{equation}
-J_Q(\theta) = \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \mathcal{D}} \left[ \frac{1}{2}\left( Q_i(\mathbf{s}_t, \mathbf{a}_t) - y_t \right)^2 \right] \quad \text{for } i \in \{1, 2\}
+J_Q(\theta) = \mathbb{E}_{(\mathbf{s}_t, \mathbf{a}_t) \sim \mathcal{D}} \left[ \frac{1}{2}\left( Q_i(\mathbf{s}_t, \mathbf{a}_t) - y_t \right)^2 \right] \quad \text{for } i \in \{1, 2\}.
 \end{equation}
 
-The policy $\pi_\phi$ is updated to maximize the value estimate provided by the Q-functions while maintaining high entropy. Using the reparameterization trick $\mathbf{a}_t = f_\phi(\epsilon_t; \mathbf{s}_t)$ to allow for backpropagation, the objective is to maximize:
+The policy $\pi_\phi$ is updated to maximize the value estimate provided by the Q-functions while maintaining high entropy. 
+Instead of directly sampling actions from the stochastic policy $a_t \sim \pi_\phi(\cdot|s_t)$, the reparameterization trick \cite{VAE} allows to express the action as a deterministic function of an independent noise source $\epsilon_t \sim \mathcal{N}(0, I)$ and the state: $\mathbf{a}_t = f_\phi(\epsilon_t; \mathbf{s}_t) = \mu_\phi(\mathbf{s}_t) + \sigma_\phi(\mathbf{s}_t) \odot \epsilon_t$, effectively moving the stochasticity outside the network, thus allowing for backpropagation. The policy objective is then to maximize:
 \begin{equation}
-J_\pi(\phi) = \mathbb{E}_{\mathbf{s}_t \sim \mathcal{D}, \epsilon_t \sim \mathcal{N}} \left[ \min_{j=1,2} Q_j(\mathbf{s}_t, f_\phi(\epsilon_t; \mathbf{s}_t)) - \alpha \log \pi_\phi(f_\phi(\epsilon_t; \mathbf{s}_t)|\mathbf{s}_t) \right]
+J_\pi(\phi) = \mathbb{E}_{\mathbf{s}_t \sim \mathcal{D}, \epsilon_t \sim \mathcal{N}} \left[ \min_{j=1,2} Q_j(\mathbf{s}_t, f_\phi(\epsilon_t; \mathbf{s}_t)) - \alpha \log \pi_\phi(f_\phi(\epsilon_t; \mathbf{s}_t)|\mathbf{s}_t) \right].
 \end{equation}
 
 \subsubsection{Automatic Entropy Tuning}
 
-Instead of choosing the temperature hyperparameter $\alpha$ manually, it can be tuned automatically to ensure the policy satisfies a minimum target entropy constraint $\bar{\mathcal{H}}$ (typically chosen as $-\dim(\mathcal{A})$, where $\dim(\mathcal{A})$ is the dimensionality of the action space). This adapts the exploration pressure during training:
+Instead of choosing the temperature hyperparameter $\alpha$ manually, it can be tuned automatically to ensure the policy satisfies a minimum target entropy constraint $\bar{\mathcal{H}}$ (typically chosen as $-\dim(\mathcal{A})$, where $\dim(\mathcal{A})$ is the dimensionality of the action space). This continuously adapts the "exploration pressure" during training:
 \begin{equation}
-J(\alpha) = \mathbb{E}_{\mathbf{a}_t \sim \pi_t} [-\alpha (\log \pi_t(\mathbf{a}_t|\mathbf{s}_t) + \bar{\mathcal{H}})]
+J(\alpha) = \mathbb{E}_{\mathbf{a}_t \sim \pi_t} [-\alpha (\log \pi_t(\mathbf{a}_t|\mathbf{s}_t) + \bar{\mathcal{H}})].
 \end{equation}
 
-\subsubsection{Pink Noise Exploration}
+\subsubsection{Colored Action Noise}
 
-\subsubsection{}
+Standard SAC samples the reparameterization noise $\epsilon_t$ from an independent Gaussian distribution (white noise). While this uncorrelated sampling, characterized by a flat power spectral density ($S(f) \propto 1$), is standard practice, it may overly restrict the agent to local exploration. Because the noise fluctuates independently at each timestep, the agent rarely commits to a single direction for an extended period, which can hinder comprehensive state-space coverage.
+
+To facilitate broader exploration, temporally correlated noise can replace the independent samples $\epsilon_t$. This noise is defined by a power spectral density inversely proportional to frequency:
+\begin{equation}
+    S(f) \propto \frac{1}{f^\beta}
+    \label{eq:colored_noise}
+\end{equation}
+where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore propose using pink noise ($\beta = 1$) as a sensible default to balance local and global exploration.
+
+\subsubsection{Design Choices}
+
 \subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
 
 \subsubsection{The Overestimation Problem}
