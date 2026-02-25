@@ -92,9 +92,9 @@ def initialize_agent(agent_args: list[str]) -> Agent:
     from rl_hockey.REDQ.redq_td3 import REDQTD3
     import json
 
-    config = json.load(open("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-06_09-26-36/configs/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260206_092636.json", "r"))
+    config = json.load(open("results/redq_td3/2026-02-22_19-32-16/config.json", "r"))
     custom_agent = REDQTD3(state_dim=18, action_dim=4, **config)
-    custom_agent.load("/home/stud389/RL_CheungMaenzerAbraham_Hockey/results/redq_td3/2026-02-06_09-26-36/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260206_092636.pt")
+    custom_agent.load("results/redq_td3/2026-02-22_19-32-16/models/REDQTD3_run_lr3e04_bs1024_h128_128_128_92b58ff8_20260222_193216_ep029164.pt")
 
     agent = CustomAgent(custom_agent)
 

@@ -1,12 +1,12 @@
 """
-TD3 training entry point. Calls train_vectorized with TD3 curriculum config.
+TD3 training entry point. Calls train_vectorized with REDQ TD3 curriculum config.
 Config paths and settings are set in this file (no environment variables).
 """
 
 from rl_hockey.common.training.train import train_vectorized
 
 # Config: paths and settings for cluster and local runs
-CONFIG_PATH = "./configs/curriculum_redq_td3_hyperparams.json"
+CONFIG_PATH = "./configs/curriculum_redq_td3.json"
 RESULT_DIR = "./results/redq_td3"
 ARCHIVE_DIR = "./archive"
 NUM_ENVS = 16

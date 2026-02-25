@@ -20,7 +20,7 @@
     ]
   },
   "hyperparameters": {
-    "learning_rate": 0.0005,
+    "learning_rate": 0.0003,
     "batch_size": 1024
   },
   "training": {
@@ -33,7 +33,7 @@
     "agent": {
       "type": "TD3",
       "hyperparameters": {
-            "learning_rate": 5e-4,
+            "learning_rate": 3e-4,
             "max_action": 1.0,
             "discount": 0.99999,
             "tau": 0.005,
@@ -43,7 +43,7 @@
             "policy_freq": 2,
             "batch_size": 1024,
             "priority_replay": true,
-            "normalize_obs": true
+            "normalize_obs": false
       }
     }
   }

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=hockey_td3
+#SBATCH --job-name=hockey_redqtd3
 # Job name
 
 #SBATCH --partition=week
@@ -46,4 +46,4 @@ singularity exec \
     --bind "$PROJECT_DIR:$PROJECT_DIR" \
     --pwd "$PROJECT_DIR" \
     "$SINGULARITY_IMAGE" \
-    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_td3.py'"
+    /bin/bash -c "source /venv/bin/activate && pip install --target '$USER_PACKAGES_DIR' psutil > /dev/null 2>&1 && export PYTHONUNBUFFERED=1 && export PYTHONPATH='$PROJECT_DIR/src:$USER_PACKAGES_DIR:\$PYTHONPATH' && python3 -u '$PROJECT_DIR/src/rl_hockey/common/training/train_redqtd3.py'"

@@ -6,11 +6,11 @@ from rl_hockey.common.buffer import ReplayBuffer
 
 
 class Agent(ABC):
-    def __init__(self,  deterministic=False, priority_replay: bool = False, normalize_obs: bool = False):
+    def __init__(self,  deterministic=False, priority_replay: bool = False, normalize_obs: bool = False, **kwargs):
         self.deterministic = deterministic
 
         if priority_replay:
-            self.buffer = PERMemory(normalize_obs=normalize_obs)
+            self.buffer = PERMemory(normalize_obs=normalize_obs, eps=kwargs.get('per_eps', 1e-6), alpha=kwargs.get('per_alpha', 0.6), beta=kwargs.get('per_beta', 0.4), beta_increment_per_sampling=kwargs.get('per_beta_anneal', 1e-4))
         else:
             self.buffer = ReplayBuffer(normalize_obs=normalize_obs)
     

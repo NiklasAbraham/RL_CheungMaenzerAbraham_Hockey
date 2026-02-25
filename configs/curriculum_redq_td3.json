@@ -3,7 +3,7 @@
     "phases": [
       {
         "name": "integration_phase",
-        "episodes": 10000,
+        "episodes": 100000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
         "opponent": {
           "type": "weighted_mixture",
@@ -41,7 +41,7 @@
             "policy_update_delay": 20,
             "learning_rate": 3e-4,
             "max_action": 1.0,
-            "discount": 0.99,
+            "discount": 0.99999,
             "expl_noise": 0.1,
             "policy_noise": 0.2,
             "noise_clip": 0.5,

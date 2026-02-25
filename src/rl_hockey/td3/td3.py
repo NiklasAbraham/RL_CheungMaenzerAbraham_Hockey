@@ -35,7 +35,7 @@ class TD3(Agent):
             "normalize_obs": False
         }
         self.config.update(user_config)
-        super().__init__(priority_replay=self.config["priority_replay"], normalize_obs=self.config["normalize_obs"])
+        super().__init__(priority_replay=self.config["priority_replay"], normalize_obs=self.config["normalize_obs"], per_alpha=0.6, per_beta=0.4, per_eps=1e-5, per_beta_anneal=0.00001)
 
         self.actor = Actor(state_dim, action_dim, self.config["latent_dim"], self.config["activation"], self.config["max_action"]).to(DEVICE)
         self.actor_target = copy.deepcopy(self.actor)
