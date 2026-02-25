@@ -208,10 +208,10 @@ where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore p
 
 \subsubsection{The Overestimation Problem}
 
-In Standard Actor-Critic methods with continuous action spaces, the critic is responsible for approximating the Q function $Q_\theta(s, a)$. This means that they can overestimate or underestimate the true value. Pairing with the actor, who is responsible for maximizing the critic's expected return, is sensitive to the critic's over/underestimation. However, the overestimation of value will cause the Actor to udpate its parameters to select the overestimated action. This in turn causes the critic to use this artificially inflated Q-value from the next state, and ultimately pulls the current Q-value upwards. This cyclical overestimation of actions and Q-value backpropagates and leads to divergent behavior or suboptimal policies in continuous control over a long training timeframe. The predicted Q-values completely deviate from the actual expected returns.
+In Standard Actor-Critic methods with continuous action spaces, the critic is responsible for approximating the Q function $Q_\theta(s, a)$. This means that they can overestimate or underestimate the true value \cite{fujimoto2018addressing}. Pairing with the actor, who is responsible for maximizing the critic's expected return, is sensitive to the critic's over/underestimation. However, the overestimation of value will cause the Actor to udpate its parameters to select the overestimated action. This in turn causes the critic to use this artificially inflated Q-value from the next state, and ultimately pulls the current Q-value upwards. This cyclical overestimation of actions and Q-value backpropagates and leads to divergent behavior or suboptimal policies in continuous control over a long training timeframe. The predicted Q-values completely deviate from the actual expected returns.
 
 \subsubsection{Twin Delayed Deep Deterministic Policy Gradient (TD3)} 
-TD3 aims to fix the overestimation problem in Standard Actor-Critic methods using 3 tricks. The first trick of TD3 is the \textbf{Clipped Double-Q Learning}. TD3 maintains two independent critics, $Q_{\theta_1}$ and $Q_{\theta_2}$, and uses the minimum value to calculate the Bellman target:
+TD3 \cite{fujimoto2018addressing} aims to fix the overestimation problem in Standard Actor-Critic methods using 3 tricks. The first trick of TD3 is the \textbf{Clipped Double-Q Learning}. TD3 maintains two independent critics, $Q_{\theta_1}$ and $Q_{\theta_2}$, and uses the minimum value to calculate the Bellman target:
     \begin{equation}
         y = r + \gamma \min_{i=1,2} Q_{\theta_{i, targ}}(s', \tilde{a})
     \end{equation}
@@ -229,7 +229,7 @@ The third and final trick of TD3 is \textbf{Delayed Policy Updates}. Instead of 
 
 \subsubsection{Prioritized Experience Replay (PER)}
 
-In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences. We can measure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
+In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences \cite{schaul2016prioritized}. We can measure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
 \begin{equation}
     \delta_i = y_i - Q(s_i, a_i)
 \end{equation}
@@ -253,7 +253,7 @@ The implementation for PER utilizes a SumTree data structure to reduce the sampl
 
 \subsubsection{Randomized Ensembled Double Q-Learning (REDQ)}
 
-REDQ can be used to take TD3 to the next level. If we can use 2 Critics in TD3, why not 10? REDQ also has a few tricks.
+REDQ \cite{chen2021randomized} can be used to take TD3 to the next level. If we can use 2 Critics in TD3, why not 10? REDQ also has a few tricks.
 
 Trick 1: \textbf{Sample Efficiency via Update-toData (UTD)}. REDQ aims for a high Update-to-Data (UTD) ratio $G \gg 1$, allowing the agent to perform many gradient steps per environment interaction. In the paper, a UTD ratio of 20 was used. However, using. high UTD ratio on vanilla TD3 will cause the overestimation problem to return. The Actor and Critics will be learning from the same small batch of transitions aggressively, causing approximation errors to compound. 
 
@@ -284,8 +284,6 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
 
 \subsection{REDQ-TD3, PER Curriculum}
 
-We used the default paper hyperparameters for REDQ and TD3. 
-
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{figures/redq_td3_rewards.png}
@@ -293,7 +291,7 @@ We used the default paper hyperparameters for REDQ and TD3.
     \label{fig:redq_td3_per}
 \end{figure}
 
-Figure~\ref{fig:redq_td3_per} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 with PER. 
+We used the default paper hyperparameters for REDQ and TD3. Figure~\ref{fig:redq_td3_per} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 with PER. 
 
 \subsubsection{Overall Results}
 
