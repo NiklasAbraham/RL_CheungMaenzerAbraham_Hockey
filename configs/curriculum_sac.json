@@ -11,10 +11,10 @@
         "reward_shaping": {
           "N": 100000,
           "K": 100000,
-          "CLOSENESS_START": 0.5,
-          "CLOSENESS_FINAL": 0.5,
-          "TOUCH_START": 2,
-          "TOUCH_FINAL": 2,
+          "CLOSENESS_START": 1,
+          "CLOSENESS_FINAL": 1,
+          "TOUCH_START": 1,
+          "TOUCH_FINAL": 1,
           "DIRECTION_START": 1,
           "DIRECTION_FINAL": 1
         },

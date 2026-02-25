@@ -92,9 +92,9 @@ def initialize_agent(agent_args: list[str]) -> Agent:
     from rl_hockey.sac import SAC
     import json
 
-    config = json.load(open("results/sac_runs/2026-02-24_03-50-23/config.json", "r"))
+    config = json.load(open("results/sac_runs/2026-02-24_03-50-23-best/config.json", "r"))
     agent = SAC(state_dim=18, action_dim=4, **config["agent"]["hyperparameters"])
-    agent.load("results/sac_runs/2026-02-24_03-50-23/models/SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep200000.pt")
+    agent.load("results/sac_runs/2026-02-24_03-50-23-best/models/SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep200000.pt")
 
     custom_agent = CustomAgent(agent)
 
