@@ -19,9 +19,8 @@ During training the bonus magnitude is gradually phased out to zero so that the
 agent eventually learns to optimise the true sparse signal.
 
 This script simulates 100 random-play episodes to characterise the raw reward
-distribution, then visualises both the sparsity problem and the effect of the
-backpropagation technique.  Output figures are saved to report/figures/ for
-inclusion in the report.
+distribution, then visualises the effect of the backpropagation technique.
+Output figures are saved to report/figures/ for inclusion in the report.
 """
 
 import os
@@ -42,14 +41,12 @@ try:
     plt.rcParams.update(tue_axes.grid(grid_alpha=0.3))
     plt.rcParams.update(tue_axes.spines(right=False, top=False))
     plt.rcParams["figure.constrained_layout.use"] = False
-    _FIG_OVERVIEW = figsizes.neurips2024(nrows=1, ncols=2)["figure.figsize"]
-    _FIG_BACKPROP = figsizes.neurips2024(nrows=3, ncols=1)["figure.figsize"]
+    _FIG_BACKPROP = figsizes.neurips2024(nrows=2, ncols=1)["figure.figsize"]
     _FIG_BACKPROP = (_FIG_BACKPROP[0] * 1.4, _FIG_BACKPROP[1] * 1.3)
     USE_TUEPLOTS = True
 except ImportError:
     USE_TUEPLOTS = False
-    _FIG_OVERVIEW = (11, 4.5)
-    _FIG_BACKPROP = (8, 12)
+    _FIG_BACKPROP = (8, 8)
 
 FIGURES_DIR = "report/figures"
 NUM_GAMES = 100
@@ -123,88 +120,6 @@ def play_random_games(num_games=NUM_GAMES, max_steps=MAX_STEPS):
     return all_episodes
 
 
-def plot_reward_overview(
-    episodes,
-    output_dir=FIGURES_DIR,
-):
-    """
-    Two-panel overview of the raw reward signal by episode outcome.
-
-    Left panel: density of per-step rewards for each outcome type, showing
-    that almost all steps yield rewards near zero regardless of whether the
-    episode is a win, loss, or draw.
-
-    Right panel: distribution of episode total rewards per outcome, confirming
-    that winning episodes receive their entire positive signal from the single
-    terminal +10 step.
-
-    Args:
-        episodes: Dictionary returned by play_random_games.
-        output_dir: Directory in which to save the figure.
-    """
-    os.makedirs(output_dir, exist_ok=True)
-
-    step_rewards = {
-        "Player 1 wins": [r for ep in episodes["player1_wins"] for r in ep["rewards"]],
-        "Player 2 wins": [r for ep in episodes["player2_wins"] for r in ep["rewards"]],
-        "Draws": [r for ep in episodes["draws"] for r in ep["rewards"]],
-    }
-    episode_totals = {
-        "Player 1 wins": [ep["total_reward"] for ep in episodes["player1_wins"]],
-        "Player 2 wins": [ep["total_reward"] for ep in episodes["player2_wins"]],
-        "Draws": [ep["total_reward"] for ep in episodes["draws"]],
-    }
-    colors = {
-        "Player 1 wins": "#2ca02c",
-        "Player 2 wins": "#d62728",
-        "Draws": "#ff7f0e",
-    }
-
-    fig, axes = plt.subplots(1, 2, figsize=_FIG_OVERVIEW)
-
-    ax = axes[0]
-    for label, rewards in step_rewards.items():
-        if rewards:
-            ax.hist(
-                rewards,
-                bins=60,
-                alpha=0.55,
-                density=True,
-                color=colors[label],
-                label=f"{label} (n={len(rewards)})",
-                edgecolor="none",
-            )
-    ax.axvline(0, color="black", linestyle="--", linewidth=1, alpha=0.6)
-    ax.set_xlabel("Step reward")
-    ax.set_ylabel("Density")
-    ax.set_title("Step-level reward distribution by outcome")
-    ax.legend(fontsize=8)
-
-    ax = axes[1]
-    for label, totals in episode_totals.items():
-        if totals:
-            ax.hist(
-                totals,
-                bins=25,
-                alpha=0.55,
-                density=True,
-                color=colors[label],
-                label=f"{label} (n={len(totals)})",
-                edgecolor="none",
-            )
-    ax.axvline(0, color="black", linestyle="--", linewidth=1, alpha=0.6)
-    ax.set_xlabel("Episode total reward")
-    ax.set_ylabel("Density")
-    ax.set_title("Episode total reward by outcome")
-    ax.legend(fontsize=8)
-
-    plt.tight_layout()
-    out_path = os.path.join(output_dir, "reward_sparse_overview.png")
-    plt.savefig(out_path, dpi=300, bbox_inches="tight")
-    plt.close()
-    print(f"Overview figure saved to: {out_path}")
-
-
 def plot_backprop_analysis(
     episodes,
     win_reward_bonus=WIN_REWARD_BONUS,
@@ -218,10 +133,6 @@ def plot_backprop_analysis(
     Top panel: per-step reward trace for a representative winning episode
     before and after backpropagation, showing how a near-zero trajectory
     is enriched with a temporally discounted bonus.
-
-    Middle panel: the additive bonus at each step for the same episode,
-    illustrating the exponentially decaying pattern radiating from the
-    terminal win step.
 
     Bottom panel: scatter of episode total rewards before versus after
     backpropagation across all winning episodes, confirming that the
@@ -245,7 +156,7 @@ def plot_backprop_analysis(
     median_len = float(np.median(lengths))
     rep_ep = min(win_eps, key=lambda e: abs(e["steps"] - median_len))
     rewards_raw = np.array(rep_ep["rewards"], dtype=np.float32)
-    final_r, orig_r, bonus_r = apply_win_reward_backprop(
+    final_r, orig_r, _ = apply_win_reward_backprop(
         rewards_raw,
         winner=rep_ep["winner"],
         win_reward_bonus=win_reward_bonus,
@@ -266,7 +177,7 @@ def plot_backprop_analysis(
         orig_totals.append(float(np.sum(orr)))
         final_totals.append(float(np.sum(fr)))
 
-    fig, axes = plt.subplots(3, 1, figsize=_FIG_BACKPROP)
+    fig, axes = plt.subplots(2, 1, figsize=_FIG_BACKPROP)
 
     ax = axes[0]
     ax.plot(
@@ -295,21 +206,6 @@ def plot_backprop_analysis(
     ax.legend(fontsize=8)
 
     ax = axes[1]
-    ax.fill_between(steps_arr, bonus_r, 0, alpha=0.45, color="#ff7f0e")
-    ax.plot(
-        steps_arr,
-        bonus_r,
-        color="#ff7f0e",
-        linewidth=1.5,
-        label=f"Win bonus  (b={win_reward_bonus}, $\\gamma_b$={win_reward_discount})",
-    )
-    ax.axhline(0, color="black", linestyle=":", linewidth=0.8, alpha=0.5)
-    ax.set_xlabel("Step")
-    ax.set_ylabel("Bonus reward")
-    ax.set_title("Added win bonus per step (backpropagated from terminal win)")
-    ax.legend(fontsize=8)
-
-    ax = axes[2]
     ax.scatter(
         orig_totals,
         final_totals,
@@ -375,7 +271,6 @@ def print_summary(episodes):
 def main():
     episodes = play_random_games()
     print_summary(episodes)
-    plot_reward_overview(episodes)
     plot_backprop_analysis(episodes)
     print("Analysis complete.")
 

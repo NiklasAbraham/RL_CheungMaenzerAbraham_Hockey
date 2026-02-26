@@ -551,10 +551,10 @@ if __name__ == "__main__":
     # Now config_path can be None - it will auto-detect from model path
     print(
         evaluate_agent(
-            agent_path="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep019488.pt",
+            agent_path="results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep025646.pt",
             config_path=None,
-            num_games=250,
-            weak_opponent=True,
+            num_games=500,
+            weak_opponent=False,
             max_steps=500,
             num_parallel=1,
         )
