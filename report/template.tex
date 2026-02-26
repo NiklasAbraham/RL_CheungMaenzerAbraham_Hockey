@@ -47,13 +47,10 @@
 
 \subsection{Environment Overview}
 
-The Laser Hockey environment \cite{hockeyenv_github} is a custom reinforcement learning benchmark built on the Gymnasium Python API and powered by the Box2D physics engine. In this multi agent setting, two agents each control a hockey stick and compete to score goals by striking a puck into the opponent's net. The environment is designed such that both agents receive identical but mirrored observations at each timestep, which eliminates the need for side specific learning strategies.
+The Laser Hockey environment \cite{hockeyenv_github} is a custom multi-agent reinforcement learning benchmark built upon the Gymnasium API and the Box2D physics engine. In this environment, two agents control hockey sticks and compete to score goals by hitting a puck into the opponent's net. Both agents receive mirrored observations at each timestep, simplifying the learning process by always letting the agent view itself as “player 1.”
 
-At each timestep, the agent receives an 18 dimensional continuous state vector that captures the complete game state. This observation includes the position $x_1, y_1$ and orientation $\theta_1$ of both players relative to the center of the field, along with their linear $v_{x,1}, v_{y,1}$ and angular $\omega_1$ velocities. The state also contains the puck's position $x_p, y_p$ and velocity $v_{x,p}, v_{y,p}$, as well as time remaining for each player's puck possession $t_{\mathrm{puck},1}, t_{\mathrm{puck},2}$ in keep mode, which ranges from 0 to 15 steps. Player 1 refers to the agent currently being controlled, while Player 2 represents the opponent. The observation structure ensures that when the viewpoint switches during training, the indices are automatically mirrored so that each agent always perceives itself as Player 1, maintaining a consistent learning perspective.
+The observation for each agent is a continuous state vector that describes the positions, velocities, and other relevant properties of the players and puck. Actions are represented as a continuous vector controlling the stick's movement, rotation, and puck release. Rewards are sparse and primarily based on scoring goals, with a small dense component for proximity to the puck to encourage exploration during training. Episodes end with either a goal or timeout. The environment supports both scripted bots and learning agents, and is designed to encourage robust, general strategies in a competitive, continuous control setting.
 
-The action space consists of a 4 dimensional continuous vector that controls the agent's stick. The first two components specify forces applied for stick movement in the x and y directions, while the third component controls the torque applied to adjust the stick's angle. The fourth component is a thresholded scalar that determines whether to release the puck when the agent is in possession. Reward feedback in this environment is sparse and goal oriented. An agent receives a reward of +10 for scoring a goaland 0 for a draw. Additionally, there is a small reward signal for maintaining proximity to the puck, which helps guide exploration during early learning stages. Each episode begins with all entities positioned at the center of the field and terminates when a goal is scored or a timeout occurs. The environment supports both scripted opponents, such as the BasicOpponent, and learning agents as adversaries, making it a versatile and challenging benchmark for continuous control and multi agent reinforcement learning research.
-
-\newpage
 \section{Method}\label{sec:Method}
 
 \subsection{Self-Play Infrastructure - Jannik Mänzer}\label{sec:selfplay_section}
@@ -357,12 +354,124 @@ During the preparation of this project, we utilized generative AI tools for code
 \section{Appendix}\label{sec:appendix}
 
 \subsection{Episode Logs}\label{sec:episode_logs}
-The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics are shown in Figure~\ref{fig:episode_logs}. These logs were plotted fro all runs periodically, and this example is representative for the other runs.
+The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics are shown in Figure~\ref{fig:episode_logs}. These logs were plotted for all runs periodically, and this example is representative for the other runs.
 \begin{figure*}[h]
     \centering
     \includegraphics[width=\textwidth]{figures/episode_logs.png}
     \caption{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}
     \label{fig:episode_logs}
 \end{figure*}
+
+\subsection{Sparse Reward Problem and Reward Backpropagation}\label{sec:reward_backprop}
+
+\subsubsection{Problem: Reward Stagnation at Zero}
+
+The Laser Hockey environment provides an extremely sparse reward signal.
+An agent receives $+10$ only when it scores a goal, $-10$ only when the
+opponent scores, and a very small proximity bonus at every step.
+In practice, during early training when no learned strategy for scoring
+exists yet, the vast majority of episode steps yield rewards indistinguishable
+from zero.
+
+This sparsity posed a critical bootstrapping problem for TD-MPC2.
+The value function $Q(\vec{z}, a)$ is trained on experience stored in the
+replay buffer.  If nearly every transition has reward $\approx 0$, the
+Q-targets are close to zero throughout, and the gradient signal for
+both the value function and the policy network vanishes.
+As a result, training stagnated: the total episode reward remained near zero
+and the agent never discovered that winning is achievable.
+
+To verify this empirically, we simulated 100 episodes with uniformly random
+actions for both players and analysed the resulting reward distribution:
+regardless of whether an episode ends in a player-1 win, player-2 win, or
+draw, the per-step rewards are overwhelmingly clustered at zero.  A thin
+spike at $+10$ (or $-10$) appears only for the single terminal step of
+decided episodes; the rest of each episode contributes essentially nothing
+to the value-function learning signal.
+
+\subsubsection{Solution: Reward Backpropagation}
+
+To provide a dense, temporally consistent learning signal without altering the
+environment's reward function, we implemented reward backpropagation in the
+replay buffer.  Whenever an episode is flushed to the buffer and the outcome
+is a win (winner $= 1$), a discounted bonus is added to every preceding step
+before the experience is stored:
+\begin{equation}
+    r_t \;\leftarrow\; r_t + b \cdot \gamma_b^{(T-2) - t},
+    \qquad t = 0,\,1,\,\ldots,\,T-2,
+    \label{eq:backprop}
+\end{equation}
+where $b$ is the win-bonus magnitude, $\gamma_b \in (0, 1]$ is the
+backpropagation discount, $T$ is the episode length, and $t = T-1$ is the
+terminal step that already carries the full $+10$ reward and is therefore
+left unchanged.
+The exponential decay in Equation~\eqref{eq:backprop} is anchored at the
+\emph{penultimate} step ($t = T-2$, which receives the full bonus $b$) and
+fades toward earlier steps, so the credit assignment is greatest just before
+the decisive action and smallest at the start of the episode.
+
+We set $b = 10$ to match the magnitude of the terminal goal reward, and
+$\gamma_b = 0.82$ at the beginning of training.
+These values were chosen so that the injected signal is large enough to make
+winning episodes clearly distinguishable from non-winning ones in the Q-value
+landscape, while the discount prevents distant early steps from receiving an
+unrealistically large credit.
+
+\subsubsection{Phase-Out During Training}
+
+As training progresses and the agent begins to score goals regularly, the
+replay buffer naturally accumulates more winning episodes and the true sparse
+signal becomes a sufficient learning driver on its own.
+Keeping the synthetic bonus active at this stage would bias the value function
+away from the true environment signal and could prevent the agent from learning
+fine-grained credit assignment.
+
+To address this, the bonus is gradually phased out over the course of training
+by scheduling $\gamma_b$ to decay from its initial value toward zero as the
+number of training steps increases.
+In early training the dense bonus guides the value function; once the agent
+reliably produces winning episodes, the decay reduces the bonus to negligible
+levels and the agent transitions to optimising the original sparse reward.
+
+\subsubsection{Effect on TD-MPC2 Training}
+
+Figure~\ref{fig:reward_backprop_analysis} illustrates how reward
+backpropagation transforms the per-step reward signal of a representative
+winning episode.  The top panel shows the raw reward trace (mostly zero with
+a single $+10$ spike) alongside the reshaped trace after backpropagation.
+The middle panel shows the additive bonus at each step, which decays
+exponentially from the penultimate step toward the start of the episode.
+The bottom panel confirms that the effect is systematic across all winning
+episodes: every episode whose total reward was originally concentrated in
+the single terminal step now receives a significantly higher total, shifting
+the Q-target distribution into a range where meaningful gradient updates
+can occur.
+
+Empirically, applying this technique during the initial training phase broke
+the stagnation: the TD-MPC2 value function was able to associate early-episode
+states with eventual win outcomes, the policy gradient signal became non-zero,
+and training loss curves began to decrease.  The gradual phase-out then ensured
+that the agent converged to a policy optimising the true environment reward
+rather than the synthetic shaped signal.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/reward_backprop_analysis.png}
+    \caption{%
+        Effect of reward backpropagation on winning episodes
+        (bonus $b = 10$, discount $\gamma_b = 0.82$).
+        \textbf{Top:} per-step reward before and after backpropagation for
+        a representative winning episode; the near-zero trace is replaced by
+        a smoothly decaying bonus.
+        \textbf{Middle:} the additive win bonus at each step for the same
+        episode, illustrating the exponential decay anchored at the penultimate
+        step.
+        \textbf{Bottom:} scatter of episode total rewards before versus after
+        backpropagation across all winning episodes; every point lies above the
+        identity line, confirming a consistent upward shift in the training
+        signal.
+    }
+    \label{fig:reward_backprop_analysis}
+\end{figure}
 
 \end{document}

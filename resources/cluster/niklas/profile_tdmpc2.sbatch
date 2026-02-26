@@ -6,7 +6,7 @@
 #SBATCH --partition=day
 # Partition: day for quick profiling jobs
 
-#SBATCH --gres=gpu:2080ti:1
+#SBATCH --gres=gpu:A4000:1
 # Request 1 A4000 GPU (16GB memory, CUDA capability 8.6, supports torch.compile)
 # A4000 has more memory than 2080ti (16GB vs 11GB) - better for profiling with memory tracking
 # Alternative options: gpu:2080ti:1 (11GB) or gpu:1080ti:1 (11GB, CUDA 6.1, no torch.compile)
