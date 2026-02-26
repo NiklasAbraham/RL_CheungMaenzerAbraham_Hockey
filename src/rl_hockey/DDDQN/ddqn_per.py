@@ -6,7 +6,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 from rl_hockey.common.agent import Agent
-from rl_hockey.common.buffer import PrioritizedReplayBuffer, ReplayBuffer
+from rl_hockey.common.prioritizedbuffer import PERMemory
+from rl_hockey.common.buffer import ReplayBuffer
 from rl_hockey.DDDQN.models import DuelingDQN_Network
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -86,7 +87,7 @@ class DDQN_PER(Agent):
 
         # Replace buffer with PER buffer if enabled
         if self.use_per:
-            self.buffer = PrioritizedReplayBuffer(
+            self.buffer = PERMemory(
                 max_size=self.config.get("buffer_size", 1_000_000),
                 alpha=self.config["per_alpha"],
                 beta=self.config["per_beta"],
@@ -256,7 +257,9 @@ class DDQN_PER(Agent):
 
             # Update priorities if using PER
             if self.use_per and indices is not None:
-                self.buffer.update_priorities(indices, td_errors)
+                for i in range(self.config["batch_size"]):
+                    idx = indices[i]
+                    self.buffer.update(idx, td_errors[i])
 
             losses.append(loss.item())
             self.training_steps += 1
@@ -302,7 +305,7 @@ class DDQN_PER(Agent):
 
         # Reinitialize buffer with correct type
         if self.use_per:
-            self.buffer = PrioritizedReplayBuffer(
+            self.buffer = PERMemory(
                 max_size=self.config.get("buffer_size", 1_000_000),
                 alpha=self.config["per_alpha"],
                 beta=self.config["per_beta"],

@@ -10,7 +10,8 @@ class PERMemory(ReplayBuffer):  # stored as ( s, a, r, s_, done ) in SumTree
         eps=0.01,
         alpha=0.6,
         beta=0.4,
-        beta_increment_per_sampling=0.0001,
+        max_beta=1.0,
+        beta_increment=0.0001,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -19,7 +20,8 @@ class PERMemory(ReplayBuffer):  # stored as ( s, a, r, s_, done ) in SumTree
         self.eps = eps
         self.alpha = alpha
         self.beta = beta
-        self.beta_increment_per_sampling = beta_increment_per_sampling
+        self.max_beta = max_beta
+        self.beta_increment = beta_increment
 
     def _get_priority(self, error):
         return (np.abs(error) + self.eps) ** self.alpha
@@ -35,7 +37,7 @@ class PERMemory(ReplayBuffer):  # stored as ( s, a, r, s_, done ) in SumTree
         segment = self.tree.total_p() / batch_size
         priorities = []
 
-        self.beta = np.min([1.0, self.beta + self.beta_increment_per_sampling])
+        self.beta = np.min([1.0, self.beta + self.beta_increment])
 
         for i in range(batch_size):
             a = segment * i
