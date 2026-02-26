@@ -4,6 +4,8 @@ This repository contains the reinforcement learning implementation for the Hocke
 
 1. [Conda Environment Setup](#conda-environment-setup)
 2. [Developing](#developing)
+3. [Running the Agents](#running-the-agents)
+4. [Author Contributions](#author-contributions)
 
 ## Conda Environment Setup
 
@@ -71,3 +73,23 @@ pip install -e .
 ```
 
 Use absolute imports everywhere in the codebase to avoid import issues, e.g., `from rl_hockey.sac import SAC`.
+
+## Running the Agents
+
+### TD-MPC
+
+### SAC
+
+### TD3
+
+## Author Contributions
+
+Niklas Abraham:
+- TODO
+
+Jannik Mänzer:
+- SAC & Extensions
+- Archive & Self-play Infrastructure
+
+Ansel Cheung:
+- TODO
