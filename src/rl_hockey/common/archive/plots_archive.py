@@ -728,9 +728,9 @@ if __name__ == "__main__":
         agent_selection=[
             ("basic_weak", "weak bot"),
             ("basic_strong", "strong bot"),
-            ("0001_SAC_2026-01-30_00-57-20", "SAC"),
-            ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2 internal opp and h=8"),
-            ("0012_TDMPC2_2026-02-18_22-39-21", "TDMPC2 internal opp and h=6"),
+            ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2"),
+            ("0016_SAC_2026-02-025", "SAC"),
+            ("0018_TD3_Final_2026-02-02", "TD3"),
         ],
         output_filename="agent_ratings_selected.png",
         show_match_count=False,
