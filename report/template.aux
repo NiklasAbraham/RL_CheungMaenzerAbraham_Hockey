@@ -6,43 +6,65 @@
 \@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}\protected@file@percent }
 \newlabel{sec:intro}{{1}{1}{Introduction}{section.1}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {1.1}Environment Overview}{1}{subsection.1.1}\protected@file@percent }
-\citation{hansen2024tdmpc2scalablerobustworld}
+\citation{herbrich2006trueskill}
+\citation{AlphaStar}
 \@writefile{toc}{\contentsline {section}{\numberline {2}Method}{2}{section.2}\protected@file@percent }
 \newlabel{sec:Method}{{2}{2}{Method}{section.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}TD-MPC 2 - Niklas Abraham}{2}{subsection.2.1}\protected@file@percent }
-\newlabel{sec:tdmpc2}{{2.1}{2}{TD-MPC 2 - Niklas Abraham}{subsection.2.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}}{2}{figure.1}\protected@file@percent }
-\newlabel{fig:tdmpc2_flow}{{1}{2}{On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Self-Play Infrastructure - Jannik Mänzer}{2}{subsection.2.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}TrueSkill Evaluation}{2}{subsubsection.2.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}Opponent Selection}{2}{subsubsection.2.1.2}\protected@file@percent }
 \citation{hansen2024tdmpc2scalablerobustworld}
+\citation{hansen2024tdmpc2scalablerobustworld}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}TD-MPC 2 - Niklas Abraham}{3}{subsection.2.2}\protected@file@percent }
+\newlabel{sec:tdmpc2}{{2.2}{3}{TD-MPC 2 - Niklas Abraham}{subsection.2.2}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Architecture and Training}{3}{subsubsection.2.2.1}\protected@file@percent }
 \citation{williams2015modelpredictivepathintegral}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.1}Architecture and Training}{3}{subsubsection.2.1.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.2}Planning with MPPI}{3}{subsubsection.2.1.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.1.3}Modifying TD-MPC2: Opponent-Aware Dynamics}{3}{subsubsection.2.1.3}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}}{4}{figure.1}\protected@file@percent }
+\newlabel{fig:tdmpc2_flow}{{1}{4}{On the left in a) TD-MPC2 agent architecture and their individual components. b) shows the modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment}{figure.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}Planning with MPPI}{4}{subsubsection.2.2.2}\protected@file@percent }
 \citation{sec:td3}
 \citation{sec:sac}
+\citation{sac}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Modifying TD-MPC2: Opponent-Aware Dynamics}{5}{subsubsection.2.2.3}\protected@file@percent }
+\citation{td3}
+\citation{mnih2015humanlevel}
+\citation{VAE}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.3}SAC - Jannik Mänzer}{6}{subsection.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Automatic Entropy Tuning}{6}{subsubsection.2.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Colored Action Noise}{6}{subsubsection.2.3.2}\protected@file@percent }
+\citation{pink}
+\newlabel{eq:colored_noise}{{14}{7}{Colored Action Noise}{equation.14}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.3}Design Choices}{7}{subsubsection.2.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}TD3 and REDQ - Ansel Cheung}{7}{subsection.2.4}\protected@file@percent }
+\newlabel{sec:td3}{{2.4}{7}{TD3 and REDQ - Ansel Cheung}{subsection.2.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}The Overestimation Problem}{7}{subsubsection.2.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Twin Delayed Deep Deterministic Policy Gradient (TD3)}{7}{subsubsection.2.4.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.3}Prioritized Experience Replay (PER)}{8}{subsubsection.2.4.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.4}Randomized Ensembled Double Q-Learning (REDQ)}{8}{subsubsection.2.4.4}\protected@file@percent }
 \citation{herbrich2006trueskill}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Results}{5}{section.3}\protected@file@percent }
-\newlabel{sec:Results}{{3}{5}{Results}{section.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}TD-MPC2 Hyperparameters and Curriculum}{5}{subsection.3.1}\protected@file@percent }
-\newlabel{sec:tdmpc2_hyperparameters_and_curriculum}{{3.1}{5}{TD-MPC2 Hyperparameters and Curriculum}{subsection.3.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}}{5}{figure.2}\protected@file@percent }
-\newlabel{fig:tdmpc2_hyperparameters_and_curriculum}{{2}{5}{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics}{figure.2}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.1.1}Overall Results}{5}{subsubsection.3.1.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Results}{10}{section.3}\protected@file@percent }
+\newlabel{sec:Results}{{3}{10}{Results}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}TD-MPC2 Hyperparameters and Curriculum}{10}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:tdmpc2_hyperparameters_and_curriculum}{{3.1}{10}{TD-MPC2 Hyperparameters and Curriculum}{subsection.3.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}}{10}{figure.2}\protected@file@percent }
+\newlabel{fig:tdmpc2_hyperparameters_and_curriculum}{{2}{10}{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics}{figure.2}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}REDQ-TD3 Hyperparameters and Curriculum}{10}{subsection.3.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Overall Results}{10}{subsubsection.3.2.1}\protected@file@percent }
 \citation{rl_cheung_maenzer_abraham_hockey}
-\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better.}}{6}{figure.3}\protected@file@percent }
-\newlabel{fig:agent_ratings_selected}{{3}{6}{TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better}{figure.3}{}}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Acknowledgements \& Data Availability}{6}{section.4}\protected@file@percent }
-\newlabel{sec:Acknowledgements}{{4}{6}{Acknowledgements \& Data Availability}{section.4}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better.}}{11}{figure.3}\protected@file@percent }
+\newlabel{fig:agent_ratings_selected}{{3}{11}{TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better}{figure.3}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Acknowledgements \& Data Availability}{11}{section.4}\protected@file@percent }
+\newlabel{sec:Acknowledgements}{{4}{11}{Acknowledgements \& Data Availability}{section.4}{}}
 \bibstyle{abbrv}
 \bibdata{main}
 \bibcite{rl_cheung_maenzer_abraham_hockey}{1}
 \bibcite{hansen2024tdmpc2scalablerobustworld}{2}
 \bibcite{hockeyenv_github}{3}
 \bibcite{williams2015modelpredictivepathintegral}{4}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix}{7}{appendix.A}\protected@file@percent }
-\newlabel{sec:appendix}{{A}{7}{Appendix}{appendix.A}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Episode Logs}{7}{subsection.A.1}\protected@file@percent }
-\newlabel{sec:episode_logs}{{A.1}{7}{Episode Logs}{subsection.A.1}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}}{8}{figure.4}\protected@file@percent }
-\newlabel{fig:episode_logs}{{4}{8}{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics}{figure.4}{}}
-\gdef \@abspage@last{8}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix}{12}{appendix.A}\protected@file@percent }
+\newlabel{sec:appendix}{{A}{12}{Appendix}{appendix.A}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Episode Logs}{12}{subsection.A.1}\protected@file@percent }
+\newlabel{sec:episode_logs}{{A.1}{12}{Episode Logs}{subsection.A.1}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}}{13}{figure.4}\protected@file@percent }
+\newlabel{fig:episode_logs}{{4}{13}{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics}{figure.4}{}}
+\gdef \@abspage@last{13}

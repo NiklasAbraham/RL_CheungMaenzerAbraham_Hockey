@@ -64,7 +64,8 @@ singularity exec \
             --archive '$PROJECT_DIR/archive' \
             --matches 250 \
             --baseline-ratio 0.2 \
-            --random-ratio 0.1
+            --random-ratio 0.1 \
+            --include-uncalibrated
     "
 
 echo ""
