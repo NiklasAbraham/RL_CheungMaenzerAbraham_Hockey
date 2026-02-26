@@ -23,55 +23,55 @@
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces \textbf  {(a)} TD-MPC2 agent architecture and their individual components. \textbf  {(b)} The modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment.}}{3}{figure.caption.1}\protected@file@percent }
 \providecommand*\caption@xref[2]{\@setref\relax\@undefined{#1}}
 \newlabel{fig:tdmpc2_flow}{{1}{3}{\textbf {(a)} TD-MPC2 agent architecture and their individual components. \textbf {(b)} The modified architecture with an additional opponent network to model the behavior of the adversarial agent in the Laser Hockey environment}{figure.caption.1}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Architecture and Training}{3}{subsubsection.2.2.1}\protected@file@percent }
 \citation{williams2015modelpredictivepathintegral}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Architecture and Training}{4}{subsubsection.2.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}Planning with MPPI}{4}{subsubsection.2.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Modifying TD-MPC2: Opponent-Aware Dynamics}{4}{subsubsection.2.2.3}\protected@file@percent }
 \citation{sac}
 \citation{td3}
 \citation{mnih2015humanlevel}
+\citation{VAE}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.3}SAC - Jannik Mänzer}{5}{subsection.2.3}\protected@file@percent }
 \newlabel{sec:sac}{{2.3}{5}{SAC - Jannik Mänzer}{subsection.2.3}{}}
-\citation{VAE}
 \citation{pink}
+\citation{td3}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Automatic Entropy Tuning}{6}{subsubsection.2.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Colored Action Noise}{6}{subsubsection.2.3.2}\protected@file@percent }
 \newlabel{eq:colored_noise}{{14}{6}{Colored Action Noise}{equation.14}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.3}Experiments}{6}{subsubsection.2.3.3}\protected@file@percent }
-\citation{td3}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}TD3 and REDQ - Ansel Cheung}{6}{subsection.2.4}\protected@file@percent }
+\newlabel{sec:td3}{{2.4}{6}{TD3 and REDQ - Ansel Cheung}{subsection.2.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}The Overestimation Problem}{6}{subsubsection.2.4.1}\protected@file@percent }
 \citation{td3}
 \@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(top)} Cumulative reward and win rate across different exploration noise types over the first 10,000 episodes against the strong bot (100-episode moving average; raw rewards in the backgound). \textbf  {(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}}{7}{figure.caption.2}\protected@file@percent }
 \newlabel{fig:experiments}{{2}{7}{\textbf {(top)} Cumulative reward and win rate across different exploration noise types over the first 10,000 episodes against the strong bot (100-episode moving average; raw rewards in the backgound). \textbf {(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages}{figure.caption.2}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {2.4}TD3 and REDQ - Ansel Cheung}{7}{subsection.2.4}\protected@file@percent }
-\newlabel{sec:td3}{{2.4}{7}{TD3 and REDQ - Ansel Cheung}{subsection.2.4}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}The Overestimation Problem}{7}{subsubsection.2.4.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Twin Delayed Deep Deterministic Policy Gradient (TD3)}{7}{subsubsection.2.4.2}\protected@file@percent }
+\newlabel{clipped_action}{{2.4.2}{7}{Twin Delayed Deep Deterministic Policy Gradient (TD3)}{equation.16}{}}
 \citation{schaul2016prioritized}
 \citation{chen2021randomized}
-\newlabel{clipped_action}{{2.4.2}{8}{Twin Delayed Deep Deterministic Policy Gradient (TD3)}{equation.16}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.3}Prioritized Experience Replay (PER)}{8}{subsubsection.2.4.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.4}Randomized Ensembled Double Q-Learning (REDQ)}{9}{subsubsection.2.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.4}Randomized Ensembled Double Q-Learning (REDQ)}{8}{subsubsection.2.4.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {3}Results}{9}{section.3}\protected@file@percent }
 \newlabel{sec:Results}{{3}{9}{Results}{section.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.1}TD-MPC2 Hyperparameters and Curriculum}{9}{subsection.3.1}\protected@file@percent }
 \newlabel{sec:tdmpc2_hyperparameters_and_curriculum}{{3.1}{9}{TD-MPC2 Hyperparameters and Curriculum}{subsection.3.1}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}}{9}{figure.caption.3}\protected@file@percent }
 \newlabel{fig:tdmpc2_hyperparameters_and_curriculum}{{3}{9}{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics}{figure.caption.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}SAC Hyperparameters \& Curriculum}{9}{subsection.3.2}\protected@file@percent }
 \citation{schaul2016prioritized}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}SAC Hyperparameters \& Curriculum}{10}{subsection.3.2}\protected@file@percent }
+\citation{herbrich2006trueskill}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.3}REDQ-TD3, PER Curriculum}{10}{subsection.3.3}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces TD3 vs REDQ rewards}}{10}{figure.4}\protected@file@percent }
 \newlabel{fig:redq_td3_rewards}{{4}{10}{TD3 vs REDQ rewards}{figure.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces REDQ selfplay rewards trajectory}}{10}{figure.5}\protected@file@percent }
 \newlabel{fig:redq_selfplay}{{5}{10}{REDQ selfplay rewards trajectory}{figure.5}{}}
-\citation{herbrich2006trueskill}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Overall Results}{10}{subsection.3.4}\protected@file@percent }
 \citation{rl_cheung_maenzer_abraham_hockey}
 \@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces \textbf  {(left)} TrueSkill ratings ($\mu - 3\sigma $) for a selected set of agents. \textbf  {(right)} Win rates against the scripted weak and strong bots. Higher is better.}}{11}{figure.caption.4}\protected@file@percent }
 \newlabel{fig:agent_ratings_selected}{{6}{11}{\textbf {(left)} TrueSkill ratings ($\mu - 3\sigma $) for a selected set of agents. \textbf {(right)} Win rates against the scripted weak and strong bots. Higher is better}{figure.caption.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}Overall Results}{11}{subsection.3.4}\protected@file@percent }
 \@writefile{toc}{\contentsline {section}{\numberline {4}Acknowledgements \& Data Availability}{11}{section.4}\protected@file@percent }
 \newlabel{sec:Acknowledgements}{{4}{11}{Acknowledgements \& Data Availability}{section.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}AI Usage Disclosure}{12}{subsection.4.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}AI Usage Disclosure}{11}{subsection.4.1}\protected@file@percent }
 \bibstyle{abbrv}
 \bibdata{main}
 \bibcite{chen2021randomized}{1}
@@ -87,33 +87,39 @@
 \bibcite{schaul2016prioritized}{11}
 \bibcite{AlphaStar}{12}
 \bibcite{williams2015modelpredictivepathintegral}{13}
-\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix}{14}{appendix.A}\protected@file@percent }
-\newlabel{sec:appendix}{{A}{14}{Appendix}{appendix.A}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Episode Logs}{14}{subsection.A.1}\protected@file@percent }
-\newlabel{sec:episode_logs}{{A.1}{14}{Episode Logs}{subsection.A.1}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}TD-MPC2 Profiling Summary}{14}{subsection.A.2}\protected@file@percent }
-\newlabel{sec:profiling}{{A.2}{14}{TD-MPC2 Profiling Summary}{subsection.A.2}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Profiling run setup.}}{14}{table.caption.7}\protected@file@percent }
-\newlabel{tab:profiling_setup}{{1}{14}{Profiling run setup}{table.caption.7}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Single action selection: total CPU and CUDA time per call.}}{14}{table.caption.8}\protected@file@percent }
-\newlabel{tab:profiling_action}{{2}{14}{Single action selection: total CPU and CUDA time per call}{table.caption.8}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Model forward pass: CPU and CUDA time over 30 calls.}}{14}{table.caption.9}\protected@file@percent }
-\newlabel{tab:profiling_forward}{{3}{14}{Model forward pass: CPU and CUDA time over 30 calls}{table.caption.9}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}Sparse Reward Problem and Reward Backpropagation}{15}{subsection.A.3}\protected@file@percent }
-\newlabel{sec:reward_backprop}{{A.3}{15}{Sparse Reward Problem and Reward Backpropagation}{subsection.A.3}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.1}Problem: Reward Stagnation at Zero}{15}{subsubsection.A.3.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.2}Solution: Reward Backpropagation}{15}{subsubsection.A.3.2}\protected@file@percent }
-\newlabel{eq:backprop}{{22}{15}{Solution: Reward Backpropagation}{equation.22}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.3}Phase-Out During Training}{15}{subsubsection.A.3.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.4}Effect on TD-MPC2 Training}{16}{subsubsection.A.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}SAC Hyperparameters}{16}{subsection.A.4}\protected@file@percent }
-\newlabel{sec:sac_hyperparams}{{A.4}{16}{SAC Hyperparameters}{subsection.A.4}{}}
-\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces SAC Final Hyperparameters}}{16}{table.caption.11}\protected@file@percent }
-\newlabel{tab:sac_hyperparams}{{4}{16}{SAC Final Hyperparameters}{table.caption.11}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}}{17}{figure.caption.6}\protected@file@percent }
-\newlabel{fig:episode_logs}{{7}{17}{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics}{figure.caption.6}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Effect of reward backpropagation on winning episodes (bonus $b = 10$, discount $\gamma _b = 0.82$). \textbf  {Top:} per-step reward before and after backpropagation for a representative winning episode; the near-zero trace is replaced by a smoothly decaying bonus. \textbf  {Bottom:} scatter of episode total rewards before versus after backpropagation across all winning episodes; every point lies above the identity line, confirming a consistent upward shift in the training signal. }}{18}{figure.caption.10}\protected@file@percent }
-\newlabel{fig:reward_backprop_analysis}{{8}{18}{Effect of reward backpropagation on winning episodes (bonus $b = 10$, discount $\gamma _b = 0.82$). \textbf {Top:} per-step reward before and after backpropagation for a representative winning episode; the near-zero trace is replaced by a smoothly decaying bonus. \textbf {Bottom:} scatter of episode total rewards before versus after backpropagation across all winning episodes; every point lies above the identity line, confirming a consistent upward shift in the training signal}{figure.caption.10}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Comparison of SAC performance across different learning rates over the first 10,000 episodes against the strong bot.}}{19}{figure.caption.12}\protected@file@percent }
-\newlabel{fig:sac_lr}{{9}{19}{Comparison of SAC performance across different learning rates over the first 10,000 episodes against the strong bot}{figure.caption.12}{}}
-\gdef \@abspage@last{19}
+\@writefile{toc}{\contentsline {section}{\numberline {A}Appendix}{13}{appendix.A}\protected@file@percent }
+\newlabel{sec:appendix}{{A}{13}{Appendix}{appendix.A}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Episode Logs}{13}{subsection.A.1}\protected@file@percent }
+\newlabel{sec:episode_logs}{{A.1}{13}{Episode Logs}{subsection.A.1}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.2}TD-MPC2 Profiling Summary}{13}{subsection.A.2}\protected@file@percent }
+\newlabel{sec:profiling}{{A.2}{13}{TD-MPC2 Profiling Summary}{subsection.A.2}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {1}{\ignorespaces Profiling run setup.}}{13}{table.caption.7}\protected@file@percent }
+\newlabel{tab:profiling_setup}{{1}{13}{Profiling run setup}{table.caption.7}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {2}{\ignorespaces Single action selection: total CPU and CUDA time per call.}}{13}{table.caption.8}\protected@file@percent }
+\newlabel{tab:profiling_action}{{2}{13}{Single action selection: total CPU and CUDA time per call}{table.caption.8}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {3}{\ignorespaces Model forward pass: CPU and CUDA time over 30 calls.}}{13}{table.caption.9}\protected@file@percent }
+\newlabel{tab:profiling_forward}{{3}{13}{Model forward pass: CPU and CUDA time over 30 calls}{table.caption.9}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.3}Sparse Reward Problem and Reward Backpropagation}{14}{subsection.A.3}\protected@file@percent }
+\newlabel{sec:reward_backprop}{{A.3}{14}{Sparse Reward Problem and Reward Backpropagation}{subsection.A.3}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.1}Problem: Reward Stagnation at Zero}{14}{subsubsection.A.3.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.2}Solution: Reward Backpropagation}{14}{subsubsection.A.3.2}\protected@file@percent }
+\newlabel{eq:backprop}{{22}{14}{Solution: Reward Backpropagation}{equation.22}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.3}Phase-Out During Training}{14}{subsubsection.A.3.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.3.4}Effect on TD-MPC2 Training}{15}{subsubsection.A.3.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.4}Curriculum TD-MPC2 Mixed Opponents: Hyperparameters}{15}{subsection.A.4}\protected@file@percent }
+\newlabel{sec:curriculum_tdmpc2_hyperparams}{{A.4}{15}{Curriculum TD-MPC2 Mixed Opponents: Hyperparameters}{subsection.A.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {A.5}SAC Hyperparameters}{15}{subsection.A.5}\protected@file@percent }
+\newlabel{sec:sac_hyperparams}{{A.5}{15}{SAC Hyperparameters}{subsection.A.5}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}}{16}{figure.caption.6}\protected@file@percent }
+\newlabel{fig:episode_logs}{{7}{16}{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics}{figure.caption.6}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces Effect of reward backpropagation on winning episodes (bonus $b = 10$, discount $\gamma _b = 0.82$). \textbf  {Top:} per-step reward before and after backpropagation for a representative winning episode; the near-zero trace is replaced by a smoothly decaying bonus. \textbf  {Bottom:} scatter of episode total rewards before versus after backpropagation across all winning episodes; every point lies above the identity line, confirming a consistent upward shift in the training signal. }}{17}{figure.caption.10}\protected@file@percent }
+\newlabel{fig:reward_backprop_analysis}{{8}{17}{Effect of reward backpropagation on winning episodes (bonus $b = 10$, discount $\gamma _b = 0.82$). \textbf {Top:} per-step reward before and after backpropagation for a representative winning episode; the near-zero trace is replaced by a smoothly decaying bonus. \textbf {Bottom:} scatter of episode total rewards before versus after backpropagation across all winning episodes; every point lies above the identity line, confirming a consistent upward shift in the training signal}{figure.caption.10}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {4}{\ignorespaces Hyperparameters for the curriculum TD-MPC2 mixed opponents run.}}{18}{table.caption.11}\protected@file@percent }
+\newlabel{tab:curriculum_tdmpc2_hyperparams}{{4}{18}{Hyperparameters for the curriculum TD-MPC2 mixed opponents run}{table.caption.11}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {5}{\ignorespaces Curriculum phases for the TD-MPC2 mixed opponents run. Environment mode is NORMAL for all phases.}}{19}{table.caption.12}\protected@file@percent }
+\newlabel{tab:curriculum_tdmpc2_phases}{{5}{19}{Curriculum phases for the TD-MPC2 mixed opponents run. Environment mode is NORMAL for all phases}{table.caption.12}{}}
+\@writefile{lot}{\contentsline {table}{\numberline {6}{\ignorespaces SAC Final Hyperparameters}}{19}{table.caption.13}\protected@file@percent }
+\newlabel{tab:sac_hyperparams}{{6}{19}{SAC Final Hyperparameters}{table.caption.13}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {9}{\ignorespaces Comparison of SAC performance across different learning rates over the first 10,000 episodes against the strong bot.}}{20}{figure.caption.14}\protected@file@percent }
+\newlabel{fig:sac_lr}{{9}{20}{Comparison of SAC performance across different learning rates over the first 10,000 episodes against the strong bot}{figure.caption.14}{}}
+\gdef \@abspage@last{20}

@@ -87,7 +87,7 @@ For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, opti
 \end{equation}
 The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this often leads to locally optimal policies, so TD-MPC2 additionally uses a value function to guide planning toward more globally optimal solutions.
 
-Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow} a).
+TD-MPC2 learns a latent representation (rather than raw observations) to estimate action-sequence outcomes. Five neural network components interact as in Figure~\ref{fig:tdmpc2_flow} a).
 \begin{figure}[h]
     \centering
     \includegraphics[width=1.0\textwidth]{figures/tdmpc2_flow.pdf}
@@ -129,7 +129,7 @@ This is optimized by iteratively sampling actions from $\mathcal{N}(\mu, \sigma^
 
 \subsubsection{Modifying TD-MPC2: Opponent-Aware Dynamics}
 
-In classical TD-MPC2, the dynamics model receives only the current latent state and self-action, not the opponent's action. The standard model thus implicitly marginalizes over opponent behavior:
+Classical TD-MPC2 dynamics use only latent state and self-action, so the model implicitly marginalizes over the opponent:
 \begin{equation}
 P(s_{t+1} \mid s_t, a_t^{\text{self}})
 =
@@ -150,13 +150,13 @@ where the latent trajectory and predicted opponent actions are obtained by the r
 \end{equation}
 for $\tau = t, \ldots, t+H-1$, with $\vec{z}_t = h(s_t)$. The terminal value $\tilde{V}(\vec{z}_{t+H})$ is given by the Q-ensemble (e.g., $\min_k Q_k(\vec{z}_{t+H}, a)$ at the policy action $a$). MPPI then maximizes this return over sampled self-action sequences, with opponent actions fixed by the recursion above.
 
-The opponent's action is predicted by a separate network $\pi_{\text{opp}}$, trained via imitation on actions logged in the replay buffer (Figure~\ref{fig:tdmpc2_flow} b). We train opponent models against the basic weak/strong bots, the TD3 agent (Section~\ref{sec:td3}), the SAC agent (Section~\ref{sec:sac}), and a standard TD-MPC2 agent. Since both policies are controlled during data collection, $a_t^{\text{opp}}$ is recorded exactly. The separate loss is given by
+A separate network $\pi_{\text{opp}}$ predicts the opponent action, trained by imitation on replay-buffer actions (Figure~\ref{fig:tdmpc2_flow} b). We train it against weak/strong bots, TD3, SAC, and TD-MPC2; $a_t^{\text{opp}}$ is recorded exactly during collection. The loss is
 \begin{equation}
 \mathcal{L}_{\text{opp}} = \| a_t^{\text{opp}} - \pi_{\text{opp}}(\vec{z}_t) \|^2,
 \end{equation}
-where $\pi_{\text{opp}}$ is the opponent network, trained with a frozen encoder in periodic intervals. With this MSE objective, $\pi_{\text{opp}}$ is a deterministic mean predictor: it outputs a single action estimate per latent state.
+$\pi_{\text{opp}}$ is trained with a frozen encoder periodically; MSE yields a deterministic mean predictor per latent state.
 
-During inference the opponent action is predicted deterministically as $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$ and fed into the dynamics. When multiple opponent models are available, each MPPI rollout is assigned a fixed model for the full horizon, so diversity comes from varying the model rather than sampling stochastically.
+At inference, $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$ is fed into the dynamics. With multiple opponent models, each MPPI rollout uses a fixed model over the horizon.
 
 \subsection{SAC - Jannik Mänzer}\label{sec:sac}
 
@@ -333,7 +333,7 @@ Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and wit
 
 \subsection{Overall Results}
 
-To compare all trained agents on a common scale, we evaluated them in a round-robin tournament within the archive matchmaking system using TrueSkill \cite{herbrich2006trueskill}, a Bayesian rating algorithm that updates the belief over each agent's skill level after every match outcome, as discussed in \ref{sec:trueskill}. The rating reported is $\mu - 3\sigma$, a conservative lower-bound estimate that accounts for residual uncertainty. Figure~\ref{fig:agent_ratings_selected} shows the TrueSkill ratings and win rates against fixed baselines for the two scripted baselines (weak and strong bot), the best SAC agent, the best TD-MPC2 agent, and the best REDQ-TD3 agent.
+To compare all trained agents on a common scale, we evaluated them in a round-robin tournament within the archive matchmaking system using TrueSkill \cite{herbrich2006trueskill}, a Bayesian rating algorithm that updates the belief over each agent's skill after every match (see \ref{sec:trueskill}). We report $\mu - 3\sigma$ as a conservative lower bound. Figure~\ref{fig:agent_ratings_selected} shows TrueSkill ratings and win rates against fixed baselines for the two scripted bots (weak and strong), the best SAC, TD-MPC2, and REDQ-TD3 agents.
 
 \begin{figure}[t]
     \centering
@@ -342,9 +342,9 @@ To compare all trained agents on a common scale, we evaluated them in a round-ro
     \label{fig:agent_ratings_selected}
 \end{figure}
 
-All three learned agents (SAC, TD-MPC2, and REDQ-TD3) consistently beat both the strong and the weak bot, with win rates against each baseline ranging from $86\%$ to $99\%$. SAC achieves the highest TrueSkill rating of $37.32$ ($\mu = 39.78$, $\sigma = 0.82$, over 391 matches), followed by the best TD-MPC2 agent at $29.90$ ($\mu = 32.33$, $\sigma = 0.81$, trained for 16\,000 steps). REDQ-TD3 reaches $21.01$ ($\mu = 23.17$, $\sigma = 0.72$), placing it close to the two scripted baselines: the weak bot at $22.46$ and the strong bot at $20.06$.
+All three learned agents consistently beat both bots, with win rates from $86\%$ to $99\%$. SAC has the highest rating ($37.32$, 391 matches), TD-MPC2 next at $29.90$ (16\,000 steps), and REDQ-TD3 at $21.01$, close to the scripted baselines (weak bot $22.46$, strong bot $20.06$).
 
-Win rates against the fixed baselines confirm these rankings. SAC dominates both scripted opponents with a $99\%$ win rate against the weak bot and $96\%$ against the strong bot. TD-MPC2 achieves $98\%$ against the weak bot and $90\%$ against the strong bot. REDQ-TD3 obtains $86\%$ against the weak bot but $98\%$ against the strong bot, indicating that it has developed a strategy effective against the strong bot's predictable aggression while struggling to score decisively against the weak bot's passive style. Overall, SAC is the strongest agent in our comparison, with TD-MPC2 (16\,000 training steps, $H{=}8$) as the runner-up and a clear margin over REDQ-TD3 and the scripted baselines.
+Win rates confirm the rankings: SAC $99\%$/ $96\%$ (weak/strong bot), TD-MPC2 $98\%$/ $90\%$, REDQ-TD3 $86\%$/ $98\%$. REDQ-TD3 fares better against the strong bot's aggression than the weak bot's passive style. Overall, SAC is strongest, TD-MPC2 (16\,000 steps, $H{=}8$) is runner-up, with a clear margin over REDQ-TD3 and the scripted baselines.
 
 
 \section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}
@@ -536,6 +536,76 @@ rather than the synthetic shaped signal.
     }
     \label{fig:reward_backprop_analysis}
 \end{figure}
+
+\subsection{Curriculum TD-MPC2 Mixed Opponents: Hyperparameters}\label{sec:curriculum_tdmpc2_hyperparams}
+
+The curriculum training run \texttt{curriculum\_tdmpc2\_mixed\_opponents} uses the configuration given in \texttt{configs/curriculum\_tdmpc2\_mixed\_opponents.json}. Table~\ref{tab:curriculum_tdmpc2_hyperparams} lists all training and agent hyperparameters. Table~\ref{tab:curriculum_tdmpc2_phases} summarizes the curriculum phases.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Hyperparameter} & \textbf{Value} \\ \midrule
+\multicolumn{2}{l}{\textit{Training (global)}} \\
+Learning rate & $3 \times 10^{-4}$ \\
+Batch size & 512 \\
+Max episode steps & 500 \\
+Updates per step & 1 \\
+Warmup steps & 5000 \\
+Reward scale & 1 \\
+Checkpoint save frequency & 200 \\ \midrule
+\multicolumn{2}{l}{\textit{TD-MPC2 agent}} \\
+Latent dimension & 256 \\
+Encoder hidden dims & [256, 256, 256] \\
+Dynamics hidden dims & [256, 256, 256] \\
+Reward hidden dims & [256, 256, 256] \\
+Termination hidden dims & [256, 256] \\
+Q-function hidden dims & [256, 256, 256] \\
+Policy hidden dims & [256, 256, 256] \\
+Number of Q-networks ($Q$-ensemble) & 5 \\
+Discount factor ($\gamma$) & 0.99 \\
+Planning horizon $H$ & 8 \\
+MPC samples & 512 \\
+MPC iterations & 6 \\
+Temperature & 0.5 \\
+Value clip $V_{\min}$ & $-10$ \\
+Value clip $V_{\max}$ & 10 \\
+Win reward bonus & 10 \\
+Win reward discount & 0.92 \\ \midrule
+\multicolumn{2}{l}{\textit{Opponent simulation}} \\
+Enabled & true \\
+Cloning frequency & 2500 \\
+Cloning steps & 5000 \\
+Cloning samples & 512 \\
+\bottomrule
+\end{tabular}
+\caption{Hyperparameters for the curriculum TD-MPC2 mixed opponents run.}
+\label{tab:curriculum_tdmpc2_hyperparams}
+\end{table}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{@{}llc@{}}
+\toprule
+\textbf{Phase} & \textbf{Episodes} & \textbf{Opponent type} \\ \midrule
+initial\_training & 3000 & basic\_strong \\
+mixed\_opponents & 7000 & weighted\_mixture (SAC, TDMPC2, DecoyPolicy, basic\_strong) \\
+archive\_opponents\_1 & 2000 & archive \\
+checkpoints\_1 & 2000 & run\_checkpoints (TDMPC2) \\
+archive\_opponents\_2 & 2000 & archive \\
+checkpoints\_2 & 2000 & run\_checkpoints (TDMPC2) \\
+archive\_opponents\_3 & 2000 & archive \\
+checkpoints\_3 & 2000 & run\_checkpoints (TDMPC2) \\
+archive\_opponents\_4 & 5000 & archive \\
+checkpoints\_4 & 5000 & run\_checkpoints (TDMPC2) \\
+checkpoints\_5 & 5000 & run\_checkpoints (TDMPC2) \\
+archive\_opponents\_5 & 5000 & archive \\
+checkpoints\_6 & 50000 & run\_checkpoints (TDMPC2) \\
+\bottomrule
+\end{tabular}
+\caption{Curriculum phases for the TD-MPC2 mixed opponents run. Environment mode is NORMAL for all phases.}
+\label{tab:curriculum_tdmpc2_phases}
+\end{table}
 
 \subsection{SAC Hyperparameters}\label{sec:sac_hyperparams}
 Table \ref{tab:sac_hyperparams} details the final hyperparameter configuration used for both the SAC agent and our combined team agent in the tournament.

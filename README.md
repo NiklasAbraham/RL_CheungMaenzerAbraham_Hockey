@@ -85,7 +85,7 @@ Use absolute imports everywhere in the codebase to avoid import issues, e.g., `f
 
 **Checkpoint**
 
-The TD-MPC2 checkpoint (about 120 MB) is provided in the Ilias submission. A Drive download link is also available: **[paste Drive link here]**.
+The TD-MPC2 checkpoint (about 120 MB) is provided in the Ilias submission. A Drive download link is also available: https://drive.google.com/file/d/1OU_UxEZNCbqCfRiM8mQ1kFz2D4oo0WES/view?usp=sharing.
 
 Place the checkpoint in the correct folder under `models/`:
 

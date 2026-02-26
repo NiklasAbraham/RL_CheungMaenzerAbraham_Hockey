@@ -811,7 +811,7 @@ if __name__ == "__main__":
             ("basic_strong", "strong bot"),
             ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2"),
             ("0016_SAC_2026-02-025", "SAC"),
-            ("0018_TD3_Final_2026-02-02", "TD3"),
+            ("0018_TD3_Final_2026-02-02", "REDQ-TD3"),
         ],
         output_filename="agent_ratings_selected.png",
         show_match_count=False,
