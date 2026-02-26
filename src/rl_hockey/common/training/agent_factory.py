@@ -63,8 +63,6 @@ def create_agent(
         }
     )
 
-    # FIXME handle deterministic flag for other agent types
-
     agent = None
     if agent_config.type == "DDDQN":
         hidden_dim = agent_hyperparams.pop("hidden_dim", [256, 256])

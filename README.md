@@ -79,6 +79,13 @@ Use absolute imports everywhere in the codebase to avoid import issues, e.g., `f
 ### TD-MPC
 
 ### SAC
+To run the SAC agent, execute the `run_sac.py` script located in `src/rl_hockey/sac/`:
+
+```bash
+python src/rl_hockey/sac/run_sac.py
+```
+
+The corresponding model checkpoint and the configuration file are located in the `models/sac/` directory.
 
 ### TD3
 
