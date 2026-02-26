@@ -88,6 +88,22 @@ python src/rl_hockey/sac/run_sac.py
 The corresponding model checkpoint and the configuration file are located in the `models/sac/` directory.
 
 ### TD3
+To run the TD3 agent, execute the `run_td3.py` script located in `src/rl_hockey/td3/`:
+
+```bash
+python src/rl_hockey/td3/run_td3.py
+```
+
+The corresponding model checkpoint and the configuration file are located in the `models/td3/` directory.
+
+### REDQ
+To run the REDQ-TD3 agent, execute the `run_redq.py` script located in `src/rl_hockey/REDQ/`:
+
+```bash
+python src/rl_hockey/td3/run_redq.py
+```
+
+The corresponding model checkpoint and the configuration file are located in the `models/redqtd3/` directory.
 
 ## Author Contributions
 
