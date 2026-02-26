@@ -241,7 +241,7 @@ These 2 Critics have the exact same architecture but independent sets of weights
 The second trick of TD3 is \textbf{Target Policy Smoothing}. In continuous action spaces, the Critics have a rough Q-value landscape laced with sharp peaks.This causes the Critics to overestimate the Q-value and the Actor exploits these peaks. Hence, TD3 injects small random noise into the Actor's predicted action when updating the Critics.
     \begin{equation}
         \tilde{a} = \text{clip}(\pi_{\phi_{targ}}(s') + \epsilon, a_{low}, a_{high}), \quad \epsilon \sim \text{clip}(\mathcal{N}(0, \sigma), -c, c)
-    \end{equation}
+    \end{equation}\label{clipped_action}
 
 Clipping is performed to ensure the noisy action does not exceed the envrironment's valid action minimum and maximum. The Actor cannot rely on sharp pinpoints of Q-function overestimation and will learn to maximize actions in broad and stable regions of high Q-values.
 
@@ -279,14 +279,14 @@ Trick 1: \textbf{Sample Efficiency via Update-toData (UTD)}. REDQ aims for a hig
 
 Trick 2: \textbf{Ensemble Minimum}. In order to continue to fix the overestimation problem, REDQ uses an even more pessimistic estimation. REDQ maintains an ensemble of $N$ Q-functions (Critics). For each update, using a minimum of all Critics might cause large overestimation bias. Instead, a random subset $\mathcal{M}$ of size $M$ is sampled to compute the target. $\theta$ is the policy parameters, $\phi_i, i=1, \dots, N$ is Q-function parameters.
     \begin{equation}
-        y = r + \gamma \left( \min_{j \in \mathcal{M}} Q_{\phi_{j, targ}}(s', \tilde{a}') - \alpha \log \pi_\theta(\tilde{a}'|s') \right), \quad \tilde{a}' \sim \pi_\theta(\cdot | s')
+        y = r + \gamma \min_{j \in \mathcal{M}} Q_{\phi_{j, targ}}(s', \tilde{a}')
     \end{equation}
 
-This single target is used to update all $N$ critics. Using $N$ Critics with different initializations allows the approximation error to be even more uncorelated compared to TD3 with 2 Critics.
+where $\tilde{a}'$ is the same clipped action from equation 16 (\ref{clipped_action}). This single target is used to update all $N$ critics. Using $N$ Critics with different initializations allows the approximation error to be even more uncorelated compared to TD3 with 2 Critics.
 
 Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-value across all $N$ Critics. The mean of all $N$ Critics provides a much smoother and reliable signal for the Actor to follow.
     \begin{equation}
-        \nabla_\theta \frac{1}{|B|}\sum_{s\in B} \left( \frac{1}{N} \sum_{i=1}^N Q_{\phi_i}(s, \tilde{a}_\theta(s)) - \alpha \log \pi_\phi(\tilde{a}_\theta(s)|s) \right), \quad \tilde{a}_\theta(s) \sim \pi_\theta(\cdot|s)
+        \nabla_\theta \frac{1}{|B|}\sum_{s\in B} \frac{1}{N} \sum_{i=1}^N Q_{\phi_i}(s, \pi_\theta(s))
     \end{equation}
 
 \section{Results}\label{sec:Results}
