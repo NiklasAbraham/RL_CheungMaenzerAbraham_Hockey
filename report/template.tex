@@ -201,27 +201,25 @@ where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore p
 
 \subsubsection{Experiments}
 
-\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise, as shown in Figure \ref{fig:experiments} (top). The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate exploration.
+\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise, as shown in Figure \ref{fig:noise_plot}. The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate exploration.
 
-\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, Figure \ref{fig:experiments} (bottom) shows Q-values relative to the temporal distance from the goal during both early and late training stages. The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy, motivating long training runs.
-
-\begin{figure}[htbp]
+\begin{figure}[t]
     \centering
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=\linewidth]{figures/noise_plot.png}
-        \phantomcaption
-    \end{subfigure}
-
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=1.01\linewidth]{figures/value_propagation.png}
-        \phantomcaption
-    \end{subfigure}
-
-    \caption{\textbf{(top)} Cumulative reward and win rate across different exploration noise types over the first 10,000 episodes against the strong bot (100-episode moving average; raw rewards in the backgound). \textbf{(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}
-    \label{fig:experiments}
+    \includegraphics[width=\linewidth]{figures/noise_plot.png}
+    \caption{Cumulative reward and win rate across different exploration noise types over the first 10,000 episodes against the strong bot (100-episode moving average; raw rewards in the background).}
+    \label{fig:noise_plot}
 \end{figure}
+
+\begin{figure}
+    \centering
+    \includegraphics[width=\linewidth]{figures/value_propagation.png}
+    \caption{Q-value propagation over temporal distance to the goal in early vs. late training stages.}
+    \label{fig:value_propagation}
+\end{figure}
+
+\vspace{0.5em}
+
+\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, Figure \ref{fig:value_propagation} shows Q-values relative to the temporal distance from the goal during both early and late training stages. The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy, motivating long training runs.
 
 \subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
 
