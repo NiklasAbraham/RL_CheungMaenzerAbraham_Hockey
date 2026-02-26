@@ -5,6 +5,7 @@
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
 \usepackage{url}            % simple URL typesetting
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{color}
 \usepackage{tikz}
 \usepackage{amsfonts}       % blackboard math symbols
@@ -202,7 +203,31 @@ To facilitate broader exploration, temporally correlated noise can replace the i
 \end{equation}
 where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore propose using pink noise ($\beta = 1$) as a sensible default to balance local and global exploration.
 
-\subsubsection{Design Choices}
+\subsubsection{Experiments}
+
+\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise (Figure \ref{fig:noise_plot}). The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate local exploration.
+
+\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, we visualized Q-values relative to the temporal distance from the goal during both early and late training stages (Figure \ref{fig:value_propagation}). The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/noise_plot.png}
+        \phantomcaption
+        \label{fig:noise_plot}
+    \end{subfigure}
+
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/value_propagation.png}
+        \phantomcaption
+        \label{fig:value_propagation}
+    \end{subfigure}
+
+    \caption{\textbf{(a)} Cumulative reward and win rate across different exploration noise types. \textbf{(b)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}
+    \label{fig:eval_plots}
+\end{figure}
 
 \subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
 
@@ -306,7 +331,10 @@ Among the learned agents, SAC reaches a rating of $28.34$, demonstrating that a 
 
 \section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}
 We would like to thank the instructors and the staff of the Reinforcement Learning course for their help and support.
-All of our code can be found on our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+All of our code can be found in our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+
+\subsection{AI Usage Disclosure}
+During the preparation of this project, we utilized generative AI tools for code autocompletion and the automatic generation of code documentation. Additionally, these tools were used as a linguistic aid for grammar and spell-checking during the drafting of this report. We maintain full responsibility for the technical content, the final implementation of the algorithms, and the results presented herein.
 
 \newpage
 
