@@ -25,7 +25,7 @@ class SAC(Agent):
 
         self.config = {
             "batch_size": 256,
-            "learning_rate": 3e-4,
+            "learning_rate": 1e-3,
             "discount": 0.99,
             "tau": 0.005,
             "alpha": 0.2,
