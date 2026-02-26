@@ -11,8 +11,9 @@ __pycache__/
 # C extensions
 *.so
 
-# Model checkpoints
+# Model checkpoints and saved models
 checkpoint.pt
+models/**/*.pt
 
 Output/
 data/
