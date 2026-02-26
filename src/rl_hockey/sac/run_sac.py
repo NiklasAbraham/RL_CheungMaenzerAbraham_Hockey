@@ -1,5 +1,4 @@
 import numpy as np
-from tqdm import tqdm
 import hockey.hockey_env as h_env
 import json
 
@@ -25,7 +24,7 @@ def main(
     win_count = 0
     total_reward = 0
 
-    for _ in tqdm(range(N)):
+    for _ in range(N):
         state, _ = env.reset()
 
         episode = []
