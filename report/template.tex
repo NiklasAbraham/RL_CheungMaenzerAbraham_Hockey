@@ -79,13 +79,13 @@ For our priority function, we utilize $f(x) = x(1 - x)$. This parabola peaks exa
 
 \subsection{TD-MPC 2 - Niklas Abraham}\label{sec:tdmpc2}
 
-TD-MPC2 \cite{hansen2024tdmpc2scalablerobustworld} is a model-based reinforcement learning algorithm that learns a world model to predict future states and rewards, and uses this model to select actions through planning. The core idea is to learn a policy $\pi: \mathcal{S} \rightarrow \mathcal{A}$ in a Markov Decision Process with an infinite horizon. The policy is constructed to maximize the expected discounted return. In TD-MPC2, this is achieved by learning a world model and selecting actions by planning with the learned models.
+TD-MPC2 \cite{hansen2024tdmpc2scalablerobustworld} is a model-based RL algorithm that learns a world model and selects actions through planning. The goal is to learn a policy $\pi: \mathcal{S} \rightarrow \mathcal{A}$ that maximizes expected discounted return in an infinite-horizon MDP.
 
-For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, in which actions are optimized based on planning over action sequences of a finite horizon $H$:
+For planning, TD-MPC2 employs the Model Predictive Control (MPC) framework, optimizing over action sequences of finite horizon $H$:
 \begin{equation}
     \pi(s_t) = \arg\max_{a_1, \ldots, a_H} \mathbb{E}_\pi\left[\sum_{\tau=0}^{H} \gamma^\tau r(s_{t+\tau}, a_{t+\tau})\right].
 \end{equation}
-The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this approach often leads to only locally optimal policies. To address this limitation, TD-MPC2 additionally utilizes a value function to guide the planning process and improve the policy toward a more globally optimal solution.
+The return of each trajectory is estimated by simulating action sequences through the learned world model. However, this often leads to locally optimal policies, so TD-MPC2 additionally uses a value function to guide planning toward more globally optimal solutions.
 
 Rather than predicting raw future observation states, TD-MPC2 learns to predict a maximally useful latent representation for accurately estimating the outcomes of action sequences. The algorithm is composed of five distinct neural network components that interact in a coordinated manner, as illustrated in Figure~\ref{fig:tdmpc2_flow} a).
 \begin{figure}[h]
@@ -129,16 +129,14 @@ This is optimized by iteratively sampling actions from $\mathcal{N}(\mu, \sigma^
 
 \subsubsection{Modifying TD-MPC2: Opponent-Aware Dynamics}
 
-In the classical TD-MPC2, the dynamics model is trained to predict the next latent state given the current latent state and action. However, in the multi agent setting, with an adversarial opponent, the dynamics model will only receive the current latent state and action, but not receive the action of the opponent. Thus the standard TD-MPC2 implicitly models
+In classical TD-MPC2, the dynamics model receives only the current latent state and self-action, not the opponent's action. The standard model thus implicitly marginalizes over opponent behavior:
 \begin{equation}
 P(s_{t+1} \mid s_t, a_t^{\text{self}})
 =
 \mathbb{E}_{a_t^{\text{opp}} \sim \pi_{\text{opp}}(\cdot \mid s_t)}
 P(s_{t+1} \mid s_t, a_t^{\text{self}}, a_t^{\text{opp}}),
 \end{equation}
-which corresponds to marginalizing over opponent behavior.
-This leads to a mean-opponent model, producing biased long-horizon predictions
-when the opponent policy is multimodal or strategic. To address this, it is not enough to vary the opponents during training or to use self-play, the network architecture needs to be changed.
+yielding a mean-opponent model with biased long-horizon predictions when the opponent policy is multimodal or strategic. Varying opponents or using self-play alone does not resolve this; the network architecture must be extended.
 
 To model the opponent's behavior, we extend the dynamics model so that it takes the opponent action as an additional input: $\vec{z}_{t+1} = d(\vec{z}_t, a_t^{\text{self}}, a_t^{\text{opp}})$, where $a_t^{\text{opp}}$ is the opponent's action. The same is done for the reward model and Q-value network.
 
@@ -152,13 +150,13 @@ where the latent trajectory and predicted opponent actions are obtained by the r
 \end{equation}
 for $\tau = t, \ldots, t+H-1$, with $\vec{z}_t = h(s_t)$. The terminal value $\tilde{V}(\vec{z}_{t+H})$ is given by the Q-ensemble (e.g., $\min_k Q_k(\vec{z}_{t+H}, a)$ at the policy action $a$). MPPI then maximizes this return over sampled self-action sequences, with opponent actions fixed by the recursion above.
 
-The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent (Section~\ref{sec:td3}) or the SAC agent (Section~\ref{sec:sac}) as well as the TD-MPC2 agent without the opponent-aware dynamics. During data collection we control both policies (self and opponent), therefore $a_t^{\text{opp}}$ is logged exactly in the replay buffer. The separate loss is given by
+The opponent's action is predicted by a separate network $\pi_{\text{opp}}$, trained via imitation on actions logged in the replay buffer (Figure~\ref{fig:tdmpc2_flow} b). We train opponent models against the basic weak/strong bots, the TD3 agent (Section~\ref{sec:td3}), the SAC agent (Section~\ref{sec:sac}), and a standard TD-MPC2 agent. Since both policies are controlled during data collection, $a_t^{\text{opp}}$ is recorded exactly. The separate loss is given by
 \begin{equation}
 \mathcal{L}_{\text{opp}} = \| a_t^{\text{opp}} - \pi_{\text{opp}}(\vec{z}_t) \|^2,
 \end{equation}
 where $\pi_{\text{opp}}$ is the opponent network, trained with a frozen encoder in periodic intervals. With this MSE objective, $\pi_{\text{opp}}$ is a deterministic mean predictor: it outputs a single action estimate per latent state.
 
-During training, opponent actions are taken from the replay buffer; during inference they must be predicted by the opponent network. We use the opponent action deterministically: $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$. This predicted action is fed into the dynamics to obtain the next latent state (Figure~\ref{fig:tdmpc2_flow} b). When multiple opponent models are used (e.g., different cloned policies), each rollout can be assigned a fixed opponent model for the full horizon; diversity across rollouts then comes from varying which opponent model is used, not from sampling different actions from a stochastic $\pi_{\text{opp}}$.
+During inference the opponent action is predicted deterministically as $\hat{a}_t^{\text{opp}} = \pi_{\text{opp}}(\vec{z}_t)$ and fed into the dynamics. When multiple opponent models are available, each MPPI rollout is assigned a fixed model for the full horizon, so diversity comes from varying the model rather than sampling stochastically.
 
 \subsection{SAC - Jannik Mänzer}\label{sec:sac}
 
@@ -294,11 +292,11 @@ Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-val
 
 \subsection{TD-MPC2 Hyperparameters and Curriculum}\label{sec:tdmpc2_hyperparameters_and_curriculum}
 
-To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with different horizons and evaluated the performance. The horizons tested were 4, 6, 8, 10, and 12. The runs were done with the following hyperparameters: learning rate 0.0003, batch size 512, network size of three layers with 256 units each, a latent dimension of 256, 5 Q-networks, a gamma of 0.99, a temperature of 0.5, a vmin of -10, a vmax of 10, a win reward bonus of 10, and a win reward discount of 0.92. The runs were done with the following curriculum: 4000 episodes of full competency, with a basic strong opponent. The results are shown in Figure~\ref{fig:tdmpc2_hyperparameters_and_curriculum}. Addtionally with the same hyperparameters, the modified opponent aware dynamics was tested, for this three internal opponent models were used: the TD-MPC2 agent without the opponent-aware dynamics, the SAC agent and the DECOYPOLICY agent, which was trained to mimick the basic strong opponent. The results are shown in the same figure, but with the label "opponent aware dynamics".
+We evaluated TD-MPC2 with horizons of 4, 6, 8, 10, and 12, using a learning rate of 0.0003, batch size 512, three 256-unit network layers, latent dim 256, 5 Q-networks, $\gamma{=}0.99$, temperature 0.5, $v_\text{min}=-10$, $v_\text{max}=10$, win reward bonus 10, and win reward discount 0.92. Training used 4000 episodes with a basic strong opponent. Results are shown in Figure~\ref{fig:tdmpc2_hyperparameters_and_curriculum}. We also tested "opponent aware dynamics" (with three internal opponent models: TD-MPC2 without opponent-aware dynamics, SAC agent, and a DECOYPOLICY agent trained to mimic the strong opponent), shown in the same figure.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=1.0\textwidth]{figures/horizon_ratings.png}
+    \includegraphics[width=0.90\textwidth]{figures/horizon_ratings.png}
     \caption{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
