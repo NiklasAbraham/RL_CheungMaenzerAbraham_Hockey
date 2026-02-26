@@ -130,20 +130,19 @@ def create_agent(
             opponent_cloning_frequency = opponent_sim.get("cloning_frequency", 5000)
             opponent_cloning_steps = opponent_sim.get("cloning_steps", 100)
             opponent_cloning_samples = opponent_sim.get("cloning_samples", 1000)
-            opponent_agents = opponent_sim.get("opponent_agents", [])
+            opponent_agents = [] if inference_mode else opponent_sim.get(
+                "opponent_agents", []
+            )
 
-            # Resolve relative paths to absolute paths
-            if opponent_agents and config_path:
+            if not inference_mode and opponent_agents and config_path:
                 import os
 
                 config_dir = os.path.dirname(os.path.abspath(config_path))
-                # Get project root (config is in configs/, so go up one level)
                 project_root = os.path.dirname(config_dir)
 
                 for opponent_info in opponent_agents:
                     if "path" in opponent_info:
                         path = opponent_info["path"]
-                        # If path is relative, resolve it relative to project root
                         if not os.path.isabs(path):
                             opponent_info["path"] = os.path.join(project_root, path)
                             print(
