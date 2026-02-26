@@ -206,9 +206,9 @@ where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore p
 
 \subsubsection{Experiments}
 
-\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise (Figure \ref{fig:noise_plot}). The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate local exploration.
+\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise, as shown in Figure \ref{fig:experiments} (top). The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate local exploration.
 
-\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, we visualized Q-values relative to the temporal distance from the goal during both early and late training stages (Figure \ref{fig:value_propagation}). The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy.
+\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, Figure \ref{fig:experiments} (bottom) shows Q-values relative to the temporal distance from the goal during both early and late training stages. The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy.
 
 \begin{figure}[htbp]
     \centering
@@ -216,18 +216,16 @@ where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore p
         \centering
         \includegraphics[width=\linewidth]{figures/noise_plot.png}
         \phantomcaption
-        \label{fig:noise_plot}
     \end{subfigure}
 
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\linewidth]{figures/value_propagation.png}
+        \includegraphics[width=1.01\linewidth]{figures/value_propagation.png}
         \phantomcaption
-        \label{fig:value_propagation}
     \end{subfigure}
 
-    \caption{\textbf{(a)} Cumulative reward and win rate across different exploration noise types. \textbf{(b)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}
-    \label{fig:eval_plots}
+    \caption{\textbf{(top)} Cumulative reward and win rate across different exploration noise types. \textbf{(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}
+    \label{fig:experiments}
 \end{figure}
 
 \subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
