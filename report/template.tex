@@ -5,6 +5,7 @@
 \usepackage[T1]{fontenc}    % use 8-bit T1 fonts
 \usepackage{url}            % simple URL typesetting
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage{color}
 \usepackage{tikz}
 \usepackage{amsfonts}       % blackboard math symbols
@@ -16,6 +17,7 @@
 \geometry{left=2.8cm,right=2.8cm,top=2.6cm,bottom=2.6cm}
 \usepackage{fancyhdr}
 \usepackage{tikz}
+\usepackage{caption}
 \usetikzlibrary{shapes,arrows,positioning}
 \pagestyle{fancy}
 \usepackage{hyperref}% should be the last package you include
@@ -54,7 +56,7 @@ The action space consists of a 4 dimensional continuous vector that controls the
 \newpage
 \section{Method}\label{sec:Method}
 
-\subsection{Self-Play Infrastructure - Jannik Mänzer}
+\subsection{Self-Play Infrastructure - Jannik Mänzer}\label{sec:selfplay_section}
 
 Training reinforcement learning agents in multi-agent environments like air hockey presents several challenges, including catastrophic forgetting and the difficulty of evaluating progress once standard baselines are consistently defeated. Relying solely on standard self-play often leads to policies that overfit to recent behaviors, while a constantly changing opponent makes true improvement hard to measure. To address these issues, our approach relies on a diverse archive of opponents, including periodic checkpoints of our training agents, deterministic baselines, and agents trained using different RL algorithms. Sampling opponents from this archive during training forces the agent to adapt to various playstyles while ensuring robustness against older strategies. At the same time, it provides a stable population of opponents to evaluate the agent's overall skill.
 
@@ -202,16 +204,40 @@ To facilitate broader exploration, temporally correlated noise can replace the i
 \end{equation}
 where $\beta$ dictates the noise color. Eberhard et al.\ \cite{pink} therefore propose using pink noise ($\beta = 1$) as a sensible default to balance local and global exploration.
 
-\subsubsection{Design Choices}
+\subsubsection{Experiments}
+
+\textbf{Exploration Strategies:} To evaluate exploration, we compared standard white noise against temporally correlated pink and red noise (Figure \ref{fig:noise_plot}). The results demonstrate that white noise achieved slightly better cumulative rewards and a higher overall win rate while requiring fewer total steps, indicating superior sample efficiency. Consequently, we retained white noise, relying on SAC's entropy tuning to regulate local exploration.
+
+\textbf{Value Propagation and Credit Assignment:} To analyze credit assignment, we visualized Q-values relative to the temporal distance from the goal during both early and late training stages (Figure \ref{fig:value_propagation}). The heatmaps reveal that the value signal diminishes rapidly for states temporally distant from the goal. We hypothesized that introducing dense proxy rewards might extend this effective horizon, but they resulted in an identical propagation depth. We suggest this limited horizon stems from the inherent uncertainty of the multi-agent setting: unpredictable opponent behavior renders long-term value estimation unreliable. Furthermore, during extended runs, the Q-value landscape eventually stabilizes without propagating further backward in time. Yet, overall evaluation performance continues to improve significantly long after this point. This indicates that even after the Critic establishes a stable local state evaluation, the Actor still requires substantial further interaction to fine-tune its policy.
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/noise_plot.png}
+        \phantomcaption
+        \label{fig:noise_plot}
+    \end{subfigure}
+
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\linewidth]{figures/value_propagation.png}
+        \phantomcaption
+        \label{fig:value_propagation}
+    \end{subfigure}
+
+    \caption{\textbf{(a)} Cumulative reward and win rate across different exploration noise types. \textbf{(b)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}
+    \label{fig:eval_plots}
+\end{figure}
 
 \subsection{TD3 and REDQ - Ansel Cheung}\label{sec:td3}
 
 \subsubsection{The Overestimation Problem}
 
-In Standard Actor-Critic methods with continuous action spaces, the critic is responsible for approximating the Q function $Q_\theta(s, a)$. This means that they can overestimate or underestimate the true value. Pairing with the actor, who is responsible for maximizing the critic's expected return, is sensitive to the critic's over/underestimation. However, the overestimation of value will cause the Actor to udpate its parameters to select the overestimated action. This in turn causes the critic to use this artificially inflated Q-value from the next state, and ultimately pulls the current Q-value upwards. This cyclical overestimation of actions and Q-value backpropagates and leads to divergent behavior or suboptimal policies in continuous control over a long training timeframe. The predicted Q-values completely deviate from the actual expected returns.
+In Standard Actor-Critic methods with continuous action spaces, the critic is responsible for approximating the Q function $Q_\theta(s, a)$. This means that they can overestimate or underestimate the true value \cite{fujimoto2018addressing}. Pairing with the actor, who is responsible for maximizing the critic's expected return, is sensitive to the critic's over/underestimation. However, the overestimation of value will cause the Actor to udpate its parameters to select the overestimated action. This in turn causes the critic to use this artificially inflated Q-value from the next state, and ultimately pulls the current Q-value upwards. This cyclical overestimation of actions and Q-value backpropagates and leads to divergent behavior or suboptimal policies in continuous control over a long training timeframe. The predicted Q-values completely deviate from the actual expected returns.
 
 \subsubsection{Twin Delayed Deep Deterministic Policy Gradient (TD3)} 
-TD3 aims to fix the overestimation problem in Standard Actor-Critic methods using 3 tricks. The first trick of TD3 is the \textbf{Clipped Double-Q Learning}. TD3 maintains two independent critics, $Q_{\theta_1}$ and $Q_{\theta_2}$, and uses the minimum value to calculate the Bellman target:
+TD3 \cite{fujimoto2018addressing} aims to fix the overestimation problem in Standard Actor-Critic methods using 3 tricks. The first trick of TD3 is the \textbf{Clipped Double-Q Learning}. TD3 maintains two independent critics, $Q_{\theta_1}$ and $Q_{\theta_2}$, and uses the minimum value to calculate the Bellman target:
     \begin{equation}
         y = r + \gamma \min_{i=1,2} Q_{\theta_{i, targ}}(s', \tilde{a})
     \end{equation}
@@ -229,7 +255,7 @@ The third and final trick of TD3 is \textbf{Delayed Policy Updates}. Instead of 
 
 \subsubsection{Prioritized Experience Replay (PER)}
 
-In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences. We can easure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
+In a normal buffer, the agent stores its experiences and samples them with a uniform distribution. All samples are equally likely to be sampled. However, as the training progresses, the agent sees more and more of the same kind of experiences due to uniform sampling. The agent would learn a lot faster if it sees catastrophic failures and surprises/interesting experiences \cite{schaul2016prioritized}. We can measure this surprise factor with TD error. The TD error ($\delta$) is the difference between the target value ($y$) and the Critic's current Q-value prediction:
 \begin{equation}
     \delta_i = y_i - Q(s_i, a_i)
 \end{equation}
@@ -253,7 +279,7 @@ The implementation for PER utilizes a SumTree data structure to reduce the sampl
 
 \subsubsection{Randomized Ensembled Double Q-Learning (REDQ)}
 
-REDQ can be used to take TD3 to the next level. If we can use 2 Critics in TD3, why not 10? REDQ also has a few tricks.
+REDQ \cite{chen2021randomized} can be used to take TD3 to the next level. If we can use 2 Critics in TD3, why not 10? REDQ also has a few tricks.
 
 Trick 1: \textbf{Sample Efficiency via Update-toData (UTD)}. REDQ aims for a high Update-to-Data (UTD) ratio $G \gg 1$, allowing the agent to perform many gradient steps per environment interaction. In the paper, a UTD ratio of 20 was used. However, using. high UTD ratio on vanilla TD3 will cause the overestimation problem to return. The Actor and Critics will be learning from the same small batch of transitions aggressively, causing approximation errors to compound. 
 
@@ -269,7 +295,6 @@ Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-val
         \nabla_\phi J(\phi) = \nabla_\phi \mathbb{E} \left[ \frac{1}{N} \sum_{i=1}^N Q_{\theta_i}(s, \pi_\phi(s)) - \alpha \log \pi_\phi(a|s) \right]
     \end{equation}
 
-\newpage
 \section{Results}\label{sec:Results}
 
 \subsection{TD-MPC2 Hyperparameters and Curriculum}\label{sec:tdmpc2_hyperparameters_and_curriculum}
@@ -283,10 +308,23 @@ To determine the optimal horizon for TD-MPC2, we trained a TD-MPC2 agent with di
     \label{fig:tdmpc2_hyperparameters_and_curriculum}
 \end{figure}
 
-\subsection{REDQ-TD3 Hyperparameters and Curriculum}
+\subsection{REDQ-TD3, PER Curriculum}
 
-We followed the default hyperparameters from the REDQ paper: UTD Ratio $G=20$, Ensemble Size $N=10$, Subset Size $M=2$, and Learning Rate $3 \times 10^{-4}$. For the Actor and Critics, we followed TD3's paper, 2 layer network with hidden dim 256 and ReLU non-linear activation for Actor and tanh non-linear activation for Critics. Gradient clipping and Layer Norm was added to stabilize training as well.
+\begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/redq_td3_rewards.png}
+    \captionof{figure}{TD3 vs REDQ rewards}
+    \label{fig:redq_td3_rewards}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{figures/redq_selfplay_smoothed_rewards.png}
+    \captionof{figure}{REDQ selfplay rewards trajectory}
+    \label{fig:redq_selfplay}
+\end{minipage}
 
+We used the default paper hyperparameters for REDQ and TD3. Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases training time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 without PER. We used REDQ-TD3 (no PER) for selfplay (section \ref{sec:selfplay_section}) and archive opponents as well. Each drop in rewards shows a change in training phase and opponent sampling.
 
 \subsubsection{Overall Results}
 
@@ -306,7 +344,10 @@ Among the learned agents, SAC reaches a rating of $28.34$, demonstrating that a 
 
 \section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}
 We would like to thank the instructors and the staff of the Reinforcement Learning course for their help and support.
-All of our code can be found on our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+All of our code can be found in our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
+
+\subsection{AI Usage Disclosure}
+During the preparation of this project, we utilized generative AI tools for code autocompletion and the automatic generation of code documentation. Additionally, these tools were used as a linguistic aid for grammar and spell-checking during the drafting of this report. We maintain full responsibility for the technical content, the final implementation of the algorithms, and the results presented herein.
 
 \newpage
 
