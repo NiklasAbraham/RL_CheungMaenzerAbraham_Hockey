@@ -142,22 +142,17 @@ def plot_episode_logs(
                 loss_data[loss_key].append(log["losses"][loss_key])
                 loss_episodes[loss_key].append(log["episode"])
 
-    # Find the first episode where all losses are present (warm-up period ends)
     first_complete_episode = None
     if sorted_loss_keys:
-        # Find episodes that have all loss types present
         all_episodes_sets = [
             set(loss_episodes[key]) for key in sorted_loss_keys if loss_episodes[key]
         ]
         if all_episodes_sets and len(all_episodes_sets) == len(sorted_loss_keys):
-            # Find intersection of all episodes (episodes where all losses are present)
             episodes_with_all_losses = set.intersection(*all_episodes_sets)
             if episodes_with_all_losses:
                 first_complete_episode = min(episodes_with_all_losses)
 
-        # Filter ALL data (rewards, shaped rewards, and losses) to start from first_complete_episode
         if first_complete_episode is not None:
-            # Filter rewards and shaped rewards
             filtered_episodes = []
             filtered_rewards = []
             filtered_shaped_rewards = []
@@ -170,7 +165,6 @@ def plot_episode_logs(
             rewards = filtered_rewards
             shaped_rewards = filtered_shaped_rewards
 
-            # Filter loss data to only include episodes >= first_complete_episode
             filtered_loss_data = {}
             filtered_loss_episodes = {}
             for key in sorted_loss_keys:
@@ -180,29 +174,24 @@ def plot_episode_logs(
                     if ep >= first_complete_episode:
                         filtered_values.append(val)
                         filtered_eps.append(ep)
-                # Only use filtered data if there are still values after filtering
                 if filtered_values:
                     filtered_loss_data[key] = filtered_values
                     filtered_loss_episodes[key] = filtered_eps
                 else:
-                    # Keep original data if filtering removed everything
                     filtered_loss_data[key] = loss_data[key]
                     filtered_loss_episodes[key] = loss_episodes[key]
             loss_data = filtered_loss_data
             loss_episodes = filtered_loss_episodes
 
-    # Create figure with subplots
     num_losses = len(sorted_loss_keys)
     if num_losses == 0:
-        # Only rewards + reward distribution histogram
-        n_plots = 3  # rewards, shaped_rewards, reward distribution
+        n_plots = 3
         n_cols = 2
         n_rows = (n_plots + n_cols - 1) // n_cols
         fig, axes = plt.subplots(n_rows, n_cols, figsize=(14, 4 * n_rows))
         axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
         plot_rewards_only = False
     else:
-        # rewards, shaped_rewards, reward distribution histogram, and all losses
         n_plots = 3 + num_losses
         n_cols = 2
         n_rows = (n_plots + n_cols - 1) // n_cols
@@ -210,10 +199,8 @@ def plot_episode_logs(
         axes = list(axes.flatten()) if isinstance(axes, np.ndarray) else [axes]
         plot_rewards_only = False
 
-    # Set main title for the entire figure
     fig.suptitle(run_name, fontsize=14, fontweight="bold", y=0.995)
 
-    # Plot rewards
     ax_idx = 0
     moving_avg_rewards = _moving_average(rewards, window_size)
     axes[ax_idx].plot(episodes, rewards, alpha=0.3, label="Raw", color="blue")
@@ -231,7 +218,6 @@ def plot_episode_logs(
     axes[ax_idx].legend()
     axes[ax_idx].grid(True, alpha=0.3)
 
-    # Plot shaped rewards
     if not plot_rewards_only:
         ax_idx += 1
         moving_avg_shaped = _moving_average(shaped_rewards, window_size)
@@ -256,15 +242,12 @@ def plot_episode_logs(
 
     ax_idx += 1
     _plot_reward_distribution_histogram(axes[ax_idx], rewards, n_last=1000)
-    # ax_idx stays so next plot (first loss or hide) uses ax_idx + 1 via loop increment
 
-    # Plot each loss type
     colors = plt.cm.tab10(np.linspace(0, 1, len(other_loss_keys)))
     opponent_colors = plt.cm.Reds(
         np.linspace(0.4, 0.9, max(1, len(opponent_loss_keys)))
     )
 
-    # Plot other losses
     for i, loss_key in enumerate(other_loss_keys):
         if not plot_rewards_only:
             ax_idx += 1
@@ -275,7 +258,6 @@ def plot_episode_logs(
         loss_eps = loss_episodes[loss_key]
 
         if loss_values:
-            # Plot losses on primary y-axis
             moving_avg_losses = _moving_average(loss_values, window_size)
             axes[ax_idx].plot(
                 loss_eps, loss_values, alpha=0.3, label="Raw", color=colors[i]
@@ -293,7 +275,6 @@ def plot_episode_logs(
             axes[ax_idx].legend()
             axes[ax_idx].grid(True, alpha=0.3)
 
-    # Plot opponent cloning losses (combine in one plot if multiple opponents)
     if opponent_loss_keys:
         if not plot_rewards_only:
             ax_idx += 1
@@ -304,7 +285,6 @@ def plot_episode_logs(
 
                 if loss_values:
                     moving_avg_losses = _moving_average(loss_values, window_size)
-                    # Extract opponent ID from loss key (e.g., "opponent_0_cloning_loss" -> "Opponent 0")
                     opponent_label = loss_key.replace("opponent_", "Opponent ").replace(
                         "_cloning_loss", ""
                     )
@@ -326,13 +306,11 @@ def plot_episode_logs(
             axes[ax_idx].legend()
             axes[ax_idx].grid(True, alpha=0.3)
 
-    # Hide unused subplots
     for idx in range(ax_idx + 1, len(axes)):
         axes[idx].set_visible(False)
 
-    plt.tight_layout(rect=[0, 0, 1, 0.98])  # Leave space for main title
+    plt.tight_layout(rect=[0, 0, 1, 0.98])
 
-    # Save plot
     if save_path is None:
         plots_dir.mkdir(parents=True, exist_ok=True)
         save_path = plots_dir / f"{run_name}_episode_logs.png"
@@ -446,11 +424,11 @@ def _plot_reward_distribution_histogram(
 
 
 if __name__ == "__main__":
-    folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"  # 93 -> 16
-    folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"  # 92 -> 8
-    folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"  # 103 -> 8 aber opponents
+    folder_path_2 = "results/tdmpc2_runs/2026-01-31_11-49-50"
+    folder_path_3 = "results/tdmpc2_runs/2026-01-31_11-49-35"
+    folder_path_4 = "results/tdmpc2_runs/2026-01-31_12-37-02"
 
-    folder_path_5 = "results/tdmpc2_runs_test/2026-02-01_09-55-22"  # der ganz gute run eigentlich alles
+    folder_path_5 = "results/tdmpc2_runs_test/2026-02-01_09-55-22"
 
     window_size = 250
 

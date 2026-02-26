@@ -1,5 +1,3 @@
-# Q-function.
-
 import torch
 import torch.nn as nn
 
@@ -17,7 +15,6 @@ class QFunction(nn.Module):
         layers = []
         layers.append(nn.Linear(latent_dim + action_dim, hidden_dim[0]))
         layers.append(nn.LayerNorm(hidden_dim[0]))
-        # Add Dropout after first layer (after LayerNorm)
         layers.append(nn.Dropout(p=0.01))
         layers.append(nn.Mish())
 

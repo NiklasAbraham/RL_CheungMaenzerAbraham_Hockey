@@ -118,7 +118,6 @@ class MPPIPlannerSimplePaper(nn.Module):
             )
 
         if self.policy is not None and self.num_pi_trajs > 0:
-            # Assign one opponent per pi-trajectory for coherent action generation
             if hasattr(self.dynamics, "assign_opponents_for_batch"):
                 self.dynamics.assign_opponents_for_batch(
                     self.num_pi_trajs, device=latent.device, balanced=True
@@ -157,16 +156,11 @@ class MPPIPlannerSimplePaper(nn.Module):
         if self.policy is not None and self.num_pi_trajs > 0:
             actions[:, : self.num_pi_trajs] = pi_actions
 
-        # Assign one opponent per trajectory, fixed for all MPPI iterations.
-        # balanced=True ensures each opponent gets an equal share of trajectories,
-        # preventing a numerically lucky opponent from dominating the batch by chance.
         if hasattr(self.dynamics, "assign_opponents_for_batch"):
             self.dynamics.assign_opponents_for_batch(
                 self.num_samples, device=latent.device, balanced=True
             )
 
-        # Cache opponent IDs for normalization/stratification inside the loop.
-        # This is read once here since the assignment does not change across iterations.
         batch_opponent_ids = None
         unique_opps = None
         n_opps = 1
@@ -218,10 +212,6 @@ class MPPIPlannerSimplePaper(nn.Module):
 
             returns = returns.nan_to_num(0)
 
-            # Normalize returns within each opponent group so that trajectories
-            # against an "easy" opponent (high absolute returns) do not crowd out
-            # trajectories against a "hard" opponent (lower absolute returns).
-            # After normalization every group is on the same z-score scale.
             returns_for_scoring = returns.clone()
             if self.opponent_norm and batch_opponent_ids is not None and n_opps > 1:
                 for oid in unique_opps:
@@ -232,9 +222,6 @@ class MPPIPlannerSimplePaper(nn.Module):
                             r_grp - r_grp.mean()
                         ) / r_grp.std().clamp(min=1e-6)
 
-            # Pick top (num_elites // N) from each opponent group so every opponent
-            # contributes equally to the distribution update regardless of how its
-            # normalized scores compare to the other group.
             if (
                 self.opponent_stratified_elites
                 and batch_opponent_ids is not None
@@ -258,8 +245,8 @@ class MPPIPlannerSimplePaper(nn.Module):
                     returns_for_scoring, self.num_elites, dim=0
                 ).indices
 
-            elite_returns = returns[elite_idxs]  # raw returns for stats
-            elite_scores = returns_for_scoring[elite_idxs]  # normalized for weights
+            elite_returns = returns[elite_idxs]
+            elite_scores = returns_for_scoring[elite_idxs]
             elite_actions = actions[:, elite_idxs]
 
             if return_stats:
@@ -281,8 +268,6 @@ class MPPIPlannerSimplePaper(nn.Module):
                 )
                 planning_stats["std_per_iter"].append(std.mean().item())
 
-            # MPPI weights use normalized scores so that temperature has a stable
-            # meaning independent of the absolute return scale of any opponent.
             max_return = elite_scores.max()
             score = torch.exp(self.temperature * (elite_scores - max_return))
             score = score / (score.sum() + 1e-9)
@@ -297,7 +282,6 @@ class MPPIPlannerSimplePaper(nn.Module):
             ).sqrt()
             std = std.clamp(self.std_min, self.std_init)
 
-        # Clear per-trajectory opponent assignments
         if hasattr(self.dynamics, "clear_batch_opponents"):
             self.dynamics.clear_batch_opponents()
 

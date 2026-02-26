@@ -133,8 +133,9 @@ def load_agent(model_path, state_dim, action_dim, algorithm=None):
             hidden_dim=hidden_dim,
             num_q=num_q,
             opponent_simulation_enabled=opponent_simulation_enabled,
+            inference_mode=True,
         )
-        agent.load(model_path)
+        agent.load(model_path, inference_mode=True)
         logger.info("TDMPC2 model loaded successfully!")
         return agent, "TDMPC2"
 

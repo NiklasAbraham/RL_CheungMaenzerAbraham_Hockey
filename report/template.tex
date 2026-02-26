@@ -330,7 +330,7 @@ A comprehensive table detailing the final SAC hyperparameters, alongside supplem
     \label{fig:redq_selfplay}
 \end{minipage}
 
-Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for REDQ/TD3 for 2 reasons: (1) PER increases transition sampling and importance weight updating time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 without PER. We used REDQ-TD3 (no PER) for selfplay (section \ref{sec:selfplay_section}) and archive opponents as well. Each drop in rewards shows a change in training phase and opponent sampling.
+Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and without PER. PER seems to degrade performance of both REDQ and TD3, while REDQ consistently improves the performance of TD3. In this experiment, we used default hyperparameters of TD3, REDQ and PER. PER was designed for discrete action spaces \cite{schaul2016prioritized} while air hockey environment is a continuous action space. Retuning of hyperparameters is needed to make PER work. We attempted to tune the hyperparameters but ultimately was unable to achieve a good set of hyperparameters for PER for 2 reasons: (1) PER increases transition sampling and importance weight updating time from $\mathcal{O}(1)$ to $\mathcal{O}(\log n)$ and (2) REDQ increases training time massively due to having 10 Critics and high UTD ratio. Ultimately we decided to continue with REDQ-TD3 without PER. For REDQ-TD3 hyperparameters, an ensemble of $N=10$ critics and sample of $M=2$ critics for TD target worked best. Tuning the Polyak hyperparameter from 0.995, 0.9925, 0.990 did not change the performance significantly. The default hyperparameters worked the best. We ended up using layer norm and gradient clipping for the Critics parameters. We used REDQ-TD3 (no PER) for selfplay (section \ref{sec:selfplay_section}) and archive opponents as well. Each drop in rewards shows a change in training phase and opponent sampling.
 
 \subsection{Overall Results}
 
@@ -353,7 +353,7 @@ We would like to thank the instructors and the staff of the Reinforcement Learni
 All of our code can be found in our GitHub repository \cite{rl_cheung_maenzer_abraham_hockey}.
 
 \subsection{AI Usage Disclosure}
-During the preparation of this project, we utilized generative AI tools for code autocompletion and the automatic generation of code documentation. Additionally, these tools were used as a linguistic aid for grammar and spell-checking during the drafting of this report. We maintain full responsibility for the technical content, the final implementation of the algorithms, and the results presented herein.
+During the preparation of this project, we utilized generative AI tools for code autocompletion and the automatic generation of code documentation. Additionally, these tools were used as a linguistic aid for grammar and spell-checking during the drafting of this report, and for plotting. We maintain full responsibility for the technical content, the final implementation of the algorithms, and the results presented herein.
 
 \newpage
 
@@ -372,6 +372,62 @@ The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aw
     \caption{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}
     \label{fig:episode_logs}
 \end{figure*}
+
+\subsection{TD-MPC2 Profiling Summary}\label{sec:profiling}
+
+Profiling was run on a single NVIDIA GeForce RTX 2080 Ti (11.3\,GB) with 50 iterations. Table~\ref{tab:profiling_setup} gives the agent and run configuration. Table~\ref{tab:profiling_action} summarizes single-step action selection cost. Table~\ref{tab:profiling_forward} reports CPU and CUDA time for each model forward pass (30 calls each).
+
+\begin{table}[h]
+\centering
+\caption{Profiling run setup.}
+\label{tab:profiling_setup}
+\begin{tabular}{ll}
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+Device & CUDA (NVIDIA GeForce RTX 2080 Ti, 11.3\,GB) \\
+Observation dimension & 18 \\
+Action dimension & 8 \\
+Latent dimension & 512 \\
+Horizon $H$ & 16 \\
+MPPI samples & 512 \\
+MPPI iterations & 6 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Single action selection: total CPU and CUDA time per call.}
+\label{tab:profiling_action}
+\begin{tabular}{lc}
+\hline
+\textbf{Metric} & \textbf{Time} \\
+\hline
+Self CPU total & 8.75\,s \\
+Self CUDA total & 2.08\,s \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Model forward pass: CPU and CUDA time over 30 calls.}
+\label{tab:profiling_forward}
+\begin{tabular}{lcc}
+\hline
+\textbf{Component} & \textbf{CPU total} & \textbf{CUDA total} \\
+\hline
+Encoder & 1.13\,s & 0.74\,ms \\
+Dynamics (single) & 1.15\,s & 0.91\,ms \\
+Dynamics (batch) & 1.16\,s & 6.57\,ms \\
+Reward (batch) & 4.10\,s & 19.0\,ms \\
+Q-ensemble (batch) & 72.8\,ms & 15.5\,ms \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Errors during profiling.} Batch action selection failed with a CUDAGraphs error (tensor overwritten by a subsequent run). The planning step and the training step could not be profiled: planning failed with CUDA out of memory (GPU fully used after single-action profiling); the training step produced an empty error.
 
 \subsection{Sparse Reward Problem and Reward Backpropagation}\label{sec:reward_backprop}
 
