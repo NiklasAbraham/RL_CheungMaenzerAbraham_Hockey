@@ -8,22 +8,13 @@
         "opponent": {
           "type": "basic_strong"
         },
-        "reward_shaping": {
-          "N": 100000,
-          "K": 100000,
-          "CLOSENESS_START": 1,
-          "CLOSENESS_FINAL": 1,
-          "TOUCH_START": 1,
-          "TOUCH_FINAL": 1,
-          "DIRECTION_START": 1,
-          "DIRECTION_FINAL": 1
-        },
+        "reward_shaping": null,
         "clear_buffer": false
       }
     ]
   },
   "hyperparameters": {
-    "learning_rate": 0.001,
+    "learning_rate": 0.0003,
     "batch_size": 256
   },
   "training": {
@@ -41,7 +32,7 @@
       "tau": 0.005,
       "alpha": 0.2,
       "learn_alpha": true,
-      "noise": "pink",
+      "noise": "normal",
       "max_episode_steps": 250
     }
   }
