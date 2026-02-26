@@ -1,0 +1,30 @@
+{
+  "agent": {
+    "type": "REDQTD3",
+    "hyperparameters": {
+      "polyak": 0.995,
+      "utd_ratio": 20,
+      "num_Q": 10,
+      "num_min": 2,
+      "q_target_mode": "min",
+      "policy_update_delay": 20,
+      "learning_rate": 0.0003,
+      "max_action": 1.0,
+      "discount": 0.99,
+      "expl_noise": 0.1,
+      "policy_noise": 0.2,
+      "noise_clip": 0.5,
+      "batch_size": 256,
+      "latent_dim": [
+        256,
+        256
+      ],
+      "priority_replay": false,
+      "normalize_obs": false
+    }
+  },
+  "hyperparameters": {
+    "learning_rate": 0.0003,
+    "batch_size": 1024
+  }
+}
