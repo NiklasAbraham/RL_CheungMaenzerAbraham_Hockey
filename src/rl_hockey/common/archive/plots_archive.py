@@ -91,6 +91,8 @@ def plot_agent_ratings(
     agent_selection: list[tuple[str, str]] | None = None,
     output_filename: str = "agent_ratings.png",
     show_match_count: bool = True,
+    win_rates_against_weak: dict[str, float] | None = None,
+    win_rates_against_strong: dict[str, float] | None = None,
 ):
     """Create a bar plot of agent ratings with uncertainty.
 
@@ -99,6 +101,9 @@ def plot_agent_ratings(
         (e.g. "0006" or "basic_weak"). Order and labels follow this list.
     output_filename: Output file name (used when saving a selected-agents plot).
     show_match_count: If True, show match count (e.g. "884m") above each bar.
+    win_rates_against_weak: If provided with win_rates_against_strong, adds a second
+        plot to the right: win rate in percent per agent (keys = display labels) vs weak bot.
+    win_rates_against_strong: Win rate in percent per agent vs strong bot (same keys).
     """
     output_path.mkdir(exist_ok=True)
 
@@ -135,7 +140,17 @@ def plot_agent_ratings(
         sigmas = [sigmas[i] for i in sorted_indices]
         matches = [matches[i] for i in sorted_indices]
 
-    fig, ax = plt.subplots(figsize=FIG_BAR)
+    show_win_rates = (
+        win_rates_against_weak is not None
+        and win_rates_against_strong is not None
+        and len(win_rates_against_weak) > 0
+        and len(win_rates_against_strong) > 0
+    )
+    if show_win_rates:
+        w, h = FIG_BAR
+        fig, (ax, ax_win) = plt.subplots(1, 2, figsize=(w * 1.8, h))
+    else:
+        fig, ax = plt.subplots(figsize=FIG_BAR)
     if agent_selection is not None:
         # One distinct color per bar for selected-agents plot
         distinct_colors = [
@@ -199,6 +214,71 @@ def plot_agent_ratings(
     else:
         ax.set_xticklabels(agents, rotation=45, ha="right", fontsize=9)
     ax.grid(axis="y", alpha=0.3)
+
+    if show_win_rates:
+        if agent_selection is not None:
+            win_agents = [
+                label
+                for _, label in agent_selection
+                if label in win_rates_against_weak and label in win_rates_against_strong
+            ]
+        else:
+            win_agents = sorted(
+                set(win_rates_against_weak.keys())
+                & set(win_rates_against_strong.keys())
+            )
+        weak_pct = [win_rates_against_weak[a] for a in win_agents]
+        strong_pct = [win_rates_against_strong[a] for a in win_agents]
+        x = np.arange(len(win_agents))
+        width = 0.35
+        bars_weak = ax_win.bar(
+            x - width / 2,
+            weak_pct,
+            width,
+            label="vs weak bot",
+            color="#2ca02c",
+            alpha=0.8,
+            edgecolor="black",
+        )
+        bars_strong = ax_win.bar(
+            x + width / 2,
+            strong_pct,
+            width,
+            label="vs strong bot",
+            color="#d62728",
+            alpha=0.8,
+            edgecolor="black",
+        )
+        ax_win.set_ylabel("Win rate (%)", fontsize=12)
+        ax_win.set_xlabel("Agent", fontsize=12)
+        ax_win.set_title("Win rate vs fixed bots", fontsize=11, pad=15)
+        ax_win.set_xticks(x)
+        ax_win.set_xticklabels(
+            [_wrap_label(a) for a in win_agents], rotation=0, ha="center", fontsize=9
+        )
+        ax_win.legend(fontsize=9)
+        ax_win.set_ylim(0, 105)
+        ax_win.grid(axis="y", alpha=0.3)
+        for bar in bars_weak:
+            h = bar.get_height()
+            ax_win.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                h + 1,
+                f"{h:.0f}%",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
+        for bar in bars_strong:
+            h = bar.get_height()
+            ax_win.text(
+                bar.get_x() + bar.get_width() / 2.0,
+                h + 1,
+                f"{h:.0f}%",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
 
     plt.tight_layout()
     plt.savefig(output_path / output_filename, dpi=300, bbox_inches="tight")
@@ -722,16 +802,19 @@ if __name__ == "__main__":
     )
 
     # Optional: plot only selected agents with custom labels (no match count labels)
+    # Win rates in percent against weak and strong bot (keys must match agent labels above)
     plot_agent_ratings(
         registry,
         output_path=output_path,
         agent_selection=[
             ("basic_weak", "weak bot"),
             ("basic_strong", "strong bot"),
-            ("0001_SAC_2026-01-30_00-57-20", "SAC"),
-            ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2 internal opp and h=8"),
-            ("0012_TDMPC2_2026-02-18_22-39-21", "TDMPC2 internal opp and h=6"),
+            ("0002_TDMPC2_2026-02-13_12-39-15", "TDMPC2"),
+            ("0016_SAC_2026-02-025", "SAC"),
+            ("0018_TD3_Final_2026-02-02", "TD3"),
         ],
         output_filename="agent_ratings_selected.png",
         show_match_count=False,
+        win_rates_against_weak={"TDMPC2": 10.0, "SAC": 98.8, "TD3": 85.6},
+        win_rates_against_strong={"TDMPC2": 10.0, "SAC": 95.6, "TD3": 98.4},
     )

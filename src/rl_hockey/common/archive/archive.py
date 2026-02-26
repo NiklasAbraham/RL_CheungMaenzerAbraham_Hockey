@@ -409,8 +409,35 @@ class Archive:
         if metadata_path.exists():
             with open(metadata_path, "r") as f:
                 metadata_dict = json.load(f)
+            if "agent_id" in metadata_dict:
                 metadata = AgentMetadata.from_dict(metadata_dict)
                 return metadata
+            # else: file is a curriculum/config, not archive metadata; use fallback
+
+        # No valid metadata.json: build from registry if checkpoint and config exist
+        if not agent_dir.exists():
+            return None
+        checkpoint_path = agent_dir / "checkpoint.pt"
+        if not checkpoint_path.exists():
+            return None
+        config_path = agent_dir / "config.json"
+        if not config_path.exists():
+            for p in agent_dir.glob("*.json"):
+                if p.name != "metadata.json":
+                    config_path = p
+                    break
+            else:
+                return None  # need a config to load the agent
+        metadata = AgentMetadata(
+            agent_id=registry_entry.agent_id,
+            archived_at=registry_entry.archived_at,
+            tags=list(registry_entry.tags),
+            rating=registry_entry.rating,
+            step=registry_entry.step,
+            checkpoint_path=str(checkpoint_path.resolve()),
+            config_path=str(config_path.resolve()),
+        )
+        return metadata
 
     def get_agent_checkpoint_path(self, agent_id: str) -> Optional[str]:
         """

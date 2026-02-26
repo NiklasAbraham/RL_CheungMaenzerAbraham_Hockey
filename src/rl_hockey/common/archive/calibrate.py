@@ -113,17 +113,34 @@ def calibrate_all_pending(
     num_matches: int = 50,
     baseline_ratio: float = 0.1,
     random_ratio: float = 0.1,
+    include_uncalibrated: bool = False,
 ):
-    """Calibrate all agents with 'needs_calibration' tag."""
+    """
+    Calibrate agents that need calibration.
+
+    By default only calibrates agents with the 'needs_calibration' tag.
+    If include_uncalibrated is True, also includes any agent that has
+    zero matches_played (never been in the rating system).
+    """
     archive = Archive(base_dir=archive_dir)
     rating_system = RatingSystem(archive)
-    
-    pending_agents = archive.get_agents(tags=["needs_calibration"])
-    
+
+    pending_agents = list(archive.get_agents(tags=["needs_calibration"]))
+
+    if include_uncalibrated:
+        all_agents = archive.get_agents()
+        already_ids = {a.agent_id for a in pending_agents}
+        for agent in all_agents:
+            if agent.agent_id in already_ids:
+                continue
+            if agent.rating.matches_played == 0 and "baseline" not in (agent.tags or []):
+                pending_agents.append(agent)
+                already_ids.add(agent.agent_id)
+
     if not pending_agents:
         print("No agents need calibration.")
         return
-    
+
     print(f"\nCalibrating {len(pending_agents)} agent(s)...")
     
     for agent_metadata in pending_agents:
@@ -150,12 +167,17 @@ def main():
     parser.add_argument("--matches", type=int, default=100, help="Number of matches")
     parser.add_argument("--baseline-ratio", type=float, default=0.2, help="Baseline match ratio")
     parser.add_argument("--random-ratio", type=float, default=0.4, help="Random match ratio")
-    
+    parser.add_argument(
+        "--include-uncalibrated",
+        action="store_true",
+        help="Also calibrate agents with 0 matches (not only those with needs_calibration tag)",
+    )
+
     args = parser.parse_args()
-    
+
     archive = Archive(base_dir=args.archive)
     rating_system = RatingSystem(archive)
-    
+
     if args.agent_id:
         calibrate_agent(
             archive,
@@ -171,6 +193,7 @@ def main():
             num_matches=args.matches,
             baseline_ratio=args.baseline_ratio,
             random_ratio=args.random_ratio,
+            include_uncalibrated=args.include_uncalibrated,
         )
 
 
