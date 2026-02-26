@@ -58,9 +58,9 @@ CONFIG = {
     "model_path": "results/self_play/2026-02-01_09-55-22/models/TDMPC2_run_lr3e04_bs512_hencoder_dynamics_reward_termination_q_function_policy_add21d6e_20260201_095522_ep025646.pt",
     "opponent_type": "basic_strong",
     "opponent_model_path": None,
-    "num_games": 100,
-    "pause_between_games": 1.5,
-    "frame_delay": 0.05,
+    "num_games": 50,
+    "pause_between_games": 0.001,
+    "frame_delay": 0.01,
     "max_steps": 250,
     "video_fps": 50,
     "action_fineness": None,
@@ -251,7 +251,7 @@ def apply_frame_delay(frames, frame_delay, fps=50):
     if frame_delay <= 0:
         return frames
 
-    frames_per_step = int(frame_delay * fps)
+    frames_per_step = max(1, int(frame_delay * fps))
     delayed_frames = []
     for frame in frames:
         # Duplicate each frame to create the delay effect
@@ -1080,6 +1080,9 @@ def main(config=None):
             )
             logger.info("This may take 15-60 minutes depending on your CPU...")
             encoding_start = time.time()
+            video_dir = os.path.dirname(output_file)
+            if video_dir and not os.path.exists(video_dir):
+                os.makedirs(video_dir, exist_ok=True)
             # Optimize video encoding for speed: use faster preset
             # Note: imageio automatically handles pixel format, so we don't need to specify it
             imageio.mimsave(

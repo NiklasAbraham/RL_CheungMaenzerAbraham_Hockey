@@ -1,4 +1,10 @@
-\begin{thebibliography}{1}
+\begin{thebibliography}{10}
+
+\bibitem{chen2021randomized}
+X.~Chen, C.~Wang, Z.~Zhou, and K.~Ross.
+\newblock Randomized ensembled double q-learning: Learning fast without a
+  model.
+\newblock In {\em International Conference on Learning Representations}, 2021.
 
 \bibitem{rl_cheung_maenzer_abraham_hockey}
 A.~Cheung, J.~Mänzer, and N.~Abraham.
@@ -6,14 +12,66 @@ A.~Cheung, J.~Mänzer, and N.~Abraham.
 \newblock
   \url{https://github.com/NiklasAbraham/RL_CheungMaenzerAbraham_Hockey}, 2026.
 
+\bibitem{pink}
+O.~Eberhard, J.~Hollenstein, C.~Pinneri, and G.~Martius.
+\newblock Pink noise is all you need: Colored noise exploration in deep
+  reinforcement learning.
+\newblock In {\em Proceedings of the Eleventh International Conference on
+  Learning Representations (ICLR 2023)}, May 2023.
+
+\bibitem{td3}
+S.~Fujimoto, H.~van Hoof, and D.~Meger.
+\newblock Addressing function approximation error in actor-critic methods,
+  2018.
+
+\bibitem{sac}
+T.~Haarnoja, A.~Zhou, K.~Hartikainen, G.~Tucker, S.~Ha, J.~Tan, V.~Kumar,
+  H.~Zhu, A.~Gupta, P.~Abbeel, and S.~Levine.
+\newblock Soft actor-critic algorithms and applications, 2019.
+
 \bibitem{hansen2024tdmpc2scalablerobustworld}
 N.~Hansen, H.~Su, and X.~Wang.
 \newblock Td-mpc2: Scalable, robust world models for continuous control, 2024.
+
+\bibitem{herbrich2006trueskill}
+R.~Herbrich, T.~Minka, and T.~Graepel.
+\newblock {TrueSkill\texttrademark}: A bayesian skill rating system.
+\newblock In {\em Advances in Neural Information Processing Systems},
+  volume~19. MIT Press, 2007.
+
+\bibitem{VAE}
+D.~P. Kingma and M.~Welling.
+\newblock Auto-encoding variational bayes, 2022.
 
 \bibitem{hockeyenv_github}
 G.~Martius.
 \newblock Hockey environment.
 \newblock \url{https://github.com/martius-lab/hockey-env}, 2023.
+
+\bibitem{mnih2015humanlevel}
+V.~Mnih, K.~Kavukcuoglu, D.~Silver, A.~A. Rusu, J.~Veness, M.~G. Bellemare,
+  A.~Graves, M.~Riedmiller, A.~K. Fidjeland, G.~Ostrovski, S.~Petersen,
+  C.~Beattie, A.~Sadik, I.~Antonoglou, H.~King, D.~Kumaran, D.~Wierstra,
+  S.~Legg, and D.~Hassabis.
+\newblock Human-level control through deep reinforcement learning.
+\newblock {\em Nature}, 518(7540):529--533, Feb. 2015.
+
+\bibitem{schaul2016prioritized}
+T.~Schaul, J.~Quan, I.~Antonoglou, and D.~Silver.
+\newblock Prioritized experience replay.
+\newblock In {\em International Conference on Learning Representations}, 2016.
+
+\bibitem{AlphaStar}
+O.~Vinyals, I.~Babuschkin, W.~M. Czarnecki, M.~Mathieu, A.~J. Dudzik, J.~Chung,
+  D.~Choi, R.~Powell, T.~Ewalds, P.~Georgiev, J.~Oh, D.~Horgan, M.~Kroiss,
+  I.~Danihelka, A.~Huang, L.~Sifre, T.~Cai, J.~P. Agapiou, M.~Jaderberg, A.~S.
+  Vezhnevets, R.~Leblond, T.~Pohlen, V.~Dalibard, D.~Budden, Y.~Sulsky,
+  J.~Molloy, T.~L. Paine, C.~Gulcehre, Z.~Wang, T.~Pfaff, Y.~Wu, R.~Ring,
+  D.~Yogatama, D.~W{\"u}nsch, K.~McKinney, O.~Smith, T.~Schaul, T.~P.
+  Lillicrap, K.~Kavukcuoglu, D.~Hassabis, C.~Apps, and D.~Silver.
+\newblock Grandmaster level in starcraft ii using multi-agent reinforcement
+  learning.
+\newblock {\em Nature}, 575:350 -- 354, 2019.
 
 \bibitem{williams2015modelpredictivepathintegral}
 G.~Williams, A.~Aldrich, and E.~Theodorou.

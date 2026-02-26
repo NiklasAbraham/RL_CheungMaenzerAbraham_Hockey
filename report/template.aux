@@ -25,8 +25,6 @@
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.1}Architecture and Training}{4}{subsubsection.2.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.2}Planning with MPPI}{4}{subsubsection.2.2.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.2.3}Modifying TD-MPC2: Opponent-Aware Dynamics}{4}{subsubsection.2.2.3}\protected@file@percent }
-\citation{sec:td3}
-\citation{sec:sac}
 \citation{sac}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.3}SAC - Jannik Mänzer}{5}{subsection.2.3}\protected@file@percent }
 \citation{td3}
@@ -36,28 +34,25 @@
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.1}Automatic Entropy Tuning}{6}{subsubsection.2.3.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.2}Colored Action Noise}{6}{subsubsection.2.3.2}\protected@file@percent }
 \newlabel{eq:colored_noise}{{14}{6}{Colored Action Noise}{equation.14}{}}
-\citation{fujimoto2018addressing}
+\citation{td3}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.3.3}Experiments}{7}{subsubsection.2.3.3}\protected@file@percent }
-\newlabel{fig:noise_plot}{{2a}{7}{Experiments}{figure.caption.2}{}}
-\newlabel{sub@fig:noise_plot}{{a}{7}{Experiments}{figure.caption.2}{}}
-\newlabel{fig:value_propagation}{{2b}{7}{Experiments}{figure.caption.2}{}}
-\newlabel{sub@fig:value_propagation}{{b}{7}{Experiments}{figure.caption.2}{}}
-\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(a)} Cumulative reward and win rate across different exploration noise types. \textbf  {(b)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}}{7}{figure.caption.2}\protected@file@percent }
-\newlabel{fig:eval_plots}{{2}{7}{\textbf {(a)} Cumulative reward and win rate across different exploration noise types. \textbf {(b)} Q-value propagation over temporal distance to the goal in early vs. late training stages}{figure.caption.2}{}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces \textbf  {(top)} Cumulative reward and win rate across different exploration noise types. \textbf  {(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages.}}{7}{figure.caption.2}\protected@file@percent }
+\newlabel{fig:experiments}{{2}{7}{\textbf {(top)} Cumulative reward and win rate across different exploration noise types. \textbf {(bottom)} Q-value propagation over temporal distance to the goal in early vs. late training stages}{figure.caption.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.4}TD3 and REDQ - Ansel Cheung}{7}{subsection.2.4}\protected@file@percent }
 \newlabel{sec:td3}{{2.4}{7}{TD3 and REDQ - Ansel Cheung}{subsection.2.4}{}}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.1}The Overestimation Problem}{7}{subsubsection.2.4.1}\protected@file@percent }
-\citation{fujimoto2018addressing}
+\citation{td3}
 \citation{schaul2016prioritized}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.2}Twin Delayed Deep Deterministic Policy Gradient (TD3)}{8}{subsubsection.2.4.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.3}Prioritized Experience Replay (PER)}{8}{subsubsection.2.4.3}\protected@file@percent }
 \citation{chen2021randomized}
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {2.4.4}Randomized Ensembled Double Q-Learning (REDQ)}{9}{subsubsection.2.4.4}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {3}Results}{9}{section.3}\protected@file@percent }
+\newlabel{sec:Results}{{3}{9}{Results}{section.3}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}TD-MPC2 Hyperparameters and Curriculum}{9}{subsection.3.1}\protected@file@percent }
+\newlabel{sec:tdmpc2_hyperparameters_and_curriculum}{{3.1}{9}{TD-MPC2 Hyperparameters and Curriculum}{subsection.3.1}{}}
 \citation{schaul2016prioritized}
-\@writefile{toc}{\contentsline {section}{\numberline {3}Results}{10}{section.3}\protected@file@percent }
-\newlabel{sec:Results}{{3}{10}{Results}{section.3}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}TD-MPC2 Hyperparameters and Curriculum}{10}{subsection.3.1}\protected@file@percent }
-\newlabel{sec:tdmpc2_hyperparameters_and_curriculum}{{3.1}{10}{TD-MPC2 Hyperparameters and Curriculum}{subsection.3.1}{}}
+\citation{herbrich2006trueskill}
 \@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics.}}{10}{figure.caption.3}\protected@file@percent }
 \newlabel{fig:tdmpc2_hyperparameters_and_curriculum}{{3}{10}{TrueSkill ratings of the TD-MPC2 agent with different horizons and different opponent aware dynamics}{figure.caption.3}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {3.2}REDQ-TD3, PER Curriculum}{10}{subsection.3.2}\protected@file@percent }
@@ -65,20 +60,28 @@
 \newlabel{fig:redq_td3_rewards}{{4}{10}{TD3 vs REDQ rewards}{figure.4}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces REDQ selfplay rewards trajectory}}{10}{figure.5}\protected@file@percent }
 \newlabel{fig:redq_selfplay}{{5}{10}{REDQ selfplay rewards trajectory}{figure.5}{}}
-\citation{herbrich2006trueskill}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Overall Results}{11}{subsubsection.3.2.1}\protected@file@percent }
-\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better.}}{11}{figure.caption.4}\protected@file@percent }
-\newlabel{fig:agent_ratings_selected}{{6}{11}{TrueSkill ratings (mean $\pm $ $3\sigma $) for a selected set of agents. Higher is better}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {3.2.1}Overall Results}{10}{subsubsection.3.2.1}\protected@file@percent }
 \citation{rl_cheung_maenzer_abraham_hockey}
-\@writefile{toc}{\contentsline {section}{\numberline {4}Acknowledgements \& Data Availability}{12}{section.4}\protected@file@percent }
-\newlabel{sec:Acknowledgements}{{4}{12}{Acknowledgements \& Data Availability}{section.4}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}AI Usage Disclosure}{12}{subsection.4.1}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces TrueSkill ratings ($\mu - 3\sigma $) for a selected set of agents (left) and win rates against the scripted weak and strong bots (right). Higher is better.}}{11}{figure.caption.4}\protected@file@percent }
+\newlabel{fig:agent_ratings_selected}{{6}{11}{TrueSkill ratings ($\mu - 3\sigma $) for a selected set of agents (left) and win rates against the scripted weak and strong bots (right). Higher is better}{figure.caption.4}{}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Acknowledgements \& Data Availability}{11}{section.4}\protected@file@percent }
+\newlabel{sec:Acknowledgements}{{4}{11}{Acknowledgements \& Data Availability}{section.4}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {4.1}AI Usage Disclosure}{11}{subsection.4.1}\protected@file@percent }
 \bibstyle{abbrv}
 \bibdata{main}
-\bibcite{rl_cheung_maenzer_abraham_hockey}{1}
-\bibcite{hansen2024tdmpc2scalablerobustworld}{2}
-\bibcite{hockeyenv_github}{3}
-\bibcite{williams2015modelpredictivepathintegral}{4}
+\bibcite{chen2021randomized}{1}
+\bibcite{rl_cheung_maenzer_abraham_hockey}{2}
+\bibcite{pink}{3}
+\bibcite{td3}{4}
+\bibcite{sac}{5}
+\bibcite{hansen2024tdmpc2scalablerobustworld}{6}
+\bibcite{herbrich2006trueskill}{7}
+\bibcite{VAE}{8}
+\bibcite{hockeyenv_github}{9}
+\bibcite{mnih2015humanlevel}{10}
+\bibcite{schaul2016prioritized}{11}
+\bibcite{AlphaStar}{12}
+\bibcite{williams2015modelpredictivepathintegral}{13}
 \@writefile{toc}{\contentsline {section}{\numberline {A}Appendix}{13}{appendix.A}\protected@file@percent }
 \newlabel{sec:appendix}{{A}{13}{Appendix}{appendix.A}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {A.1}Episode Logs}{13}{subsection.A.1}\protected@file@percent }
@@ -88,7 +91,7 @@
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {A.2.1}Problem: Reward Stagnation at Zero}{13}{subsubsection.A.2.1}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {A.2.2}Solution: Reward Backpropagation}{13}{subsubsection.A.2.2}\protected@file@percent }
 \newlabel{eq:backprop}{{22}{13}{Solution: Reward Backpropagation}{equation.22}{}}
-\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.2.3}Phase-Out During Training}{14}{subsubsection.A.2.3}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {A.2.3}Phase-Out During Training}{13}{subsubsection.A.2.3}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsubsection}{\numberline {A.2.4}Effect on TD-MPC2 Training}{14}{subsubsection.A.2.4}\protected@file@percent }
 \@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics.}}{15}{figure.caption.6}\protected@file@percent }
 \newlabel{fig:episode_logs}{{7}{15}{Episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aware dynamics}{figure.caption.6}{}}

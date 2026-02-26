@@ -40,7 +40,7 @@
 \maketitle
 
 \begin{abstract}
-    This report presents our application and comparative study of modern Reinforcement Learning (RL) algorithms specifically, Twin Delayed Deep Deterministic Policy Gradient (TD3), Soft Actor-Critic (SAC), and the model based TD-MPC2 within the challenging Laser Hockey environment. We discuss the environment's design, its state and action spaces, and the unique characteristics making it a compelling testbed for RL research. Our work details the methodological approaches taken with these algorithms, summarizes key experimental findings, and reflects on lessons learned in this multi agent, continuous control setting.
+    This report presents our application and comparative study of modern Reinforcement Learning (RL) algorithms, specifically Twin Delayed Deep Deterministic Policy Gradient (TD3), Soft Actor-Critic (SAC), and the model based TD-MPC2, within the challenging Laser Hockey environment. We discuss the environment's design, its state and action spaces, and the unique characteristics making it a compelling testbed for RL research. Our work details the methodological approaches taken with these algorithms, summarizes key experimental findings, and reflects on lessons learned in this multi agent, continuous control setting.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -152,7 +152,7 @@ where the latent trajectory and predicted opponent actions are obtained by the r
 \end{equation}
 for $\tau = t, \ldots, t+H-1$, with $\vec{z}_t = h(s_t)$. The terminal value $\tilde{V}(\vec{z}_{t+H})$ is given by the Q-ensemble (e.g., $\min_k Q_k(\vec{z}_{t+H}, a)$ at the policy action $a$). MPPI then maximizes this return over sampled self-action sequences, with opponent actions fixed by the recursion above.
 
-The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent \cite{sec:td3} or the SAC agent \cite{sec:sac} as well as the TD-MPC2 agent without the opponent-aware dynamics. During data collection we control both policies (self and opponent), therefore $a_t^{\text{opp}}$ is logged exactly in the replay buffer. The separate loss is given by
+The action of the opponent needs to be predicted with a separate network, which receives as input the current latent state and outputs the action of the opponent. This is illustrated in Figure~\ref{fig:tdmpc2_flow} b). This requires the opponent network to be trained separately to imitate the opponent's behavior; the opponent's actions are available in the replay buffer from collected episodes. In the setting in this project, we could choose between different opponents: basic weak, basic strong, the TD3 agent (Section~\ref{sec:td3}) or the SAC agent (Section~\ref{sec:sac}) as well as the TD-MPC2 agent without the opponent-aware dynamics. During data collection we control both policies (self and opponent), therefore $a_t^{\text{opp}}$ is logged exactly in the replay buffer. The separate loss is given by
 \begin{equation}
 \mathcal{L}_{\text{opp}} = \| a_t^{\text{opp}} - \pi_{\text{opp}}(\vec{z}_t) \|^2,
 \end{equation}
@@ -323,18 +323,18 @@ Figure~\ref{fig:redq_td3_rewards} shows the comparison of REDQ, TD3 with and wit
 
 \subsubsection{Overall Results}
 
-To compare all trained agents on a common scale, we evaluated them in a round-robin tournament within the archive matchmaking system using TrueSkill \cite{herbrich2006trueskill}, a Bayesian rating algorithm that updates the belief over each agent's skill level after every match outcome. The rating reported is $\mu - 3\sigma$, a conservative lower-bound estimate that accounts for residual uncertainty. Figure~\ref{fig:agent_ratings_selected} shows the TrueSkill ratings for a representative selection of agents: the two scripted baselines (weak and strong bot), the SAC agent, and the two best-performing TD-MPC2 variants -- one trained with internal opponent modelling at planning horizon $H{=}8$ and one at $H{=}6$.
+To compare all trained agents on a common scale, we evaluated them in a round-robin tournament within the archive matchmaking system using TrueSkill \cite{herbrich2006trueskill}, a Bayesian rating algorithm that updates the belief over each agent's skill level after every match outcome. The rating reported is $\mu - 3\sigma$, a conservative lower-bound estimate that accounts for residual uncertainty. Figure~\ref{fig:agent_ratings_selected} shows the TrueSkill ratings and win rates against fixed baselines for the two scripted baselines (weak and strong bot), the best SAC agent, the best TD-MPC2 agent, and the best TD3 agent.
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.8\textwidth]{figures/agent_ratings_selected.png}
-    \caption{TrueSkill ratings (mean $\pm$ $3\sigma$) for a selected set of agents. Higher is better.}
+    \includegraphics[width=1.0\textwidth]{figures/agent_ratings_selected.png}
+    \caption{TrueSkill ratings ($\mu - 3\sigma$) for a selected set of agents (left) and win rates against the scripted weak and strong bots (right). Higher is better.}
     \label{fig:agent_ratings_selected}
 \end{figure}
 
-All learned agents clearly surpass both scripted baselines. The basic strong bot achieves the lowest rating ($15.76$), which is counterintuitive given its name but reflects the fact that its deterministic, aggressive strategy is highly exploitable by learned policies; it was not designed as a competitive opponent against gradient-based agents. The basic weak bot achieves a higher rating ($25.24$) because its more conservative behavior generates fewer opportunities for the opponents to score, making it harder to accumulate decisive wins against.
+All three learned agents (SAC, TD-MPC2, and TD3) consistently beat both the strong and the weak bot, with win rates against each baseline ranging from $86\%$ to $99\%$. SAC achieves the highest TrueSkill rating of $37.32$ ($\mu = 39.78$, $\sigma = 0.82$, over 391 matches), followed by the best TD-MPC2 agent at $29.90$ ($\mu = 32.33$, $\sigma = 0.81$, trained for 16\,000 steps). TD3 reaches $21.01$ ($\mu = 23.17$, $\sigma = 0.72$), placing it close to the two scripted baselines: the weak bot at $22.46$ and the strong bot at $20.06$.
 
-Among the learned agents, SAC reaches a rating of $28.34$, demonstrating that a well-tuned model-free actor-critic is already a strong baseline in this environment. The TD-MPC2 agent trained with internal opponent modelling at $H{=}6$ achieves a comparable rating of $28.53$, while the variant at $H{=}8$ reaches $31.41$, the highest rating overall. The gain from $H{=}6$ to $H{=}8$ suggests that a longer planning horizon provides a meaningful advantage, allowing the agent to anticipate multi-step game dynamics more accurately. The overlap in confidence intervals between SAC and TD-MPC2 at $H{=}6$ indicates that, at this horizon, the model-based approach does not yet offer a statistically significant benefit over the model-free baseline. The TD-MPC2 variant at $H{=}8$ with more training steps (16\,000 vs.\ 4\,000) does, however, emerge as the clearly strongest agent.
+Win rates against the fixed baselines confirm these rankings. SAC dominates both scripted opponents with a $99\%$ win rate against the weak bot and $96\%$ against the strong bot. TD-MPC2 achieves $98\%$ against the weak bot and $90\%$ against the strong bot. TD3 obtains $86\%$ against the weak bot but $98\%$ against the strong bot, indicating that it has developed a strategy effective against the strong bot's predictable aggression while struggling to score decisively against the weak bot's passive style. Overall, SAC is the strongest agent in our comparison, with TD-MPC2 (16\,000 training steps, $H{=}8$) as the runner-up and a clear margin over TD3 and the scripted baselines.
 
 
 \section{Acknowledgements \& Data Availability}\label{sec:Acknowledgements}

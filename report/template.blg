@@ -3,47 +3,44 @@ Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
 The top-level auxiliary file: template.aux
 The style file: abbrv.bst
 Database file #1: main.bib
-Warning--I didn't find a database entry for "sec:td3"
-Warning--I didn't find a database entry for "sec:sac"
-You've used 4 entries,
+You've used 13 entries,
             2118 wiz_defined-function locations,
-            519 strings with 4365 characters,
-and the built_in function-call counts, 1031 in all, are:
-= -- 89
-> -- 61
-< -- 0
-+ -- 24
-- -- 20
-* -- 53
-:= -- 179
-add.period$ -- 10
-call.type$ -- 4
-change.case$ -- 22
+            563 strings with 6897 characters,
+and the built_in function-call counts, 5812 in all, are:
+= -- 464
+> -- 548
+< -- 1
++ -- 217
+- -- 204
+* -- 497
+:= -- 1034
+add.period$ -- 35
+call.type$ -- 13
+change.case$ -- 141
 chr.to.int$ -- 0
-cite$ -- 4
-duplicate$ -- 28
-empty$ -- 89
-format.name$ -- 20
-if$ -- 215
+cite$ -- 13
+duplicate$ -- 127
+empty$ -- 322
+format.name$ -- 204
+if$ -- 1117
 int.to.chr$ -- 0
-int.to.str$ -- 4
-missing$ -- 0
-newline$ -- 21
-num.names$ -- 8
-pop$ -- 40
+int.to.str$ -- 13
+missing$ -- 6
+newline$ -- 63
+num.names$ -- 26
+pop$ -- 184
 preamble$ -- 1
-purify$ -- 18
+purify$ -- 128
 quote$ -- 0
-skip$ -- 30
+skip$ -- 96
 stack$ -- 0
-substring$ -- 20
-swap$ -- 4
-text.length$ -- 0
+substring$ -- 117
+swap$ -- 18
+text.length$ -- 1
 text.prefix$ -- 0
 top$ -- 0
-type$ -- 16
+type$ -- 52
 warning$ -- 0
-while$ -- 8
-width$ -- 5
-write$ -- 38
-(There were 2 warnings)
+while$ -- 29
+width$ -- 15
+write$ -- 126
