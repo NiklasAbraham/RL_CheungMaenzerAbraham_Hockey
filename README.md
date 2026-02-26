@@ -92,4 +92,6 @@ Jannik Mänzer:
 - Archive & Self-play Infrastructure
 
 Ansel Cheung:
-- TODO
+- TD3
+- PER
+- REDQ-TD3
