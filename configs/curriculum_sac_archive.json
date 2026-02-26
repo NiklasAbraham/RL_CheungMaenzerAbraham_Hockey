@@ -2,6 +2,16 @@
   "curriculum": {
     "phases": [
       {
+        "name": "strong",
+        "episodes": 10000,
+        "environment": {"mode": "NORMAL", "keep_mode": true},
+        "opponent": {
+          "type": "basic_strong"
+        },
+        "reward_shaping": null,
+        "clear_buffer": false
+      },
+      {
         "name": "archive",
         "episodes": 200000,
         "environment": {"mode": "NORMAL", "keep_mode": true},
@@ -39,7 +49,6 @@
       "learn_alpha": true,
       "noise": "normal",
       "max_episode_steps": 250
-    },
-    "checkpoint_path": "/home/stud449/RL_CheungMaenzerAbraham_Hockey/archive/agents/0050_SAC_run_lr1e03_bs256_h128_128_128_4c1f51eb_20260224_035023_ep200000_2026-02-24_16-37-44/checkpoint.pt"
+    }
   }
 }
