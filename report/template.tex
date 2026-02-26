@@ -47,13 +47,10 @@
 
 \subsection{Environment Overview}
 
-The Laser Hockey environment \cite{hockeyenv_github} is a custom reinforcement learning benchmark built on the Gymnasium Python API and powered by the Box2D physics engine. In this multi agent setting, two agents each control a hockey stick and compete to score goals by striking a puck into the opponent's net. The environment is designed such that both agents receive identical but mirrored observations at each timestep, which eliminates the need for side specific learning strategies.
+The Laser Hockey environment \cite{hockeyenv_github} is a custom multi-agent reinforcement learning benchmark built upon the Gymnasium API and the Box2D physics engine. In this environment, two agents control hockey sticks and compete to score goals by hitting a puck into the opponent's net. Both agents receive mirrored observations at each timestep, simplifying the learning process by always letting the agent view itself as “player 1.”
 
-At each timestep, the agent receives an 18 dimensional continuous state vector that captures the complete game state. This observation includes the position $x_1, y_1$ and orientation $\theta_1$ of both players relative to the center of the field, along with their linear $v_{x,1}, v_{y,1}$ and angular $\omega_1$ velocities. The state also contains the puck's position $x_p, y_p$ and velocity $v_{x,p}, v_{y,p}$, as well as time remaining for each player's puck possession $t_{\mathrm{puck},1}, t_{\mathrm{puck},2}$ in keep mode, which ranges from 0 to 15 steps. Player 1 refers to the agent currently being controlled, while Player 2 represents the opponent. The observation structure ensures that when the viewpoint switches during training, the indices are automatically mirrored so that each agent always perceives itself as Player 1, maintaining a consistent learning perspective.
+The observation for each agent is a continuous state vector that describes the positions, velocities, and other relevant properties of the players and puck. Actions are represented as a continuous vector controlling the stick's movement, rotation, and puck release. Rewards are sparse and primarily based on scoring goals, with a small dense component for proximity to the puck to encourage exploration during training. Episodes end with either a goal or timeout. The environment supports both scripted bots and learning agents, and is designed to encourage robust, general strategies in a competitive, continuous control setting.
 
-The action space consists of a 4 dimensional continuous vector that controls the agent's stick. The first two components specify forces applied for stick movement in the x and y directions, while the third component controls the torque applied to adjust the stick's angle. The fourth component is a thresholded scalar that determines whether to release the puck when the agent is in possession. Reward feedback in this environment is sparse and goal oriented. An agent receives a reward of +10 for scoring a goaland 0 for a draw. Additionally, there is a small reward signal for maintaining proximity to the puck, which helps guide exploration during early learning stages. Each episode begins with all entities positioned at the center of the field and terminates when a goal is scored or a timeout occurs. The environment supports both scripted opponents, such as the BasicOpponent, and learning agents as adversaries, making it a versatile and challenging benchmark for continuous control and multi agent reinforcement learning research.
-
-\newpage
 \section{Method}\label{sec:Method}
 
 \subsection{Self-Play Infrastructure - Jannik Mänzer}\label{sec:selfplay_section}
@@ -387,27 +384,12 @@ As a result, training stagnated: the total episode reward remained near zero
 and the agent never discovered that winning is achievable.
 
 To verify this empirically, we simulated 100 episodes with uniformly random
-actions for both players and analysed the resulting reward distribution.
-Figure~\ref{fig:reward_sparse_overview} shows the outcome: regardless of
-whether an episode ends in a player-1 win, player-2 win, or draw, the
-per-step rewards are overwhelmingly clustered at zero.  A thin spike at
-$+10$ (or $-10$) appears only for the single terminal step of decided
-episodes; the rest of each episode contributes essentially nothing to
-the value-function learning signal.
-
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=\textwidth]{figures/reward_sparse_overview.png}
-    \caption{%
-        Reward distribution across 100 random-play episodes, separated by
-        outcome.
-        \textbf{Left:} per-step reward density; almost all steps yield
-        rewards near zero.
-        \textbf{Right:} episode total reward; winning episodes receive their
-        entire positive return from the single terminal $+10$ step.
-    }
-    \label{fig:reward_sparse_overview}
-\end{figure}
+actions for both players and analysed the resulting reward distribution:
+regardless of whether an episode ends in a player-1 win, player-2 win, or
+draw, the per-step rewards are overwhelmingly clustered at zero.  A thin
+spike at $+10$ (or $-10$) appears only for the single terminal step of
+decided episodes; the rest of each episode contributes essentially nothing
+to the value-function learning signal.
 
 \subsubsection{Solution: Reward Backpropagation}
 
