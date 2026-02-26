@@ -278,16 +278,16 @@ REDQ \cite{chen2021randomized} can be used to take TD3 to the next level.
 
 Trick 1: \textbf{Sample Efficiency via Update-toData (UTD)}. REDQ aims for a high Update-to-Data (UTD) ratio $G \gg 1$, allowing the agent to perform many gradient steps per environment interaction. Using a high UTD ratio on vanilla TD3 make the Actor and Critics learn from the same small batch of transitions aggressively, causing approximation errors to compound and overestimation to occur. 
 
-Trick 2: \textbf{Ensemble Minimum}. In order to continue to fix the overestimation problem, REDQ uses an even more pessimistic estimation. REDQ maintains an ensemble of $N$ Q-functions (Critics). For each update, using a minimum of all Critics might cause large overestimation bias. Instead, a random subset $\mathcal{M}$ of size $M$ is sampled to compute the target:
+Trick 2: \textbf{Ensemble Minimum}. In order to continue to fix the overestimation problem, REDQ uses an even more pessimistic estimation. REDQ maintains an ensemble of $N$ Q-functions (Critics). For each update, using a minimum of all Critics might cause large overestimation bias. Instead, a random subset $\mathcal{M}$ of size $M$ is sampled to compute the target. $\theta$ is the policy parameters, $\phi_i, i=1, \dots, N$ is Q-function parameters.
     \begin{equation}
-        y = r + \gamma \left( \min_{j \in \mathcal{M}} Q_{\theta_{j, targ}}(s', a') - \alpha \log \pi_\phi(a'|s') \right)
+        y = r + \gamma \left( \min_{j \in \mathcal{M}} Q_{\phi_{j, targ}}(s', \tilde{a}') - \alpha \log \pi_\theta(\tilde{a}'|s') \right), \quad \tilde{a}' \sim \pi_\theta(\cdot | s')
     \end{equation}
 
 This single target is used to update all $N$ critics. Using $N$ Critics with different initializations allows the approximation error to be even more uncorelated compared to TD3 with 2 Critics.
 
 Trick 3: \textbf{Policy Update}. The actor is updated to maximize the mean Q-value across all $N$ Critics. The mean of all $N$ Critics provides a much smoother and reliable signal for the Actor to follow.
     \begin{equation}
-        \nabla_\phi J(\phi) = \nabla_\phi \mathbb{E} \left[ \frac{1}{N} \sum_{i=1}^N Q_{\theta_i}(s, \pi_\phi(s)) - \alpha \log \pi_\phi(a|s) \right]
+        \nabla_\theta \frac{1}{|B|}\sum_{s\in B} \left( \frac{1}{N} \sum_{i=1}^N Q_{\phi_i}(s, \tilde{a}_\theta(s)) - \alpha \log \pi_\phi(\tilde{a}_\theta(s)|s) \right), \quad \tilde{a}_\theta(s) \sim \pi_\theta(\cdot|s)
     \end{equation}
 
 \section{Results}\label{sec:Results}
