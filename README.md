@@ -1,4 +1,4 @@
-# RL Hockey Project - Cheung Maenzer Abraham
+# RL Hockey Project - Cheung Maenzer Abraham - TheRewardWasALie
 
 This repository contains the reinforcement learning implementation for the Hockey environment.
 
