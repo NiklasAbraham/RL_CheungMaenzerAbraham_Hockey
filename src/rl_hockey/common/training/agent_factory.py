@@ -54,6 +54,7 @@ def create_agent(
     deterministic: bool = False,
     device: str = None,
     config_path: str = None,
+    inference_mode: bool = False,
 ) -> Agent:
     agent_hyperparams = agent_config.hyperparameters.copy()
     agent_hyperparams.update(
@@ -184,6 +185,7 @@ def create_agent(
             opponent_cloning_steps=opponent_cloning_steps,
             opponent_cloning_samples=opponent_cloning_samples,
             opponent_agents=opponent_agents,
+            inference_mode=inference_mode,
         )
     elif agent_config.type == "TDMPC2_REPO":
         # TD-MPC2 reference repo wrapper specific parameters
@@ -297,8 +299,14 @@ def create_agent(
         raise ValueError(f"Unknown agent type: {agent_config.type}")
 
     if checkpoint_path is not None:
-        agent.load(checkpoint_path)
+        if agent_config.type == "TDMPC2" and inference_mode:
+            agent.load(checkpoint_path, inference_mode=True)
+        else:
+            agent.load(checkpoint_path)
     elif agent_config.checkpoint_path is not None:
-        agent.load(agent_config.checkpoint_path)
+        if agent_config.type == "TDMPC2" and inference_mode:
+            agent.load(agent_config.checkpoint_path, inference_mode=True)
+        else:
+            agent.load(agent_config.checkpoint_path)
 
     return agent

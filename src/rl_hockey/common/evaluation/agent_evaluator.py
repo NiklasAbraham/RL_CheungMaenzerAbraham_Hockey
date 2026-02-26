@@ -155,8 +155,13 @@ def _load_agent_for_eval(
         type=agent_config_dict["type"],
         hyperparameters=agent_config_dict["hyperparameters"],
     )
-    agent = create_agent(agent_config, state_dim, action_dim, {})
-    agent.load(agent_path)
+    agent = create_agent(
+        agent_config, state_dim, action_dim, {}, inference_mode=True
+    )
+    if agent_config.type == "TDMPC2":
+        agent.load(agent_path, inference_mode=True)
+    else:
+        agent.load(agent_path)
     if hasattr(agent, "q_network"):
         agent.q_network.eval()
     if hasattr(agent, "q_network_target"):

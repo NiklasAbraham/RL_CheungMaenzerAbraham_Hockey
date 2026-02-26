@@ -1,5 +1,3 @@
-# Ensemble of Q-functions.
-
 import torch
 import torch.nn as nn
 

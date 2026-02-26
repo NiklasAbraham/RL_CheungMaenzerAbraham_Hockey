@@ -65,7 +65,6 @@ class DynamicsWithOpponentWrapper(torch.nn.Module):
     def forward(self, latent, action):
         batch_size = latent.shape[0] if latent.dim() > 1 else 1
 
-        # Mode 1: per-trajectory batch assignment (planner sets this)
         if (
             self._batch_opponent_ids is not None
             and self._batch_opponent_ids.shape[0] == batch_size
@@ -80,11 +79,9 @@ class DynamicsWithOpponentWrapper(torch.nn.Module):
                         opponent_action[mask] = pred.to(opponent_action.dtype)
             return self.dynamics_opponent(latent, action, opponent_action)
 
-        # Mode 2: single forced opponent
         if self.force_opponent_id is not None:
             opponent_id = self.force_opponent_id
         elif self.opponent_ids:
-            # Mode 3: random per-forward fallback
             opponent_id = self.opponent_ids[
                 torch.randint(0, len(self.opponent_ids), (1,)).item()
             ]
@@ -208,12 +205,14 @@ class TDMPC2(Agent):
         opponent_cloning_steps=20,
         opponent_cloning_samples=512,
         opponent_agents=None,
+        inference_mode=False,
     ):
         super().__init__()
         self.obs_dim = obs_dim
         self.action_dim = action_dim
         self.latent_dim = latent_dim
 
+        self.inference_mode = inference_mode
         self.opponent_simulation_enabled = opponent_simulation_enabled
         self.opponent_cloning_frequency = opponent_cloning_frequency
         self.opponent_cloning_steps = opponent_cloning_steps
@@ -381,7 +380,7 @@ class TDMPC2(Agent):
         self.opponent_cloning_buffers = {}
         self.loaded_opponent_agents = {}
         self.dynamics_wrapper = None
-        if self.opponent_simulation_enabled:
+        if self.opponent_simulation_enabled and not self.inference_mode:
             self._initialize_opponent_simulation()
 
         fused_available = "fused" in torch.optim.Adam.__init__.__code__.co_varnames
@@ -846,7 +845,6 @@ class TDMPC2(Agent):
             if hasattr(self.buffer, "sample_sequences") and self.horizon > 1:
                 seq = self.buffer.sample_sequences(batch_size, self.horizon)
                 if seq is not None:
-                    # PER buffer returns 6-tuple; uniform buffer returns 4-tuple
                     if len(seq) == 6:
                         (
                             obs_seq,
@@ -906,7 +904,6 @@ class TDMPC2(Agent):
                         horizon, device=self.device, dtype=torch.float32
                     )
 
-                    # Assign one opponent per batch element, fixed for all horizon steps
                     if (
                         self.opponent_simulation_enabled
                         and self.opponent_cloning_networks
@@ -919,7 +916,6 @@ class TDMPC2(Agent):
                     else:
                         batch_opp_ids = None
 
-                    # Per-sequence consistency loss accumulator; shape (B,)
                     consistency_loss_per_seq = torch.zeros(
                         batch_size_actual, device=self.device
                     )
@@ -953,7 +949,6 @@ class TDMPC2(Agent):
                                 z_next_pred = self.dynamics(z_pred, a_t)
                         zs[t + 1] = z_next_pred
 
-                        # Per-sequence MSE for PER priority; (B,)
                         per_sample_mse = F.mse_loss(
                             z_next_pred, z_target, reduction="none"
                         ).mean(dim=-1)
@@ -977,7 +972,6 @@ class TDMPC2(Agent):
                         q_preds_all = self.q_ensemble(_zs_flat, _actions_flat)
 
                     rewards_flat = rewards_seq.permute(1, 0, 2).reshape(-1, 1)
-                    # reward_loss_per_sample: (H*B, 1) -> per-seq: (B,)
                     reward_loss_per_sample = soft_ce(
                         reward_preds, rewards_flat, self.num_bins, self.vmin, self.vmax
                     )
@@ -989,7 +983,6 @@ class TDMPC2(Agent):
                     ).sum(dim=0) / horizon
 
                     td_targets_flat = td_targets.permute(1, 0, 2).reshape(-1, 1)
-                    # value_loss_per_seq: (B,)
                     value_loss_per_seq = torch.zeros(
                         batch_size_actual, device=self.device
                     )
@@ -1009,7 +1002,6 @@ class TDMPC2(Agent):
                     with torch.amp.autocast("cuda", enabled=self.use_amp):
                         termination_pred_logits = self.termination(zs_bh)
                     termination_target = dones_seq.reshape(-1, 1)
-                    # termination_loss_per_seq: (B,)
                     termination_loss_per_seq = (
                         F.binary_cross_entropy_with_logits(
                             termination_pred_logits,
@@ -1020,7 +1012,6 @@ class TDMPC2(Agent):
                         .mean(dim=0)
                     )
 
-                    # Scalar losses for logging
                     consistency_loss = consistency_loss_per_seq.mean()
                     reward_loss = reward_loss_per_seq.mean()
                     value_loss = value_loss_per_seq.mean()
@@ -1035,7 +1026,6 @@ class TDMPC2(Agent):
                     "The agent cannot learn a consistent world model without sequences."
                 )
 
-            # Apply IS weights when using PER, otherwise uniform mean
             if per_weights is not None:
                 w = per_weights.view(-1)
                 total_loss = (
@@ -1086,7 +1076,6 @@ class TDMPC2(Agent):
             if hasattr(torch.compiler, "cudagraph_mark_step_begin"):
                 torch.compiler.cudagraph_mark_step_begin()
 
-            # Update PER priorities with aggregate per-sequence loss
             if per_ep_indices is not None and isinstance(
                 self.buffer, TDMPC2PrioritizedReplayBuffer
             ):
@@ -1283,7 +1272,6 @@ class TDMPC2(Agent):
         else:
             pi_loss.backward()
 
-            # Compute gradient norm using helper, then clip
             grad_norm_policy = self._grad_norm(self.policy.parameters())
             torch.nn.utils.clip_grad_norm_(
                 self.policy.parameters(), max_norm=self.grad_clip_norm
@@ -1342,8 +1330,8 @@ class TDMPC2(Agent):
 
         torch.save(checkpoint, path)
 
-    def load(self, path):
-        """Load agent"""
+    def load(self, path, inference_mode=False):
+        """Load agent. If inference_mode=True, skip loading opponent cloning networks and opponent agents."""
         checkpoint = torch.load(path, map_location="cpu")
         checkpoint_opponent_simulation = checkpoint.get(
             "opponent_simulation_enabled", False
@@ -1473,7 +1461,7 @@ class TDMPC2(Agent):
         if "training_step_counter" in checkpoint:
             self.training_step_counter = checkpoint["training_step_counter"]
         if checkpoint_opponent_simulation and self.opponent_simulation_enabled:
-            if "opponent_cloning_networks" in checkpoint:
+            if not inference_mode and "opponent_cloning_networks" in checkpoint:
                 opponent_cloning_states = checkpoint["opponent_cloning_networks"]
                 hidden_dim = self.hidden_dim_dict.get("policy", [256, 256, 256])
                 fused_available = (
@@ -1580,14 +1568,12 @@ class TDMPC2(Agent):
         if not self.loaded_opponent_agents or not self.opponent_cloning_buffers:
             return
 
-        # Prepare opponent obs for running the reference opponents
         if isinstance(obs_agent2, torch.Tensor):
             opp_np = obs_agent2.cpu().numpy()
         else:
             opp_np = np.asarray(obs_agent2, dtype=np.float32)
         opp_flat = opp_np.reshape(-1) if opp_np.size > 0 else opp_np
 
-        # Prepare agent obs for storing in the cloning buffer
         if isinstance(obs_agent1, torch.Tensor):
             agent_np = obs_agent1.cpu().numpy()
         else:
@@ -1623,7 +1609,6 @@ class TDMPC2(Agent):
                 else:
                     continue
 
-                # Store agent-perspective obs with opponent action
                 self.opponent_cloning_buffers[opponent_id].add(agent_flat, action)
 
     def _train_opponent_cloning(self):

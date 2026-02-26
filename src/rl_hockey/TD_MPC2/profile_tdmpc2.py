@@ -37,7 +37,6 @@ def load_agent_from_config(config_path: str, device: str = "cuda"):
         device=device,
     )
 
-    # Set all networks to evaluation mode for consistent profiling
     if hasattr(agent, "encoder"):
         agent.encoder.eval()
     if hasattr(agent, "dynamics"):
@@ -68,7 +67,6 @@ def profile_single_action(
     for _ in range(num_warmup):
         _ = agent.act(obs.cpu().numpy())
 
-    # Profile
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,
@@ -84,7 +82,6 @@ def profile_single_action(
             for _ in range(num_iterations):
                 _ = agent.act(obs.cpu().numpy())
 
-    # Extract results immediately and delete profiler
     print(f"\nProfiled {num_iterations} action selections")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -92,8 +89,7 @@ def profile_single_action(
         row_limit=30,
     )
     print(table_str)
-    
-    # Return table string only, not profiler object
+
     return table_str
 
 
@@ -115,7 +111,6 @@ def profile_batch_action(
     for _ in range(num_warmup):
         _ = agent.act_batch(obs_batch.cpu().numpy())
 
-    # Profile
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,
@@ -131,7 +126,6 @@ def profile_batch_action(
             for _ in range(num_iterations):
                 _ = agent.act_batch(obs_batch.cpu().numpy())
 
-    # Extract results immediately
     print(f"\nProfiled {num_iterations} batch action selections")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -158,7 +152,6 @@ def profile_planning_step(
     for _ in range(num_warmup):
         _ = agent.planner.plan(z.squeeze(0), return_mean=True)
 
-    # Profile planning with detailed breakdown
     with torch.profiler.profile(
         activities=[
             torch.profiler.ProfilerActivity.CPU,
@@ -200,7 +193,6 @@ def profile_model_forward_passes(
     latent_dim = agent.latent_dim
     action_dim = agent.action_dim
 
-    # Create test data
     obs = torch.randn(obs_dim).to(device)
     latent = torch.randn(latent_dim).to(device)
     action = torch.randn(action_dim).to(device)
@@ -373,7 +365,6 @@ def profile_training_step(
 
     device = agent.device
 
-    # Set networks to training mode
     if hasattr(agent, "encoder"):
         agent.encoder.train()
     if hasattr(agent, "dynamics"):
@@ -420,7 +411,6 @@ def profile_training_step(
                 with torch.profiler.record_function("train_step"):
                     _ = agent.train(steps=1)
 
-    # Extract results immediately
     print(f"\nProfiled {num_iterations} training steps")
     print("\nTop time-consuming operations:")
     table_str = prof.key_averages().table(
@@ -429,7 +419,6 @@ def profile_training_step(
     )
     print(table_str)
 
-    # Print memory transfer operations (CPU-GPU transfers)
     print("\n" + "=" * 80)
     print("CPU-GPU Transfer Operations (memcpy, MemcpyHtoD, etc.):")
     print("=" * 80)
@@ -451,7 +440,6 @@ def profile_training_step(
     ]
     if transfer_ops:
         print("\nTransfer-related operations (sorted by CPU time):")
-        # Sort by CPU time and show top transfer operations
         transfer_ops_sorted = sorted(
             transfer_ops, key=lambda x: x.cpu_time_total, reverse=True
         )
@@ -468,7 +456,6 @@ def profile_training_step(
         print("Transfer overhead may be included in tensor creation operations.")
         print("Look for operations with high CPU time but low CUDA time.")
 
-    # Print memory usage
     print("\n" + "=" * 80)
     print("Memory Usage:")
     print("=" * 80)
@@ -479,7 +466,6 @@ def profile_training_step(
         )
     )
 
-    # Set back to eval mode
     if hasattr(agent, "encoder"):
         agent.encoder.eval()
     if hasattr(agent, "dynamics"):
@@ -510,23 +496,18 @@ def main(
     gpu_id: int = None,
 ):
     """Main profiling function."""
-    # Handle GPU selection
     if device is None:
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
     if device != "cpu" and torch.cuda.is_available():
         if gpu_id is not None:
-            # Use specified GPU
             torch.cuda.set_device(gpu_id)
             device = f"cuda:{gpu_id}"
         else:
-            # Use default GPU (usually 0)
             device = "cuda"
 
-        # Clear GPU cache before profiling to ensure clean state
         torch.cuda.empty_cache()
 
-        # Print GPU information
         current_device = torch.cuda.current_device()
         print(f"Using device: {device}")
         print(f"GPU {current_device}: {torch.cuda.get_device_name(current_device)}")
@@ -534,7 +515,6 @@ def main(
             f"GPU Memory: {torch.cuda.get_device_properties(current_device).total_memory / 1e9:.1f} GB"
         )
 
-        # Check available GPU memory
         if torch.cuda.is_available():
             allocated = torch.cuda.memory_allocated(current_device) / 1e9
             reserved = torch.cuda.memory_reserved(current_device) / 1e9
@@ -544,7 +524,6 @@ def main(
     else:
         print(f"Using device: {device}")
 
-    # Load agent
     print(f"\nLoading agent from config: {config_path}")
     agent = load_agent_from_config(config_path, device=device)
 
@@ -560,10 +539,8 @@ def main(
     print(f"  num_samples: {num_samples}")
     print(f"  num_iterations: {agent.num_iterations}")
 
-    # Create output directory and verify it's writable
     try:
         os.makedirs(output_dir, exist_ok=True)
-        # Test write access
         test_file = os.path.join(output_dir, ".write_test")
         with open(test_file, "w") as f:
             f.write("test")
@@ -574,24 +551,19 @@ def main(
         print(f"Error: {e}")
         raise
 
-    # Run profiling
     print("\n" + "=" * 80)
     print("STARTING PROFILING")
     print("=" * 80)
 
-    # Collect all profiling results
     profiling_results = []
 
-    # Helper to clear GPU cache and force garbage collection
     def clear_gpu_cache():
         if device != "cpu" and torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
-            # Force Python garbage collection to release profiler objects
             gc.collect()
             torch.cuda.empty_cache()
-    
-    # Helper to print memory status
+
     def print_memory_status():
         if device != "cpu" and torch.cuda.is_available():
             current_device = torch.cuda.current_device()
@@ -601,7 +573,6 @@ def main(
             free = total - reserved
             print(f"GPU Memory: {allocated:.2f} GB allocated, {reserved:.2f} GB reserved, {free:.2f} GB free")
 
-    # 1. Profile single action
     try:
         clear_gpu_cache()
         print_memory_status()
@@ -617,7 +588,6 @@ def main(
         profiling_results.append(("SINGLE ACTION SELECTION", f"ERROR: {str(e)}"))
         clear_gpu_cache()
 
-    # 2. Profile batch action
     try:
         print("\n[2/5] Profiling batch action selection...")
         table2 = profile_batch_action(
@@ -631,7 +601,6 @@ def main(
         profiling_results.append(("BATCH ACTION SELECTION", f"ERROR: {str(e)}"))
         clear_gpu_cache()
 
-    # 3. Profile planning details
     try:
         print("\n[3/5] Profiling planning step...")
         table3 = profile_planning_step(
@@ -645,7 +614,6 @@ def main(
         profiling_results.append(("PLANNING STEP", f"ERROR: {str(e)}"))
         clear_gpu_cache()
 
-    # 4. Profile individual models (use fewer iterations to save memory)
     try:
         print("\n[4/5] Profiling model forward passes...")
         model_results = profile_model_forward_passes(
@@ -660,7 +628,6 @@ def main(
         profiling_results.append(("MODEL FORWARD PASSES", f"ERROR: {str(e)}"))
         clear_gpu_cache()
 
-    # 5. Profile training step
     try:
         print("\n[5/5] Profiling training step...")
         table4 = profile_training_step(
@@ -677,7 +644,6 @@ def main(
         profiling_results.append(("TRAINING STEP", f"ERROR: {str(e)}"))
         clear_gpu_cache()
 
-    # Save all results to a summary file
     summary_path = os.path.join(output_dir, "profiling_summary.txt")
     summary_path_abs = os.path.abspath(summary_path)
     print(f"\nSaving profiling summary to: {summary_path_abs}")
@@ -732,7 +698,6 @@ def main(
         import traceback
 
         traceback.print_exc()
-        # Try to save at least a minimal error report
         try:
             error_report_path = os.path.join(output_dir, "profiling_error.txt")
             with open(error_report_path, "w") as f:

@@ -1,5 +1,3 @@
-# Policy network.
-
 import torch
 import torch.nn as nn
 

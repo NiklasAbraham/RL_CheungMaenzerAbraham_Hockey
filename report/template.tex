@@ -360,6 +360,62 @@ The episode logs of the TD-MPC2 agent with the horizon 4 without the opponent aw
     \label{fig:episode_logs}
 \end{figure*}
 
+\subsection{TD-MPC2 Profiling Summary}\label{sec:profiling}
+
+Profiling was run on a single NVIDIA GeForce RTX 2080 Ti (11.3\,GB) with 50 iterations. Table~\ref{tab:profiling_setup} gives the agent and run configuration. Table~\ref{tab:profiling_action} summarizes single-step action selection cost. Table~\ref{tab:profiling_forward} reports CPU and CUDA time for each model forward pass (30 calls each).
+
+\begin{table}[h]
+\centering
+\caption{Profiling run setup.}
+\label{tab:profiling_setup}
+\begin{tabular}{ll}
+\hline
+\textbf{Parameter} & \textbf{Value} \\
+\hline
+Device & CUDA (NVIDIA GeForce RTX 2080 Ti, 11.3\,GB) \\
+Observation dimension & 18 \\
+Action dimension & 8 \\
+Latent dimension & 512 \\
+Horizon $H$ & 16 \\
+MPPI samples & 512 \\
+MPPI iterations & 6 \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Single action selection: total CPU and CUDA time per call.}
+\label{tab:profiling_action}
+\begin{tabular}{lc}
+\hline
+\textbf{Metric} & \textbf{Time} \\
+\hline
+Self CPU total & 8.75\,s \\
+Self CUDA total & 2.08\,s \\
+\hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Model forward pass: CPU and CUDA time over 30 calls.}
+\label{tab:profiling_forward}
+\begin{tabular}{lcc}
+\hline
+\textbf{Component} & \textbf{CPU total} & \textbf{CUDA total} \\
+\hline
+Encoder & 1.13\,s & 0.74\,ms \\
+Dynamics (single) & 1.15\,s & 0.91\,ms \\
+Dynamics (batch) & 1.16\,s & 6.57\,ms \\
+Reward (batch) & 4.10\,s & 19.0\,ms \\
+Q-ensemble (batch) & 72.8\,ms & 15.5\,ms \\
+\hline
+\end{tabular}
+\end{table}
+
+\textbf{Errors during profiling.} Batch action selection failed with a CUDAGraphs error (tensor overwritten by a subsequent run). The planning step and the training step could not be profiled: planning failed with CUDA out of memory (GPU fully used after single-action profiling); the training step produced an empty error.
+
 \subsection{Sparse Reward Problem and Reward Backpropagation}\label{sec:reward_backprop}
 
 \subsubsection{Problem: Reward Stagnation at Zero}
