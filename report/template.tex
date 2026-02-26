@@ -48,8 +48,7 @@
 
 \subsection{Environment Overview}
 
-The Laser Hockey environment \cite{hockeyenv_github} is a custom multi-agent reinforcement learning benchmark built upon the Gymnasium API and the Box2D physics engine. In this environment, two agents control hockey sticks and compete to score goals by hitting a puck into the opponent's net. Both agents receive mirrored observations at each timestep, simplifying the learning process by always letting the agent view itself as “player 1.”
-
+The Laser Hockey environment \cite{hockeyenv_github} is a custom multi-agent reinforcement learning benchmark built upon the Gymnasium API and the Box2D physics engine. In this environment, two agents control hockey sticks and compete to score goals by hitting a puck into the opponent's net. Both agents receive mirrored observations at each timestep, simplifying the learning process by always letting the agent view itself as “player 1".
 The observation for each agent is a continuous state vector that describes the positions, velocities, and other relevant properties of the players and puck. Actions are represented as a continuous vector controlling the stick's movement, rotation, and puck release. Rewards are sparse and primarily based on scoring goals, with a small dense component for proximity to the puck to encourage exploration during training. Episodes end with either a goal or timeout. The environment supports both scripted bots and learning agents, and is designed to encourage robust, general strategies in a competitive, continuous control setting.
 
 \section{Method}\label{sec:Method}

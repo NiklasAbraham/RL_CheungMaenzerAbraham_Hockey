@@ -76,7 +76,41 @@ Use absolute imports everywhere in the codebase to avoid import issues, e.g., `f
 
 ## Running the Agents
 
-### TD-MPC
+### TD-MPC2
+
+**Requirements**
+
+- A recent CUDA version is required (PyTorch will use it if available).
+- On the cluster, use at least a **GPU 2080 Ti** (or better) for inference.
+
+**Checkpoint**
+
+The TD-MPC2 checkpoint (about 120 MB) is provided in the Ilias submission. A Drive download link is also available: **[paste Drive link here]**.
+
+Place the checkpoint in the correct folder under `models/`:
+
+- Put the checkpoint file (e.g. `TDMPC2_run_..._ep025646.pt`) in **`models/tdmpc2/models/`**.
+- If you use the run directory layout (e.g. from training), the config is auto-detected from **`models/tdmpc2/configs/`** when the checkpoint lies under `models/tdmpc2/models/`.
+
+**Run locally**
+
+From the project root:
+
+```bash
+conda activate rl-hockey
+python src/rl_hockey/TD_MPC2/run_tdmpc.py
+```
+
+By default the script uses the checkpoint path set in `run_tdmpc.py` (see `if __name__ == "__main__"`). Edit that path if your checkpoint is elsewhere, or call `main(checkpoint_path="models/tdmpc2/models/your_checkpoint.pt", N=100, ...)` from your own script.
+
+**Run on the cluster (sbatch)**
+
+Use the provided sbatch script and set the checkpoint path in it:
+
+```bash
+# Edit CHECKPOINT_PATH (and optionally N, WEAK_OPPONENT) in the script, then:
+sbatch src/rl_hockey/TD_MPC2/run_tdmpc2.sbatch
+```
 
 ### SAC
 To run the SAC agent, execute the `run_sac.py` script located in `src/rl_hockey/sac/`:
@@ -108,7 +142,8 @@ The corresponding model checkpoint and the configuration file are located in the
 ## Author Contributions
 
 Niklas Abraham:
-- TODO
+- TDMPC 2
+- Plotting, curriculum support
 
 Jannik Mänzer:
 - SAC & Extensions
