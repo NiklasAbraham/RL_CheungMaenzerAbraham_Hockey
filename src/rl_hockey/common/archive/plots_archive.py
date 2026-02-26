@@ -815,6 +815,6 @@ if __name__ == "__main__":
         ],
         output_filename="agent_ratings_selected.png",
         show_match_count=False,
-        win_rates_against_weak={"TDMPC2": 98.0, "SAC": 98.8, "TD3": 85.6},
-        win_rates_against_strong={"TDMPC2": 90.4, "SAC": 95.6, "TD3": 98.4},
+        win_rates_against_weak={"TDMPC2": 98.0, "SAC": 98.8, "REDQ-TD3": 85.6},
+        win_rates_against_strong={"TDMPC2": 90.4, "SAC": 95.6, "REDQ-TD3": 98.4},
     )
